@@ -40,7 +40,7 @@ like depends on one setting.
 
 ### Without a domain of your own
 
-You get `myapp.203-0-113-7.sslip.io` — the server's own IP, spelled out.
+You get `myapp.203-0-113-7.sslip.io`, the server's own IP spelled out.
 [sslip.io](https://sslip.io) resolves any such name to the address inside it, so this
 works with no DNS setup at all.
 
@@ -92,10 +92,10 @@ not exist.
 
 Statuses you will see:
 
-- **Points here** — correct, and it will be routed.
-- **Points somewhere else** — the name resolves, but not to this server.
-- **Doesn't point anywhere yet** — no record found. Normal for the first few minutes.
-- **Checking…** — no answer from any resolver, usually a network problem on the server.
+- **Points here**: correct, and it will be routed.
+- **Points somewhere else**: the name resolves, but not to this server.
+- **Doesn't point anywhere yet**: no record found. Normal for the first few minutes.
+- **Checking…**: no answer from any resolver, usually a network problem on the server.
 
 ## The dashboard's own address
 

@@ -36,7 +36,7 @@ SQLite through `bun:sqlite`, with numbered migrations applied at startup. The da
 holds projects, services, deploys, domains, volumes, links, sessions, tokens, settings
 and the rolled-up traffic figures.
 
-Secrets — database passwords, repository tokens, environment variable values — are
+Secrets (database passwords, repository tokens, environment variable values) are
 encrypted with AES-256-GCM using a key in `/var/lib/derailed/secret.key`. API tokens
 are stored only as SHA-256 hashes.
 
@@ -75,8 +75,8 @@ whole config from the database and pushes it to the admin API. No incremental pa
 so the config cannot drift, and the synthesis is a pure function that is
 snapshot-tested without Docker.
 
-A hostname is only included once there is something to send traffic to, and — unless it
-is an sslip.io style address — once DNS actually points here, so Caddy never asks for a
+A hostname is only included once there is something to send traffic to, and, unless it
+is an sslip.io style address, once DNS actually points here, so Caddy never asks for a
 certificate it cannot get.
 
 ## Live updates

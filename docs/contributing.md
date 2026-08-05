@@ -34,7 +34,7 @@ is in `packages/shared`.
 
 ## Conventions
 
-**Comments explain why.** Not what the line does — the line does that. If something is
+**Comments explain why.** Not what the line does; the line does that. If something is
 written in a surprising way, the comment says what went wrong when it was written the
 obvious way. Several comments in this codebase are incident reports, and they are the
 most valuable ones.
@@ -57,7 +57,7 @@ that was null, a status breakdown that added up to more than the whole.
 ## Style
 
 Biome handles formatting and linting; run `bun run lint` before pushing. TypeScript
-strict mode is on and there are no `any` escapes in the codebase — please keep it that
+strict mode is on and there are no `any` escapes in the codebase. Please keep it that
 way.
 
 Commit messages describe the change and, where it matters, the reasoning. The history

@@ -13,7 +13,7 @@ export interface ServerStats {
   uptimeSeconds: number;
   cpu: {
     cores: number;
-    /** 0–100, across all cores. */
+    /** 0 to 100, across all cores. */
     percent: number;
     load1: number;
   };

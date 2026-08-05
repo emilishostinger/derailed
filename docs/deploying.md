@@ -30,14 +30,14 @@ in the world also keep an `index.html` at their root.
 
 On an app's **Settings** tab:
 
-- **Branch** — which branch to build. Changing it takes effect on the next deploy.
-- **Folder** — for a repository holding several things, the sub-folder to build from.
-- **Port** — the port your app listens on. Detection fills this in; override it if your
+- **Branch**: which branch to build. Changing it takes effect on the next deploy.
+- **Folder**: for a repository holding several things, the sub-folder to build from.
+- **Port**: the port your app listens on. Detection fills this in; override it if your
   app disagrees.
-- **Health path** — the path Derailed asks for to decide the app is up. Defaults to `/`.
+- **Health path**: the path Derailed asks for to decide the app is up. Defaults to `/`.
   Anything that answers, even a 404, counts as alive; only a refused connection or a
   timeout is a failure.
-- **Memory limit** — a ceiling, so one runaway app cannot take the machine down.
+- **Memory limit**: a ceiling, so one runaway app cannot take the machine down.
 
 ### Private repositories
 

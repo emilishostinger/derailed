@@ -18,16 +18,16 @@ fiddly parts filled in.
 | | What it is | Database |
 | --- | --- | --- |
 | **Nextcloud** | Files, photos, calendars and contacts, on your server | MySQL |
-| **Gitea** | Your own git repositories, with issues and pull requests | — |
-| **Vaultwarden** | A password manager the Bitwarden apps can talk to | — |
-| **n8n** | Connect apps together and automate jobs, without code | — |
-| **Uptime Kuma** | Watches your sites and tells you when one goes down | — |
-| **Vikunja** | Lists, boards and deadlines | — |
-| **Mealie** | Recipes, meal plans and a shopping list | — |
-| **Actual Budget** | Envelope budgeting, kept on your own server | — |
+| **Gitea** | Your own git repositories, with issues and pull requests | none |
+| **Vaultwarden** | A password manager the Bitwarden apps can talk to | none |
+| **n8n** | Connect apps together and automate jobs, without code | none |
+| **Uptime Kuma** | Watches your sites and tells you when one goes down | none |
+| **Vikunja** | Lists, boards and deadlines | none |
+| **Mealie** | Recipes, meal plans and a shopping list | none |
+| **Actual Budget** | Envelope budgeting, kept on your own server | none |
 | **Listmonk** | Newsletters to your own list, without paying per subscriber | PostgreSQL |
-| **Excalidraw** | A whiteboard for sketching ideas | — |
-| **Syncthing** | Keeps folders in sync between your machines | — |
+| **Excalidraw** | A whiteboard for sketching ideas | none |
+| **Syncthing** | Keeps folders in sync between your machines | none |
 | **Directus** | An admin panel and API for a database you own | PostgreSQL |
 
 ### Analytics
@@ -36,15 +36,15 @@ fiddly parts filled in.
 | --- | --- | --- |
 | **Umami** | Privacy-friendly website analytics | PostgreSQL |
 | **Matomo** | The detail of Google Analytics, kept to yourself | MySQL |
-| **Grafana** | Dashboards and graphs for anything you can measure | — |
-| **Metabase** | Ask questions of your database, get charts back | — |
+| **Grafana** | Dashboards and graphs for anything you can measure | none |
+| **Metabase** | Ask questions of your database, get charts back | none |
 
 ### Media
 
 | | What it is | Database |
 | --- | --- | --- |
-| **Jellyfin** | Your own Netflix for films and music you own | — |
-| **FreshRSS** | Read the sites you follow, with no algorithm in the way | — |
+| **Jellyfin** | Your own Netflix for films and music you own | none |
+| **FreshRSS** | Read the sites you follow, with no algorithm in the way | none |
 
 ## What installing one does
 

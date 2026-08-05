@@ -25,8 +25,8 @@ quietly copying an empty folder.
 
 ## The warning
 
-Derailed knows which images and frameworks almost certainly write data — WordPress,
-Ghost, n8n, SQLite-backed apps and others — and warns before a deploy that would
+Derailed knows which images and frameworks almost certainly write data (WordPress,
+Ghost, n8n, SQLite-backed apps and others) and warns before a deploy that would
 destroy it:
 
 > This app looks like it keeps data in `/var/www/html/wp-content`, and no storage is
@@ -63,5 +63,5 @@ deletes its volumes, after asking you to type the app's name.
 
 Stored folders are what a [backup](backups.md) copies, as a plain `.tar` per folder
 inside the archive. Restoring one stops the app first, replaces the files and starts it
-again — a folder emptied underneath a running app looks fine until the next restart,
+again. A folder emptied underneath a running app looks fine until the next restart,
 which is exactly the kind of surprise this is meant to avoid.

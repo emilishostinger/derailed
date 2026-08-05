@@ -48,19 +48,19 @@ day, so a crawler walking a million generated URLs costs a bounded amount of dis
 
 ## Crawlers
 
-Requests from obvious bots — Googlebot, crawlers, `curl`, `wget` and friends — are
+Requests from obvious bots (Googlebot, crawlers, `curl`, `wget` and friends) are
 counted separately and kept out of every other figure. The tab says how many there
 were. Every counter above that line is about people, which is why the status breakdown
 adds up to exactly the number of visits.
 
 ## Reading it
 
-- **Visitors** — distinct people over the whole range, not the sum of the days.
-- **Visits** — requests from people, including images and stylesheets. A page view is
+- **Visitors**: distinct people over the whole range, not the sum of the days.
+- **Visits**: requests from people, including images and stylesheets. A page view is
   not the same thing.
-- **Typical reply** — the mean time Caddy took, in milliseconds. It measures your app,
+- **Typical reply**: the mean time Caddy took, in milliseconds. It measures your app,
   not the visitor's connection.
-- **How it went** — served, redirected, not found, or the app broke. A count under "the
+- **How it went**: served, redirected, not found, or the app broke. A count under "the
   app broke" is worth looking at the Output tab for.
 
 ## Limits, honestly

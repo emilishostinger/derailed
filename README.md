@@ -77,8 +77,8 @@ There is a light theme too:
 have more than one thing running.
 
 **Plain Docker and a reverse proxy?** That is exactly what this is, with the parts that
-are tedious to get right — certificates, health-checked deploys, backups that restore,
-storage that survives — done once, properly, and explained.
+are tedious to get right (certificates, health-checked deploys, backups that restore,
+storage that survives) done once, properly, and explained.
 
 **Coolify or Dokploy?** Both are further along in features. Derailed aims somewhere
 else: at someone who has never opened a terminal. One binary with nothing to install

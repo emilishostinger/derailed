@@ -1,7 +1,7 @@
 # Coding agents (MCP)
 
-Derailed ships an [MCP](https://modelcontextprotocol.io) server, so a coding agent —
-Claude Code, Cursor, Codex, or anything else that speaks the protocol — can deploy
+Derailed ships an [MCP](https://modelcontextprotocol.io) server, so a coding agent
+(Claude Code, Cursor, Codex, or anything else that speaks the protocol) can deploy
 apps, read logs and add domains for you while you work.
 
 ## Setting it up

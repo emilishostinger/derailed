@@ -70,7 +70,7 @@ The certificate arrives on its own, usually within a minute.
 
 ## What next
 
-- [Deploying](deploying.md) — branches, build settings, rollback
-- [Domains and HTTPS](domains.md) — www, redirects, giving every app a name on your domain
-- [Databases](databases.md) — connecting one to your app
-- [Coding agents](mcp.md) — let Claude Code or Cursor drive all of this for you
+- [Deploying](deploying.md): branches, build settings, rollback
+- [Domains and HTTPS](domains.md): www, redirects, giving every app a name on your domain
+- [Databases](databases.md): connecting one to your app
+- [Coding agents](mcp.md): let Claude Code or Cursor drive all of this for you

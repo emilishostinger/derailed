@@ -48,7 +48,7 @@ otherwise would be the lie.
 ## Uploads
 
 A zip is unpacked in-process, with no external tools. Entries that try to write outside
-the destination — the `../../etc/cron.d/anything` trick — are refused, symlinks are
+the destination, the `../../etc/cron.d/anything` trick, are refused, symlinks are
 skipped rather than followed, and the total unpacked size is capped.
 
 ## Visitors

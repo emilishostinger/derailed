@@ -6,7 +6,7 @@ PostgreSQL, MySQL and Redis, in one click, private by default.
 | --- | --- | --- | --- | --- |
 | PostgreSQL | 17, 16, 15 | 5432 | named after the service | `derailed` |
 | MySQL | 8.4, 8.0 | 3306 | named after the service | `derailed` |
-| Redis | 7 | 6379 | — | — |
+| Redis | 7 | 6379 | none | none |
 
 ## Creating one
 
@@ -14,8 +14,8 @@ PostgreSQL, MySQL and Redis, in one click, private by default.
 image, generates a password, creates a volume for the data and starts it with a health
 check.
 
-Names that a database server keeps for itself — `mysql`, `postgres`, `sys` and the
-information schemas — get a suffix, because putting your tables inside the server's own
+Names that a database server keeps for itself (`mysql`, `postgres`, `sys` and the
+information schemas) get a suffix, because putting your tables inside the server's own
 bookkeeping is how a fresh start silently wipes them.
 
 ## Connecting an app to it
@@ -43,7 +43,7 @@ fastest way to run a query or import a dump.
 Databases are private by default: they listen only on their project's Docker network,
 so nothing outside can connect. That is the right default and it is worth keeping.
 
-If you need an external connection — a desktop client, a migration tool — the settings
+If you need an external connection, for a desktop client or a migration tool, the settings
 let you publish a port. Do it deliberately, use the firewall, and turn it off
 afterwards. A database on the open internet is found by scanners within hours.
 

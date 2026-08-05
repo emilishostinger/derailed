@@ -7,32 +7,32 @@ about five minutes.
 
 ## Using it
 
-- **[Quick start](quickstart.md)** — from a bare server to a live site
-- **[Installing](install.md)** — requirements, what the installer does, updating
-- **[Deploying](deploying.md)** — repositories, zips, images, redeploys and rollback
-- **[Ready-made apps](apps.md)** — the catalogue, and which ones have been run
-- **[Domains and HTTPS](domains.md)** — your domains, automatic addresses, certificates
-- **[Databases](databases.md)** — engines, credentials, connecting an app
-- **[Storage](storage.md)** — what survives a redeploy, and what does not
-- **[Backups](backups.md)** — schedules, retention, restoring, taking a copy away
-- **[Visitor figures](analytics.md)** — how visits are counted, and what is never kept
-- **[Coding agents (MCP)](mcp.md)** — driving Derailed from Claude Code, Cursor or Codex
-- **[The API](api.md)** — tokens and every endpoint
-- **[The command line](cli.md)** — every command and environment variable
+- **[Quick start](quickstart.md)**: from a bare server to a live site
+- **[Installing](install.md)**: requirements, what the installer does, updating
+- **[Deploying](deploying.md)**: repositories, zips, images, redeploys and rollback
+- **[Ready-made apps](apps.md)**: the catalogue, and which ones have been run
+- **[Domains and HTTPS](domains.md)**: your domains, automatic addresses, certificates
+- **[Databases](databases.md)**: engines, credentials, connecting an app
+- **[Storage](storage.md)**: what survives a redeploy, and what does not
+- **[Backups](backups.md)**: schedules, retention, restoring, taking a copy away
+- **[Visitor figures](analytics.md)**: how visits are counted, and what is never kept
+- **[Coding agents (MCP)](mcp.md)**: driving Derailed from Claude Code, Cursor or Codex
+- **[The API](api.md)**: tokens and every endpoint
+- **[The command line](cli.md)**: every command and environment variable
 - **[Questions people ask](faq.md)**
-- **[When something breaks](troubleshooting.md)** — the usual causes, in order
+- **[When something breaks](troubleshooting.md)**: the usual causes, in order
 
 ## Understanding it
 
-- **[Architecture](architecture.md)** — what runs where, and why it is built this way
-- **[Security](security.md)** — the honest threat model, including what this does not protect
-- **[Contributing](contributing.md)** — running it locally, tests, and the conventions
-- **[Release checklist](release-checklist.md)** — what a machine cannot check for us
+- **[Architecture](architecture.md)**: what runs where, and why it is built this way
+- **[Security](security.md)**: the honest threat model, including what this does not protect
+- **[Contributing](contributing.md)**: running it locally, tests, and the conventions
+- **[Release checklist](release-checklist.md)**: what a machine cannot check for us
 
 ## The short version
 
-Derailed runs on the host under systemd. Everything else — your apps, your databases and
-the Caddy reverse proxy that fronts them — runs in Docker containers it creates and
+Derailed runs on the host under systemd. Everything else, meaning your apps, your databases and
+the Caddy reverse proxy that fronts them, runs in Docker containers it creates and
 labels. It touches nothing it did not create.
 
 A deploy is: fetch the code, work out how to build it, build an image, start a
