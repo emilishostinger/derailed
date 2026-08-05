@@ -1,0 +1,100 @@
+import { deleteDeploymentLog } from '../build/deploylog.ts';
+import { deleteDeployment, deploymentsToPrune, runningDeployment } from '../db/repo/deployments.ts';
+import { listServices } from '../db/repo/services.ts';
+import { removeImage } from '../docker/images.ts';
+import { systemInfo } from '../system/status.ts';
+
+/** How many deployments keep their logs and their image, per service. */
+export const KEEP_DEPLOYMENTS = 10;
+
+/**
+ * A build needs room for a git checkout, a Docker build context and the resulting
+ * image layers. Below this a build fails somewhere unhelpful, so it's better to say
+ * so up front than to hand back a confusing Docker error.
+ */
+export const MIN_FREE_BYTES = 2 * 1024 * 1024 * 1024;
+
+export interface PruneReport {
+  deploymentsRemoved: number;
+  logsRemoved: number;
+  imagesRemoved: number;
+}
+
+/**
+ * Deployment logs and images only ever grow in number. Keep the most recent few per
+ * service and drop the rest, so a busy service can't quietly fill a small VPS.
+ *
+ * The running deployment is never pruned however old it is. Its image is the one
+ * actually serving traffic, and its logs are the ones someone is most likely to want.
+ */
+export async function pruneOldDeployments(keep = KEEP_DEPLOYMENTS): Promise<PruneReport> {
+  const report: PruneReport = { deploymentsRemoved: 0, logsRemoved: 0, imagesRemoved: 0 };
+
+  for (const service of listServices()) {
+    const running = runningDeployment(service.id);
+
+    for (const deployment of deploymentsToPrune(service.id, keep)) {
+      if (running && deployment.id === running.id) continue;
+
+      await deleteDeploymentLog(deployment.id)
+        .then(() => {
+          report.logsRemoved++;
+        })
+        .catch(() => {
+          // Already gone, which is the state we wanted anyway.
+        });
+
+      // Only images Derailed built are ours to delete. An image-sourced service runs
+      // something public like `wordpress:php8.3-apache`, which may be shared with other
+      // services and would only have to be pulled again.
+      if (deployment.imageTag?.startsWith('derailed/')) {
+        await removeImage(deployment.imageTag)
+          .then(() => {
+            report.imagesRemoved++;
+          })
+          .catch(() => {
+            // Still referenced by a container, or already pruned. Not worth failing over.
+          });
+      }
+
+      deleteDeployment(deployment.id);
+      report.deploymentsRemoved++;
+    }
+  }
+
+  return report;
+}
+
+export interface DiskCheck {
+  ok: boolean;
+  freeBytes: number;
+  message?: string;
+  hint?: string;
+}
+
+/** Checked before a build starts, and surfaced in the dashboard as a warning. */
+export async function checkDiskSpace(min = MIN_FREE_BYTES): Promise<DiskCheck> {
+  const info = await systemInfo();
+  if (!info.disk) return { ok: true, freeBytes: 0 };
+
+  const freeBytes = info.disk.freeBytes;
+  if (freeBytes >= min) return { ok: true, freeBytes };
+
+  return {
+    ok: false,
+    freeBytes,
+    message: `This server has only ${formatBytes(freeBytes)} of disk space left, which isn't enough to build an app.`,
+    hint: 'Delete a project you no longer need, or run `docker system prune -a` on the server to clear out old images.',
+  };
+}
+
+export function formatBytes(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}

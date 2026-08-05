@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-bin/
+.dev-data/
+derailed
+derailed-*
+*.tsbuildinfo
+.DS_Store

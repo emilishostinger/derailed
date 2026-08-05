@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#08090a" />
+    <title>Derailed</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <script>
+      // Runs before first paint so a light-theme user never sees a flash of dark.
+      // Dark is the default; only an explicit choice (or an OS light preference on
+      // a first visit) adds the class.
+      try {
+        const saved = localStorage.getItem("derailed.theme");
+        const light =
+          saved === "light" ||
+          (!saved && window.matchMedia("(prefers-color-scheme: light)").matches);
+        if (light) document.documentElement.classList.add("light");
+      } catch {
+        // No storage (private browsing), dark is the default anyway.
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

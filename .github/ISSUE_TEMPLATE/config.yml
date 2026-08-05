@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions people ask
+    url: https://github.com/emilishostinger/derailed/blob/main/docs/faq.md
+    about: The answer may already be here
+  - name: When something breaks
+    url: https://github.com/emilishostinger/derailed/blob/main/docs/troubleshooting.md
+    about: The usual causes, in order

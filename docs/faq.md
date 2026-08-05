@@ -1,0 +1,145 @@
+# Questions people ask
+
+### Where does the name come from?
+
+It's a joke about things going off the rails, which is what self-hosting usually feels like.
+Derailed is an independent open-source project and isn't affiliated with anyone.
+
+Repositories without a Dockerfile are built by [Nixpacks](https://nixpacks.com), an excellent
+open-source builder. Credit where it's due.
+
+### How is this different from Coolify or Dokploy?
+
+Mostly scope and taste. Derailed is one binary with no dependencies to install, and it aims at
+someone who has never opened a terminal: every screen is in plain language, and the dangerous
+actions explain themselves before you take them. If you want a very large feature surface today,
+those projects are further along.
+
+### Do I need to know Docker?
+
+No. You need a server and a GitHub link. Derailed uses Docker underneath, and you can always drop
+to `docker` on the box if you want to, everything it creates is labelled `derailed.managed=true`.
+
+### Can it deploy private repositories?
+
+Yes. Add a fine-grained GitHub token with read access on the app's Settings tab. It is encrypted at
+rest and never sent back to the browser.
+
+### Does it auto-deploy when I push?
+
+Not yet. For now, hit Deploy (or `⌘K` → "Deploy …"), or have a coding agent do it through
+[MCP](mcp.md).
+
+### Can I deploy without GitHub at all?
+
+Yes, two ways. Drag in a zip: a folder of HTML is served as it is, a folder of PHP gets PHP and
+Apache, and anything else is built as a repository would be. Or give a Docker image name.
+
+### What languages does it support?
+
+Anything with a Dockerfile. Without one, Nixpacks handles Node, Python, Go, Rust, PHP, Ruby, Deno,
+Java, Elixir and static sites. Derailed tells you what it detected before it builds anything.
+
+### Where does my data live?
+
+On your server, and nowhere else. Derailed makes exactly two kinds of outbound request: it asks
+`api.ipify.org` for your public address at boot, and it resolves DNS over Cloudflare and Google
+when checking a domain you added. There is no telemetry, and the update check only runs when you
+press the button.
+
+The visitor figures are counted by the proxy on your own machine, so there is no third party in
+your pages and nothing to consent to. See [visitor figures](analytics.md).
+
+### Do I get analytics?
+
+Yes, per app, without adding anything to your pages. Visits, people, data sent, reply times, the
+pages people read and where they came from. It is counted from the proxy's own log, which is
+turned into figures and discarded.
+
+### Are my secrets safe?
+
+Environment variables and database passwords are encrypted at rest with AES-256-GCM, using a key at
+`/var/lib/derailed/secret.key` (mode 600). Honestly: that protects the database file if it's copied
+off the box. It does not protect against someone who already has root. Nothing running on the
+machine can.
+
+### Can I run more than one server?
+
+Not yet. One server, one admin. Multi-server is explicitly out of scope for now.
+
+### Are my apps backed up?
+
+Only if you say so. Each project can be backed up daily or weekly, and you choose how many copies
+to keep. A backup is an ordinary `.tar.gz` you can download and open anywhere. See
+[backups](backups.md).
+
+### Can I put the dashboard on a domain?
+
+Yes, and you should. Out of the box the dashboard is served over plain HTTP on port 8422, which
+means your password crosses the internet unencrypted every time you sign in.
+
+In **Settings → Dashboard address**, point a subdomain (say `dashboard.example.com`) at your server
+with an A record and enter it. Derailed checks the record resolves to this machine before switching,
+then routes the panel through Caddy with a real certificate. `http://` is redirected to `https://`.
+
+Once that works, close port 8422 in your firewall so the panel is only reachable over HTTPS.
+Alternatively, keep 8422 closed from the start and reach it over an SSH tunnel:
+`ssh -L 8422:localhost:8422 root@your-server`.
+
+### What happens to my apps when Derailed restarts?
+
+Nothing. They're separate containers with `restart=unless-stopped`. Derailed restarting, updating,
+or even being uninstalled doesn't stop them. On boot it reconciles: it compares what's running
+against what it expects and fixes the difference.
+
+### What happens if a deploy fails?
+
+The previous version keeps serving. A new container is only routed once it answers a health check,
+so a failed deploy is invisible to your visitors.
+
+### Can I roll back?
+
+Yes. The Deploys tab has a Roll back button on previous successful deploys. It re-runs that
+deploy's image with no rebuild, so it's quick.
+
+### Why is my temporary address HTTP and not HTTPS?
+
+Deliberate, and unavoidable: `sslip.io` is not on the public suffix list, so every address under it
+worldwide shares one allowance of fifty certificates a week. Point a domain of your own at the
+server and every app gets a secured name instead. See [domains](domains.md).
+
+### Can I control it from Claude Code or Cursor?
+
+Yes. Derailed is an MCP server, so a coding agent can deploy apps, read logs, add domains and
+check on the machine in the same conversation where you are writing the code.
+
+Create a token in **Settings, under Coding agents**, then add this to your agent:
+
+```json
+{
+  "mcpServers": {
+    "derailed": {
+      "command": "derailed",
+      "args": ["mcp"],
+      "env": {
+        "DERAILED_URL": "https://your-dashboard-domain",
+        "DERAILED_TOKEN": "drl_..."
+      }
+    }
+  }
+}
+```
+
+The `derailed` binary needs to be on the machine running the agent, which can be your laptop.
+It talks to your server over the same HTTP API the dashboard uses, so an agent can never do
+anything you couldn't do yourself. Revoking the token cuts it off immediately.
+
+### How much does it cost?
+
+Nothing. MIT licensed. You pay for the server.
+
+### Is it ready for production?
+
+It is early. It's tested, including against real Docker and a real PostgreSQL, and it has been run
+on a real server throughout its development, but it's a young project. Run it for side projects and internal tools first, keep backups, and please report what
+breaks.

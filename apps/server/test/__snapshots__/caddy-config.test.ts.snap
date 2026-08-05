@@ -1,0 +1,194 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`caddy config synthesis matches the expected shape 1`] = `
+{
+  "admin": {
+    "listen": "0.0.0.0:2019",
+  },
+  "apps": {
+    "http": {
+      "servers": {
+        "derailed": {
+          "automatic_https": {
+            "skip": [
+              "web.203-0-113-7.sslip.io",
+            ],
+          },
+          "listen": [
+            ":80",
+            ":443",
+          ],
+          "logs": {},
+          "routes": [
+            {
+              "handle": [
+                {
+                  "handler": "static_response",
+                  "headers": {
+                    "Location": [
+                      "https://{http.request.host}{http.request.uri}",
+                    ],
+                  },
+                  "status_code": 308,
+                },
+              ],
+              "match": [
+                {
+                  "host": [
+                    "shop.example.com",
+                  ],
+                  "not": [
+                    {
+                      "path": [
+                        "/.well-known/acme-challenge/*",
+                      ],
+                    },
+                  ],
+                  "protocol": "http",
+                },
+              ],
+              "terminal": true,
+            },
+            {
+              "handle": [
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "handle": [
+                        {
+                          "handler": "reverse_proxy",
+                          "headers": {
+                            "request": {
+                              "set": {
+                                "X-Forwarded-Host": [
+                                  "{http.request.host}",
+                                ],
+                                "X-Forwarded-Proto": [
+                                  "{http.request.scheme}",
+                                ],
+                              },
+                            },
+                          },
+                          "health_checks": {
+                            "passive": {
+                              "fail_duration": "10s",
+                              "max_fails": 3,
+                            },
+                          },
+                          "upstreams": [
+                            {
+                              "dial": "d_demo_web_ab12cd34:8080",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              "match": [
+                {
+                  "host": [
+                    "shop.example.com",
+                  ],
+                },
+              ],
+              "terminal": true,
+            },
+            {
+              "handle": [
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "handle": [
+                        {
+                          "handler": "reverse_proxy",
+                          "headers": {
+                            "request": {
+                              "set": {
+                                "X-Forwarded-Host": [
+                                  "{http.request.host}",
+                                ],
+                                "X-Forwarded-Proto": [
+                                  "{http.request.scheme}",
+                                ],
+                              },
+                            },
+                          },
+                          "health_checks": {
+                            "passive": {
+                              "fail_duration": "10s",
+                              "max_fails": 3,
+                            },
+                          },
+                          "upstreams": [
+                            {
+                              "dial": "d_demo_web_ab12cd34:3000",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              "match": [
+                {
+                  "host": [
+                    "web.203-0-113-7.sslip.io",
+                  ],
+                },
+              ],
+              "terminal": true,
+            },
+            {
+              "handle": [
+                {
+                  "body": 
+"Nothing is set up at this web address yet.
+
+This server runs Derailed. If you own it, open the dashboard and add this address to one of your apps.
+"
+,
+                  "handler": "static_response",
+                  "headers": {
+                    "Content-Type": [
+                      "text/plain; charset=utf-8",
+                    ],
+                  },
+                  "status_code": 404,
+                },
+              ],
+              "terminal": true,
+            },
+          ],
+        },
+      },
+    },
+  },
+  "logging": {
+    "logs": {
+      "access": {
+        "encoder": {
+          "format": "json",
+        },
+        "include": [
+          "http.log.access",
+        ],
+        "level": "INFO",
+        "writer": {
+          "filename": "/logs/access.log",
+          "output": "file",
+          "roll_keep": 1,
+          "roll_size_mb": 8,
+        },
+      },
+      "default": {
+        "level": "ERROR",
+      },
+    },
+  },
+}
+`;

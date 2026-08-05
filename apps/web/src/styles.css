@@ -1,0 +1,430 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Typefaces
+ *
+ * Self-hosted, latin subset only (~88 KB total). These get embedded in the
+ * binary, so the dashboard renders identically on a VPS with no internet and
+ * never phones home to a font CDN.
+ * ------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------------------------------------------------------------------------
+ * Design tokens
+ *
+ * Every colour is a CSS variable, so the light theme is a variable swap rather
+ * than a second set of utility classes. Dark is the default; `:root.light`
+ * overrides it. Both are designed, not one derived from the other.
+ * ------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-canvas: var(--d-canvas);
+  --color-surface: var(--d-surface);
+  --color-surface-2: var(--d-surface-2);
+  --color-elevated: var(--d-elevated);
+  --color-line: var(--d-line);
+  --color-line-strong: var(--d-line-strong);
+  --color-ink: var(--d-ink);
+  --color-ink-muted: var(--d-ink-muted);
+  --color-ink-faint: var(--d-ink-faint);
+  --color-accent: var(--d-accent);
+  --color-accent-hover: var(--d-accent-hover);
+  --color-accent-soft: var(--d-accent-soft);
+  --color-accent-ink: var(--d-accent-ink);
+  --color-ok: var(--d-ok);
+  --color-ok-soft: var(--d-ok-soft);
+  --color-busy: var(--d-busy);
+  --color-busy-soft: var(--d-busy-soft);
+  --color-warn: var(--d-warn);
+  --color-warn-soft: var(--d-warn-soft);
+  --color-danger: var(--d-danger);
+  --color-danger-soft: var(--d-danger-soft);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-panel: 14px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dark. The default, and what the README screenshots show. */
+:root {
+  --d-canvas: #08090a;
+  --d-surface: #0f1011;
+  --d-surface-2: #17181a;
+  --d-elevated: #1c1d20;
+  --d-line: #212225;
+  --d-line-strong: #303136;
+  --d-ink: #f7f8f8;
+  --d-ink-muted: #8a8f98;
+  --d-ink-faint: #62666d;
+  --d-accent: #6e79d6;
+  --d-accent-hover: #828cdf;
+  --d-accent-soft: #1b1d2e;
+  --d-accent-ink: #ffffff;
+  --d-ok: #4cb782;
+  --d-ok-soft: #10231b;
+  --d-busy: #4ea7fc;
+  --d-busy-soft: #0e1e2e;
+  --d-warn: #f2c94c;
+  --d-warn-soft: #251f10;
+  --d-danger: #eb5757;
+  --d-danger-soft: #2a1416;
+
+  --d-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --d-shadow-pop: 0 8px 32px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --d-grid-line: #17181a;
+  --d-canvas-grid: #101114;
+
+  color-scheme: dark;
+}
+
+:root.light {
+  --d-canvas: #fbfbfc;
+  --d-surface: #ffffff;
+  --d-surface-2: #f4f4f6;
+  --d-elevated: #ffffff;
+  --d-line: #e7e7ea;
+  --d-line-strong: #d2d2d8;
+  --d-ink: #17171a;
+  --d-ink-muted: #6b6f76;
+  --d-ink-faint: #93979f;
+  --d-accent: #5b64c4;
+  --d-accent-hover: #4b54b4;
+  --d-accent-soft: #eeeffb;
+  --d-accent-ink: #ffffff;
+  --d-ok: #227d51;
+  --d-ok-soft: #e8f5ee;
+  --d-busy: #1f6fd0;
+  --d-busy-soft: #e8f1fc;
+  --d-warn: #96690a;
+  --d-warn-soft: #fbf3e0;
+  --d-danger: #c8393c;
+  --d-danger-soft: #fdecec;
+
+  --d-shadow-card: 0 1px 2px rgb(16 18 24 / 0.05);
+  --d-shadow-pop: 0 12px 32px rgb(16 18 24 / 0.12), 0 0 0 1px rgb(16 18 24 / 0.05);
+  --d-grid-line: #ececef;
+  --d-canvas-grid: #f1f1f3;
+
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------------------
+ * Base
+ * ------------------------------------------------------------------------- */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--d-canvas);
+  color: var(--d-ink);
+  font-family: var(--font-sans);
+  /* Inter is designed a touch loose for UI; Linear-style density needs it tightened. */
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.021em;
+}
+
+/* Numbers that tick (stats, ports, sizes) must not make the layout jitter. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--d-accent);
+  color: var(--d-accent-ink);
+}
+
+/* One focus treatment everywhere, and only for keyboard users.
+ *
+ * In `@layer base` on purpose: unlayered CSS beats anything in a layer, so leaving
+ * this outside meant a component that styles its own focus (the ⌘K input, say)
+ * couldn't opt out and ended up wearing a second, larger ring. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--d-accent);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+}
+
+/* Thin, self-coloured scrollbars. The default chrome ones break the dark surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--d-line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-clip: content-box;
+  background-color: var(--d-line-strong);
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Honouring this preference is the one place `!important` is correct: it has to
+   beat every animation utility in the app, including ones added later. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore-start lint/complexity/noImportantStyles: must override every animation utility */
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    /* biome-ignore-end lint/complexity/noImportantStyles: must override every animation utility */
+  }
+}
+
+/* Applied for one frame while the theme swaps, so nothing eases into its new colour.
+   Placed after the reduced-motion block so specificity ascends down the file. */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  /* biome-ignore-start lint/complexity/noImportantStyles: must beat every transition utility */
+  transition: none !important;
+  animation-duration: 0s !important;
+  /* biome-ignore-end lint/complexity/noImportantStyles: must beat every transition utility */
+}
+
+/* ---------------------------------------------------------------------------
+ * Components
+ * ------------------------------------------------------------------------- */
+
+/* `@utility` (not a plain class) so the variants below can `@apply btn`. */
+@utility btn {
+  @apply inline-flex shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-control)] px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-[background-color,border-color,color,opacity] duration-150 disabled:pointer-events-none disabled:opacity-40;
+}
+
+@layer components {
+  .card {
+    border-radius: var(--radius-card);
+    box-shadow: var(--d-shadow-card);
+    @apply border border-line bg-surface;
+  }
+
+  .panel {
+    border-radius: var(--radius-panel);
+    box-shadow: var(--d-shadow-pop);
+    @apply border border-line bg-elevated;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-accent-ink hover:bg-accent-hover;
+  }
+
+  .btn-secondary {
+    @apply btn border border-line bg-surface-2 text-ink hover:border-line-strong hover:bg-elevated;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-muted hover:bg-surface-2 hover:text-ink;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger text-white hover:opacity-90;
+  }
+
+  .btn-lg {
+    @apply px-4 py-2.5 text-sm;
+  }
+
+  .input {
+    border-radius: var(--radius-control);
+    @apply w-full border border-line bg-surface px-3 py-2 text-[13px] text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/20;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[13px] font-medium text-ink;
+  }
+
+  .hint {
+    @apply text-[13px] text-ink-muted;
+  }
+
+  /* Small uppercase section heading, used above every group of settings. */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-faint;
+  }
+
+  .kbd {
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] border border-line bg-surface-2 px-1.5 font-sans text-[11px] font-medium text-ink-faint;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Motifs & motion
+ * ------------------------------------------------------------------------- */
+
+/* The rail motif: a track receding into the distance, used behind empty states
+   and the sign-in screen. */
+.rails {
+  background-image:
+    linear-gradient(to right, var(--d-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--d-grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 75% 55% at 50% 0%, #000 20%, transparent 72%);
+}
+
+/* A soft wash of accent light, for the top of auth and onboarding screens. */
+.aurora::before {
+  content: "";
+  position: absolute;
+  inset: -30% 0 auto 0;
+  height: 60%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, var(--d-accent) 0%, transparent 70%);
+  opacity: 0.14;
+  filter: blur(60px);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}
+
+.animate-status-pulse {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* A halo around a status dot that is mid-change, so movement reads at a glance. */
+@keyframes ping-ring {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+.animate-ping-ring {
+  animation: ping-ring 1.5s var(--ease-out) infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.2s var(--ease-out) both;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-overlay-in {
+  animation: overlay-in 0.15s ease-out both;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-drawer-in {
+  animation: drawer-in 0.24s var(--ease-out) both;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.16s var(--ease-out) both;
+}
+
+/* Indeterminate progress line shown along the top of a deploying card. */
+@keyframes track-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+.animate-track {
+  animation: track-slide 1.6s ease-in-out infinite;
+}
