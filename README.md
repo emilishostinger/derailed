@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/topology.png" alt="The Derailed topology view" width="820">
+<img src="assets/logo.svg" alt="" width="88" height="88">
 
 # Derailed
 
@@ -14,6 +14,10 @@ No YAML. No `docker-compose` to babysit. No Kubernetes. No monthly bill.
 [![Built with Bun](https://img.shields.io/badge/built%20with-Bun-fbf0df)](https://bun.sh)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-your%20server-3ecf8e)](docs/install.md)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-6b74d6)](docs/contributing.md)
+
+<br>
+
+<img src="docs/images/topology.png" alt="The Derailed topology view" width="820">
 
 </div>
 

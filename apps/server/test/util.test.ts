@@ -57,4 +57,17 @@ describe('secrets at rest', () => {
     expect(values.size).toBe(200);
     for (const value of values) expect(value).toMatch(/^[A-Za-z0-9]{32}$/);
   });
+
+  /**
+   * Database passwords are pasted into `sh -c` when a backup dumps a database. That
+   * is only safe because of what is in them: a quote or a backtick in a generated
+   * password would be a command running inside someone's database container. The
+   * terminal no longer interpolates at all, but the backup path still does, so this
+   * is the assertion that keeps it true.
+   */
+  test('nothing in a generated secret can be read as shell', () => {
+    for (let i = 0; i < 500; i++) {
+      expect(randomSecret(32)).not.toMatch(/['"`$\\;&|<>()*?![\]{}~#\s]/);
+    }
+  });
 });

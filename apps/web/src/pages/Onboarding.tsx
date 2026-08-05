@@ -1,3 +1,4 @@
+import { schemas } from '@derailed/shared';
 import { type FormEvent, useState } from 'react';
 import { Logo } from '../components/Logo.tsx';
 import { ErrorNote, Field, Spinner } from '../components/ui.tsx';
@@ -47,7 +48,7 @@ export function Onboarding() {
         </Field>
         <Field
           label="Password"
-          hint="At least 8 characters. There's no reset email, write it down."
+          hint={`At least ${schemas.MIN_PASSWORD_LENGTH} characters. There's no reset email, write it down.`}
         >
           <input
             className="input"

@@ -107,27 +107,34 @@ export async function selfUpdate(log: (line: string) => void = console.log): Pro
       return false;
     }
 
-    // Verify against the published checksums when they exist.
+    // Verify against the published checksums. Required, not best-effort: this replaces
+    // the binary that runs as root on the machine, so "the checksum file was missing,
+    // so I installed it anyway" is not a sentence this should ever be able to say.
     const sums = await fetch(`${base}/checksums.txt`, { signal: AbortSignal.timeout(30_000) })
       .then((response) => (response.ok ? response.text() : null))
       .catch(() => null);
-    if (sums) {
-      const expected = sums
-        .split('\n')
-        .find((line) => line.trim().endsWith(name))
-        ?.trim()
-        .split(/\s+/)[0];
-      if (expected) {
-        const actual = new Bun.CryptoHasher('sha256').update(bytes).digest('hex');
-        if (expected !== actual) {
-          log("The download didn't match its checksum, so it was thrown away.");
-          return false;
-        }
-        log('Checksum verified.');
-      }
-    } else {
-      log('No checksum published for this release, skipping verification.');
+    if (!sums) {
+      log("Couldn't fetch the checksums for that release, so nothing was installed.");
+      log(`Check it by hand at https://github.com/${REPO}/releases`);
+      return false;
     }
+
+    const expected = sums
+      .split('\n')
+      .find((line) => line.trim().endsWith(` ${name}`))
+      ?.trim()
+      .split(/\s+/)[0];
+    if (!expected) {
+      log(`That release publishes no checksum for ${name}, so nothing was installed.`);
+      return false;
+    }
+
+    const actual = new Bun.CryptoHasher('sha256').update(bytes).digest('hex');
+    if (expected.toLowerCase() !== actual.toLowerCase()) {
+      log("The download didn't match its checksum, so it was thrown away.");
+      return false;
+    }
+    log('Checksum verified.');
 
     await Bun.write(staged, bytes);
     chmodSync(staged, 0o755);

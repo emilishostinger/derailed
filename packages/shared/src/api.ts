@@ -13,9 +13,21 @@ export const errorBody = z.object({
 });
 export type ErrorBody = z.infer<typeof errorBody>;
 
+/**
+ * One number, in one place.
+ *
+ * Setup asked for eight and changing your password asked for ten, so a password good
+ * enough to create the account was refused when it came to changing it, with no way to
+ * tell from the screen which rule you had just met.
+ */
+export const MIN_PASSWORD_LENGTH = 10;
+
 const password = z
   .string()
-  .min(8, 'Use at least 8 characters. This is the only account on your server.')
+  .min(
+    MIN_PASSWORD_LENGTH,
+    `Use at least ${MIN_PASSWORD_LENGTH} characters. This is the only account on your server.`,
+  )
   .max(200);
 
 const email = z.email('That does not look like an email address.');
@@ -26,13 +38,14 @@ export type SetupRequest = z.infer<typeof setupRequest>;
 export const loginRequest = z.object({ email, password: z.string().min(1).max(200) });
 export type LoginRequest = z.infer<typeof loginRequest>;
 
+/** Each part 0-255. The looser `\d{1,3}` accepted 999.999.999.999 and every address
+ *  Derailed then handed out under it pointed nowhere. */
+const IPV4 = /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
 export const patchSystemRequest = z.object({
   serverIp: z
     .string()
-    .regex(
-      /^(\d{1,3}\.){3}\d{1,3}$/,
-      'Enter an IPv4 address like 203.0.113.7, or leave it blank to auto-detect.',
-    )
+    .regex(IPV4, 'Enter an IPv4 address like 203.0.113.7, or leave it blank to auto-detect.')
     .nullable()
     .optional(),
 });

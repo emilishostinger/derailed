@@ -21,12 +21,31 @@ const SIGNATURE = {
   zip64Locator: 0x07064b50,
   zip64End: 0x06064b50,
   centralFile: 0x02014b50,
+  localFile: 0x04034b50,
 } as const;
 
 const METHOD = { stored: 0, deflate: 8 } as const;
 
-/** Uncompressed ceiling, so a small file that expands enormously can't fill the disk. */
+/**
+ * Uncompressed ceiling, so a small file that expands enormously can't fill the disk.
+ *
+ * Counted from what actually came out, not from what the archive says will come out.
+ * A zip declaring nought bytes and then inflating to half a gigabyte is four lines of
+ * script, and the version of this that trusted the declared figure unpacked one
+ * happily: 510 KB in, 512 MB on disk, 800 MB of memory, and a running total of zero.
+ */
 const MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
+
+/** And a ceiling per entry, so no single member can be inflated into memory unbounded. */
+const MAX_ENTRY_BYTES = 512 * 1024 * 1024;
+
+class TooBig extends Error {}
+
+const tooBig = () =>
+  new FriendlyError(
+    'That zip file unpacks to more than Derailed accepts.',
+    'Remove anything that can be rebuilt, like node_modules, and zip it again.',
+  );
 
 export interface ExtractResult {
   files: number;
@@ -66,15 +85,22 @@ export async function extractZip(archive: string, destination: string): Promise<
     const target = safeJoin(destination, name);
     if (!target) continue;
 
-    bytes += uncompressedSize;
-    if (bytes > MAX_TOTAL_BYTES) {
-      throw new FriendlyError(
-        'That zip file unpacks to more than Derailed accepts.',
-        'Remove anything that can be rebuilt, like node_modules, and zip it again.',
-      );
+    // The declared size is only ever a hint for stopping early. What is charged
+    // against the budget below is the number of bytes we really got.
+    if (bytes + uncompressedSize > MAX_TOTAL_BYTES) throw tooBig();
+
+    const remaining = Math.min(MAX_ENTRY_BYTES, MAX_TOTAL_BYTES - bytes);
+    let contents: Buffer;
+    try {
+      contents = readEntry(buffer, localOffset, method, compressedSize, name, remaining);
+    } catch (err) {
+      if (err instanceof TooBig) throw tooBig();
+      throw err;
     }
 
-    const contents = readEntry(buffer, localOffset, method, compressedSize, name);
+    bytes += contents.length;
+    if (bytes > MAX_TOTAL_BYTES) throw tooBig();
+
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, contents);
     files++;
@@ -90,17 +116,37 @@ function readEntry(
   method: number,
   compressedSize: number,
   name: string,
+  maxBytes: number,
 ): Buffer {
+  // Every number here came out of the archive, so none of them can be believed. An
+  // offset past the end of the file used to reach `readUInt16LE` and throw a
+  // RangeError, which the user met as "something went wrong on the server".
+  const damaged = () =>
+    new FriendlyError("Derailed couldn't read that zip file.", 'It looks damaged.');
+  if (localOffset < 0 || localOffset + 30 > buffer.length) throw damaged();
+  if (buffer.readUInt32LE(localOffset) !== SIGNATURE.localFile) throw damaged();
+
   const nameLength = buffer.readUInt16LE(localOffset + 26);
   const extraLength = buffer.readUInt16LE(localOffset + 28);
   const start = localOffset + 30 + nameLength + extraLength;
+  if (start > buffer.length || compressedSize < 0 || start + compressedSize > buffer.length) {
+    throw damaged();
+  }
   const data = buffer.subarray(start, start + compressedSize);
 
-  if (method === METHOD.stored) return Buffer.from(data);
+  if (method === METHOD.stored) {
+    if (data.length > maxBytes) throw new TooBig();
+    return Buffer.from(data);
+  }
   if (method === METHOD.deflate) {
     try {
-      return inflateRawSync(data);
-    } catch {
+      // `maxOutputLength` is the whole defence: without it zlib will happily expand
+      // half a megabyte of input into as much memory as the machine has.
+      return inflateRawSync(data, { maxOutputLength: maxBytes });
+    } catch (err) {
+      // zlib's own name for hitting the ceiling. It is a bomb, not a damaged file,
+      // and telling someone to zip the folder again would be the wrong advice.
+      if ((err as { code?: string })?.code === 'ERR_BUFFER_TOO_LARGE') throw new TooBig();
       throw new FriendlyError(
         `Derailed couldn't unpack "${name}" from that zip file.`,
         'It may be damaged. Try zipping the folder again.',
@@ -159,6 +205,10 @@ function findZip64Directory(buffer: Buffer, endOffset: number): { offset: number
   }
 
   const end = Number(buffer.readBigUInt64LE(locator + 8));
+  // The offset is a 64-bit number out of the archive, so it can point anywhere at all.
+  if (!Number.isSafeInteger(end) || end < 0 || end + 56 > buffer.length) {
+    throw new FriendlyError("Derailed couldn't read that zip file.", 'It looks damaged.');
+  }
   if (buffer.readUInt32LE(end) !== SIGNATURE.zip64End) {
     throw new FriendlyError("Derailed couldn't read that zip file.", 'It looks damaged.');
   }

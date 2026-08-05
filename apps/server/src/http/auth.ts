@@ -9,21 +9,35 @@ import {
 } from '../db/repo/sessions.ts';
 import { TOKEN_PREFIX, verifyToken } from '../db/repo/tokens.ts';
 import { findUserById, firstUser } from '../db/repo/users.ts';
+import { resolveClientIp, resolveHttps } from '../util/net.ts';
 import { forbidden, unauthorized } from './errors.ts';
 
 export const SESSION_COOKIE = 'derailed_session';
 
+/** What Bun's `requestIP` gives us, handed to Hono as the binding in `serve.ts`. */
+export interface AppBindings {
+  ip?: { address: string; family: string; port: number } | null;
+}
+
 export interface AppEnv {
+  Bindings: AppBindings;
   Variables: {
     user: User;
     sessionId: string;
   };
 }
 
+/** The socket address, when the adapter gave us one. */
+export function peerAddress(c: Context): string | null {
+  return (c.env as AppBindings | undefined)?.ip?.address ?? null;
+}
+
 function isHttps(c: Context): boolean {
-  const proto = c.req.header('x-forwarded-proto');
-  if (proto) return proto.split(',')[0]!.trim() === 'https';
-  return new URL(c.req.url).protocol === 'https:';
+  return resolveHttps(
+    peerAddress(c),
+    c.req.header('x-forwarded-proto') ?? null,
+    new URL(c.req.url).protocol,
+  );
 }
 
 export function setSessionCookie(c: Context, sessionId: string, maxAgeMs = SESSION_TTL_MS): void {
@@ -135,8 +149,13 @@ export class RateLimiter {
   }
 }
 
+/**
+ * Who to hold a rate limit against.
+ *
+ * Deliberately not `X-Forwarded-For` on its own. That header is written by whoever is
+ * calling, so keying on it meant an attacker could make every password guess look like
+ * a different person and never meet the limiter at all. See `util/net.ts`.
+ */
 export function clientIp(c: Context): string {
-  const forwarded = c.req.header('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return c.req.header('x-real-ip') ?? 'local';
+  return resolveClientIp(peerAddress(c), c.req.header('x-forwarded-for') ?? null);
 }

@@ -6,9 +6,17 @@ is safe enough for what you are about to put on it.
 ## Signing in
 
 - Passwords are hashed with argon2id and never stored or logged in any other form.
-- Sign-in is rate limited to five attempts a minute per address. An unknown email is
-  verified against a decoy hash so response timing does not reveal which accounts
-  exist.
+- Ten characters minimum, everywhere: setting the account up, changing the password,
+  and `derailed reset-password` all ask for the same thing.
+- Sign-in is rate limited to five attempts a minute, counted against the address the
+  connection actually came from. `X-Forwarded-For` is only read when the connection
+  came from Caddy itself, so a caller off the internet cannot rename themselves into a
+  fresh allowance on every request. There is a second, looser ceiling of thirty a
+  minute against the socket itself, which covers the case where the header can be
+  believed and the thing writing it is a container that should not be trusted.
+  A successful sign-in clears both.
+- An unknown email is verified against a decoy hash so response timing does not reveal
+  which accounts exist.
 - Sessions are random opaque ids in an `HttpOnly`, `SameSite=Lax`, `Secure` cookie.
 - Changing the password ends every other session.
 - Changing the email or password requires the current password, even though the session
@@ -24,6 +32,9 @@ is safe enough for what you are about to put on it.
   stored only as SHA-256 hashes. A stolen database yields no working tokens.
 - Tokens have full access. Treat one like the password, and revoke it in Settings when
   a laptop goes missing.
+- Every reply carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
+  and `frame-ancestors 'none'`, so the dashboard cannot be framed by another page and
+  put under someone else's buttons. API replies are `Cache-Control: no-store`.
 
 ## Secrets at rest
 
@@ -48,8 +59,14 @@ otherwise would be the lie.
 ## Uploads
 
 A zip is unpacked in-process, with no external tools. Entries that try to write outside
-the destination, the `../../etc/cron.d/anything` trick, are refused, symlinks are
-skipped rather than followed, and the total unpacked size is capped.
+the destination, the `../../etc/cron.d/anything` trick, are refused, and symlinks are
+skipped rather than followed.
+
+The size cap counts what actually came out, not what the archive said would come out.
+An archive can declare nought bytes and still inflate to gigabytes, so believing the
+declared figure meant a 600 KB upload could write 600 MB and take most of a gigabyte of
+memory doing it. There is a ceiling per file and a ceiling for the whole archive, and
+the upload is refused on its declared length before the body is read at all.
 
 ## Visitors
 
@@ -75,8 +92,16 @@ it manages Docker, which is equivalent to root anyway.
 - **Denial of service.** There is no rate limiting in front of your apps beyond what
   Caddy does by default.
 
+## Updating itself
+
+`derailed update` and the installer both download over HTTPS and check the binary
+against the `checksums.txt` published with the release. A missing checksum file, a
+release with no entry for this architecture, or a mismatch all stop the update with
+nothing changed. This binary runs as root, so "the checksum was missing, so I installed
+it anyway" is not something it is able to say.
+
 ## Reporting something
 
-The project is pre-release and has no security contact yet. Until it does, open an
-issue for anything already public, and for anything that is not, contact the maintainer
-directly rather than filing it publicly.
+Use GitHub's private vulnerability reporting on the repository, or contact the
+maintainer directly. Please do not open a public issue for an unpatched vulnerability.
+See [SECURITY.md](../SECURITY.md).

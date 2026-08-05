@@ -222,16 +222,28 @@ else
   curl -fsSL "$BASE/derailed-$ARCH" -o "$TMP/derailed" \
     || die "Couldn't download the release. Check your connection, or grab it from https://github.com/$REPO/releases"
 
-  # Checksums are published alongside the binaries; verify when we can.
-  if curl -fsSL "$BASE/checksums.txt" -o "$TMP/checksums.txt" 2>/dev/null; then
-    EXPECTED=$(grep " derailed-$ARCH\$" "$TMP/checksums.txt" | awk '{print $1}' | head -1)
-    if [ -n "$EXPECTED" ] && command -v sha256sum >/dev/null 2>&1; then
-      ACTUAL=$(sha256sum "$TMP/derailed" | awk '{print $1}')
-      [ "$EXPECTED" = "$ACTUAL" ] || die "The download didn't match its checksum. Nothing was installed."
-      ok "Checksum verified"
-    fi
+  # Checksums are published with every release, and this binary is about to run as
+  # root, so a missing or mismatched one stops the install rather than warning about
+  # it. The one thing that is allowed to be absent is `sha256sum` itself, on a machine
+  # too minimal to have coreutils; that is said out loud rather than passed over.
+  curl -fsSL "$BASE/checksums.txt" -o "$TMP/checksums.txt" 2>/dev/null \
+    || die "Couldn't fetch the checksums for this release, so nothing was installed."
+
+  EXPECTED=$(grep " derailed-$ARCH\$" "$TMP/checksums.txt" | awk '{print $1}' | head -1)
+  [ -n "$EXPECTED" ] || die "This release publishes no checksum for derailed-$ARCH. Nothing was installed."
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    ACTUAL=$(sha256sum "$TMP/derailed" | awk '{print $1}')
+  elif command -v shasum >/dev/null 2>&1; then
+    ACTUAL=$(shasum -a 256 "$TMP/derailed" | awk '{print $1}')
   else
-    warn "No checksum file published for this release, skipping verification."
+    ACTUAL=""
+    warn "No sha256sum on this machine, so the download could not be verified."
+  fi
+
+  if [ -n "$ACTUAL" ]; then
+    [ "$EXPECTED" = "$ACTUAL" ] || die "The download didn't match its checksum. Nothing was installed."
+    ok "Checksum verified"
   fi
 
   install_from_file "$TMP/derailed"
@@ -262,7 +274,7 @@ if [ "$SKIP_QUESTIONS" != "1" ] && [ -t 0 ] && [ -z "$ADMIN_EMAIL" ]; then
   fi
   [ -z "$ADMIN_EMAIL" ] && ADMIN_EMAIL=$(ask "Your email:")
   if [ -n "$ADMIN_EMAIL" ] && [ -z "$ADMIN_PASSWORD" ]; then
-    ADMIN_PASSWORD=$(ask_secret "Choose a password (8+ characters):")
+    ADMIN_PASSWORD=$(ask_secret "Choose a password (10+ characters):")
   fi
 fi
 
@@ -282,15 +294,25 @@ if [ -n "$PANEL_DOMAIN" ] && [ -n "$IP" ]; then
 fi
 
 if [ -n "$ADMIN_EMAIL" ] && [ -n "$ADMIN_PASSWORD" ]; then
-  if [ ${#ADMIN_PASSWORD} -lt 8 ]; then
+  if [ ${#ADMIN_PASSWORD} -lt 10 ]; then
     warn "That password is too short, so the account wasn't created."
     ADMIN_EMAIL=""
   else
     step "Creating your account"
-    SETUP_ARGS="--email $ADMIN_EMAIL --password $ADMIN_PASSWORD"
-    [ -n "$PANEL_DOMAIN" ] && SETUP_ARGS="$SETUP_ARGS --domain $PANEL_DOMAIN"
-    # shellcheck disable=SC2086
-    "$BIN_PATH" setup $SETUP_ARGS >/dev/null || die "Couldn't create the account."
+    # The password goes through the environment, not the command line. Two reasons:
+    # arguments are world-readable in `ps` while the command runs, and building a
+    # string of flags and letting the shell split it meant a passphrase with a space
+    # in it was silently cut at the space, so the account was created with a password
+    # nobody could type back.
+    if [ -n "$PANEL_DOMAIN" ]; then
+      DERAILED_SETUP_PASSWORD="$ADMIN_PASSWORD" "$BIN_PATH" setup \
+        --email "$ADMIN_EMAIL" --domain "$PANEL_DOMAIN" >/dev/null \
+        || die "Couldn't create the account."
+    else
+      DERAILED_SETUP_PASSWORD="$ADMIN_PASSWORD" "$BIN_PATH" setup \
+        --email "$ADMIN_EMAIL" >/dev/null \
+        || die "Couldn't create the account."
+    fi
     ok "Account created"
   fi
 elif [ -n "$PANEL_DOMAIN" ]; then

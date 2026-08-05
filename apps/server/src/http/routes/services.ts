@@ -4,7 +4,7 @@ import { trafficFor } from '../../analytics/store.ts';
 import { deleteDeploymentLog } from '../../build/deploylog.ts';
 import { normalizeRepoUrl, resolveDefaultBranch } from '../../build/git.ts';
 import { queueDeployment } from '../../build/pipeline.ts';
-import { removeUpload, storeUpload } from '../../build/upload.ts';
+import { MAX_UPLOAD_BYTES, removeUpload, storeUpload } from '../../build/upload.ts';
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
 import { listDeployments } from '../../db/repo/deployments.ts';
 import { listDomains } from '../../db/repo/domains.ts';
@@ -224,6 +224,17 @@ serviceRoutes.put('/:id/repo-token', async (c) => {
 serviceRoutes.post('/:id/upload', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
+
+  // Checked before the body is read, not after. `formData()` buffers the whole upload
+  // first, so a limit applied to the parsed file has already let the thing it was
+  // meant to stop through the door.
+  const declared = Number(c.req.header('content-length') ?? 0);
+  if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES) {
+    throw badRequest(
+      `That file is ${Math.round(declared / 1024 / 1024)} MB, which is bigger than Derailed accepts.`,
+      'Remove node_modules and any build output, then zip it again.',
+    );
+  }
 
   const form = await c.req.formData().catch(() => null);
   const file = form?.get('file');

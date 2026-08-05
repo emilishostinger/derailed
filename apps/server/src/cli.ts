@@ -1,3 +1,4 @@
+import { schemas } from '@derailed/shared';
 import { ensureDirs, paths, VERSION } from './config.ts';
 import { initDb } from './db/index.ts';
 import { deleteSessionsForUser } from './db/repo/sessions.ts';
@@ -26,7 +27,9 @@ async function firstRunSetup(args: string[]): Promise<void> {
   loadSecretKey();
 
   const email = value('email');
-  const password = value('password');
+  // The environment first: an argument is visible in `ps` to every user on the
+  // machine for as long as the command runs, and this one is the admin password.
+  const password = process.env.DERAILED_SETUP_PASSWORD || value('password');
   const domain = value('domain');
 
   if (firstUser()) {
@@ -38,8 +41,8 @@ async function firstRunSetup(args: string[]): Promise<void> {
       );
       process.exit(1);
     }
-    if (password.length < 8) {
-      console.error('The password must be at least 8 characters.');
+    if (password.length < schemas.MIN_PASSWORD_LENGTH) {
+      console.error(`The password must be at least ${schemas.MIN_PASSWORD_LENGTH} characters.`);
       process.exit(1);
     }
     createUser(email.trim().toLowerCase(), await Bun.password.hash(password));
@@ -62,6 +65,8 @@ const HELP = `
     derailed serve                 Run the server (this is what systemd does)
     derailed mcp                   Run as an MCP server for coding agents
     derailed setup                 Create the admin account from the command line
+                                   (pass the password in DERAILED_SETUP_PASSWORD, so
+                                    it is not visible in ps)
     derailed update                Download and install the latest version
     derailed reset-password [email]  Set a new password for the admin account
     derailed version               Print the version
@@ -135,8 +140,10 @@ async function resetPassword(email?: string): Promise<void> {
   }
 
   const password = prompt(`New password for ${user.email}:`);
-  if (!password || password.length < 8) {
-    console.error('Password must be at least 8 characters. Nothing was changed.');
+  if (!password || password.length < schemas.MIN_PASSWORD_LENGTH) {
+    console.error(
+      `Password must be at least ${schemas.MIN_PASSWORD_LENGTH} characters. Nothing was changed.`,
+    );
     process.exit(1);
   }
   const confirm = prompt('Type it once more:');

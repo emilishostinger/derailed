@@ -14,6 +14,7 @@ import {
   clearSessionCookie,
   clientIp,
   currentUser,
+  peerAddress,
   RateLimiter,
   requireAuth,
   setSessionCookie,
@@ -22,6 +23,22 @@ import { badRequest, conflict, parseBody, tooManyRequests, unauthorized } from '
 
 const loginLimiter = new RateLimiter(5, 60_000);
 const setupLimiter = new RateLimiter(10, 60_000);
+
+/**
+ * A second, looser ceiling held against the socket address itself, whatever any
+ * forwarded header says.
+ *
+ * The header can only be believed when the connection came from our own proxy, and
+ * once it is believed, whoever is on that connection can write a different value into
+ * it on every request and get a fresh allowance each time. From the internet that is
+ * nobody. From a compromised app container on the same Docker bridge, it is unlimited
+ * guesses at the admin password.
+ *
+ * So: attempts arriving down one socket are capped too. Generous, because behind Caddy
+ * every real visitor shares that one address and a person mistyping their password a
+ * few times must not be stopped, but finite, which is the entire point.
+ */
+const peerLimiter = new RateLimiter(30, 60_000);
 
 let decoy: Promise<string> | null = null;
 const decoyHash = () => (decoy ??= Bun.password.hash('derailed-decoy-password'));
@@ -53,12 +70,13 @@ authRoutes.post('/setup', async (c) => {
 
 authRoutes.post('/login', async (c) => {
   const ip = clientIp(c);
-  if (!loginLimiter.check(ip)) {
-    throw tooManyRequests(
-      'Too many sign-in attempts.',
-      'Wait a minute before trying again. Forgot the password? Run `derailed reset-password` on the server.',
-    );
-  }
+  const peer = peerAddress(c);
+  const tooMany = tooManyRequests(
+    'Too many sign-in attempts.',
+    'Wait a minute before trying again. Forgot the password? Run `derailed reset-password` on the server.',
+  );
+  if (!loginLimiter.check(ip)) throw tooMany;
+  if (peer && !peerLimiter.check(peer)) throw tooMany;
   const { email, password } = await parseBody(c, schemas.loginRequest);
   const record = findUserByEmail(email);
   // Verify against a decoy hash when the email is unknown, so response timing
@@ -68,6 +86,7 @@ authRoutes.post('/login', async (c) => {
     throw unauthorized('That email and password do not match.');
   }
   loginLimiter.reset(ip);
+  if (peer) peerLimiter.reset(peer);
   const session = createSession(record.id);
   setSessionCookie(c, session.id);
   return c.json({ user: { id: record.id, email: record.email, createdAt: record.createdAt } });
@@ -126,8 +145,11 @@ authRoutes.patch('/me/password', requireAuth, async (c) => {
     current?: string;
     password?: string;
   };
-  if ((body.password ?? '').length < 10) {
-    throw badRequest('Use at least ten characters.', 'A short phrase you can remember is fine.');
+  if ((body.password ?? '').length < schemas.MIN_PASSWORD_LENGTH) {
+    throw badRequest(
+      `Use at least ${schemas.MIN_PASSWORD_LENGTH} characters.`,
+      'A short phrase you can remember is fine.',
+    );
   }
 
   const record = findUserByEmail(user.email);

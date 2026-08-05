@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Derailed</title>
+  <!--
+    The mark, as a standalone tile for the README and anywhere else Derailed needs a
+    logo outside the app. Same geometry as apps/web/public/favicon.svg on purpose:
+    the sidebar at 18px, the browser tab, and this all have to read as one thing.
+
+    The gradient tile carries its own background, so it sits equally well on GitHub's
+    light and dark themes without needing a second drawing for each.
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b93e8" />
+      <stop offset="100%" stop-color="#5b64c4" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#tile)" />
+  <g transform="translate(110 98) scale(0.742)" fill="#ffffff">
+    <path d="M57 377H0V317H57V377ZM110 377H67V317H110V377ZM230.058 377H120V317H242.625L230.058 377ZM283.995 377H240.275L252.843 317H296.562L283.995 377ZM395 377H294.213L306.78 317H395V377ZM57 243H0V183H57V243ZM110 243H67V183H110V243ZM258.125 243H120V183H270.692L258.125 243ZM312.062 243H268.342L280.909 183H324.63L312.062 243ZM395 243H322.279L334.847 183H395V243ZM57 50V110H0V50H57ZM339.921 110H296.2L308.768 50H352.488L339.921 110ZM395 110H350.138L362.705 50H395V110ZM110 50V110H67V50H110ZM285.983 110H120V50H298.551L285.983 110Z" />
+    <rect x="67" width="43" height="427" />
+    <rect x="319.225" y="0.126945" width="43" height="427" transform="rotate(11.8298 319.225 0.126945)" />
+  </g>
+</svg>

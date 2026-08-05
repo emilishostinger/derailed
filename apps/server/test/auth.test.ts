@@ -55,7 +55,7 @@ describe('first-run setup and sign-in', () => {
     const response = await post('/api/auth/setup', { email: 'a@b.com', password: 'short' });
     expect(response.status).toBe(400);
     const body = (await response.json()) as { error: { message: string } };
-    expect(body.error.message).toContain('at least 8 characters');
+    expect(body.error.message).toContain('at least 10 characters');
   });
 
   test('creates the admin account and signs them in', async () => {
@@ -115,5 +115,66 @@ describe('first-run setup and sign-in', () => {
       if (response.status === 429) sawLimit = true;
     }
     expect(sawLimit).toBe(true);
+  });
+
+  /**
+   * The limiter used to key on `X-Forwarded-For`, which is written by whoever is
+   * calling. Rotating it made every guess look like a new person, and sixty attempts
+   * in a row went through without one of them being throttled.
+   */
+  test('a made-up X-Forwarded-For does not buy more attempts', async () => {
+    // Its own peer address, so this has its own bucket and cannot be affected by the
+    // attempts above or interfere with them.
+    const peer = { ip: { address: '198.51.100.4', family: 'IPv4', port: 41234 } };
+    const statuses: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      const response = await app.request(
+        '/api/auth/login',
+        {
+          method: 'POST',
+          headers: { ...HEADERS, 'x-forwarded-for': `10.0.0.${i}` },
+          body: JSON.stringify({ email: 'admin@example.com', password: `guess-${i}` }),
+        },
+        peer,
+      );
+      statuses.push(response.status);
+    }
+    expect(statuses.filter((status) => status === 429).length).toBeGreaterThan(10);
+    expect(statuses.filter((status) => status === 401).length).toBeLessThanOrEqual(5);
+  });
+
+  /**
+   * Behind Caddy the forwarded header has to be believed, or every visitor would be
+   * one caller. That belief is worth something to whoever holds that connection: a
+   * compromised app container on the same Docker bridge could rotate the header and
+   * guess for ever. So attempts down one socket are capped as well, loosely.
+   */
+  test('a trusted proxy position does not buy unlimited attempts either', async () => {
+    const peer = { ip: { address: '172.18.0.9', family: 'IPv4', port: 5555 } };
+    const statuses: number[] = [];
+    for (let i = 0; i < 45; i++) {
+      const response = await app.request(
+        '/api/auth/login',
+        {
+          method: 'POST',
+          headers: { ...HEADERS, 'x-forwarded-for': `203.0.113.${i}` },
+          body: JSON.stringify({ email: 'admin@example.com', password: `guess-${i}` }),
+        },
+        peer,
+      );
+      statuses.push(response.status);
+    }
+    // Each forwarded address gets its own five, so the per-address limiter never
+    // fires; the socket ceiling is the only thing standing here.
+    expect(statuses.filter((status) => status === 429).length).toBeGreaterThan(0);
+    expect(statuses.filter((status) => status === 401).length).toBeLessThanOrEqual(30);
+  });
+
+  test('the dashboard cannot be framed, and API replies are never cached', async () => {
+    const response = await get('/api/auth/status');
+    expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect(response.headers.get('x-frame-options')).toBe('DENY');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(response.headers.get('cache-control')).toBe('no-store');
   });
 });

@@ -8,8 +8,10 @@ CI covers the automatable parts. This is the list of things a machine can't chec
 - [ ] `bun run lint` clean
 - [ ] `bun test` green **with Docker running**. The integration tests skip themselves silently
       without a socket, so a green run on a machine without Docker proves much less than it looks
-- [ ] `VERSION` in `apps/server/src/config.ts` matches the tag you're about to push
-      (the release workflow fails the build if it doesn't)
+- [ ] `VERSION` in `apps/server/src/config.ts` matches the tag you're about to push,
+      **and** the `version` field in the root and workspace `package.json` files. These
+      drifted once already: the binary said 0.1.1 while every package.json still said
+      0.1.0
 - [ ] The documentation in `docs/` matches what shipped, including the gaps
 - [ ] Release notes written from the commit history
 
@@ -56,8 +58,20 @@ This is the part that matters. A throwaway $5 Ubuntu box, destroyed afterwards.
 
 ## Publishing
 
-- [ ] Tag pushed (`git tag v0.1.0 && git push --tags`). The release workflow does the rest
-- [ ] Release contains both binaries, `checksums.txt` and `install.sh`
-- [ ] `sha256sum -c checksums.txt` passes against the published assets
+Done by hand for now. There is no release workflow in `.github/`, whatever an earlier
+version of this page implied.
+
+```sh
+cd dist-release
+sha256sum derailed-linux-x64 derailed-linux-arm64 > checksums.txt
+gh release create vX.Y.Z derailed-linux-x64 derailed-linux-arm64 checksums.txt \
+  --title "vX.Y.Z" --notes-file notes.md
+```
+
+- [ ] Tag pushed (`git tag vX.Y.Z && git push --tags`)
+- [ ] Release contains both binaries and `checksums.txt`
+- [ ] `checksums.txt` was generated from the binaries actually uploaded. The installer
+      and `derailed update` both refuse a release whose checksum is missing or wrong,
+      so a stale one is a broken release, not a warning
 - [ ] Install one-liner in the README points at the new release
 - [ ] Screenshots in the README still match the UI

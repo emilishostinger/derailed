@@ -17,10 +17,37 @@ import { updateRoutes } from './routes/updates.ts';
 import { serviceVolumeRoutes, volumeRoutes } from './routes/volumes.ts';
 import { serveApp } from './static.ts';
 
+/**
+ * The dashboard is the control panel for the whole machine, so it should not be
+ * embeddable, sniffable, or able to leak where it lives when it links out.
+ *
+ * `frame-ancestors` rather than `X-Frame-Options` because it is the one browsers still
+ * agree on, and it covers the case the old header never did: a frame inside a frame.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+  'content-security-policy': "frame-ancestors 'none'",
+  'x-frame-options': 'DENY',
+};
+
 export function createApp() {
   const app = new Hono<AppEnv>();
 
   app.onError((err, c) => errorResponse(c, err));
+
+  app.use('*', async (c, next) => {
+    await next();
+    if (!c.res) return;
+    // A response that came back from `fetch` (the Vite proxy in development) has
+    // immutable headers, so rebuild rather than assume we may write to it.
+    const headers = new Headers(c.res.headers);
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
+    // Nothing the API answers with should sit in a shared cache: it is all one
+    // person's private view of their own server.
+    if (new URL(c.req.url).pathname.startsWith('/api/')) headers.set('cache-control', 'no-store');
+    c.res = new Response(c.res.body, { status: c.res.status, headers });
+  });
 
   const api = new Hono<AppEnv>();
   api.use('*', requireCsrfHeader);

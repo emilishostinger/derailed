@@ -1,3 +1,4 @@
+import { schemas } from '@derailed/shared';
 import {
   Activity,
   Archive,
@@ -925,7 +926,7 @@ function AccountDialog({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             className="btn-secondary"
-            disabled={busy !== null || !current || next.length < 10}
+            disabled={busy !== null || !current || next.length < schemas.MIN_PASSWORD_LENGTH}
             onClick={() => void savePassword()}
           >
             {busy === 'password' && <Spinner />}

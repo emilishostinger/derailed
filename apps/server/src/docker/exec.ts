@@ -18,6 +18,8 @@ export interface ExecSession {
 export interface ExecOptions {
   containerId: string;
   cmd: string[];
+  /** Extra `KEY=value` entries. Secrets belong here, never inside `cmd`. */
+  env?: string[];
   onData: (chunk: string) => void;
   onClose: () => void;
 }
@@ -34,7 +36,7 @@ export async function createExec(options: ExecOptions): Promise<ExecSession> {
       AttachStderr: true,
       Tty: true,
       Cmd: options.cmd,
-      Env: ['TERM=xterm-256color'],
+      Env: ['TERM=xterm-256color', ...(options.env ?? [])],
     },
   });
 
@@ -113,36 +115,35 @@ export function shellCommandFor(
     dbName: string;
     password: string;
   },
-): { cmd: string[]; label: string } {
+): { cmd: string[]; env: string[]; label: string } {
   if (engine && credentials) {
+    // No `sh -c` and no quoting: the arguments go to `exec` as a list, so nothing in a
+    // credential can be read as shell. Derailed generates these passwords itself out
+    // of letters and digits, so there is nothing to escape today, and this is here so
+    // that stays true if they ever come from somewhere else.
     if (engine === 'postgres') {
       return {
-        cmd: [
-          'sh',
-          '-c',
-          `PGPASSWORD='${credentials.password}' psql -U '${credentials.user}' -d '${credentials.dbName}'`,
-        ],
+        cmd: ['psql', '-U', credentials.user, '-d', credentials.dbName],
+        env: [`PGPASSWORD=${credentials.password}`],
         label: 'psql',
       };
     }
     if (engine === 'mysql' || engine === 'mariadb') {
       return {
-        cmd: [
-          'sh',
-          '-c',
-          `mysql -u '${credentials.user}' -p'${credentials.password}' '${credentials.dbName}'`,
-        ],
+        cmd: ['mysql', '-u', credentials.user, credentials.dbName],
+        env: [`MYSQL_PWD=${credentials.password}`],
         label: 'mysql',
       };
     }
     if (engine === 'redis') {
-      return { cmd: ['redis-cli'], label: 'redis-cli' };
+      return { cmd: ['redis-cli'], env: [], label: 'redis-cli' };
     }
   }
   // Try bash, fall back to sh. The image may have neither, and the terminal will
   // simply close, which the UI explains.
   return {
     cmd: ['/bin/sh', '-c', 'exec /bin/bash 2>/dev/null || exec /bin/sh'],
+    env: [],
     label: 'shell',
   };
 }
