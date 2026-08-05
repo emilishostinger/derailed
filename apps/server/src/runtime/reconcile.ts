@@ -3,7 +3,7 @@ import { allRunningDeployments, updateDeployment } from '../db/repo/deployments.
 import { listProjects } from '../db/repo/projects.ts';
 import { containerName, findService, listServices } from '../db/repo/services.ts';
 import { destroyContainer, listContainers, startContainer } from '../docker/containers.ts';
-import { LABELS } from '../docker/labels.ts';
+import { installId, LABELS } from '../docker/labels.ts';
 import { ensureProjectNetwork } from '../docker/networks.ts';
 import { attachCaddyToNetwork } from '../proxy/caddy.ts';
 import { syncRoutes } from '../proxy/sync.ts';
@@ -54,6 +54,10 @@ export async function reconcile(): Promise<ReconcileReport> {
     const service = findService(serviceId);
     if (service) continue;
     for (const container of group) {
+      // Made by a different installation on this machine: not ours to tidy away.
+      // Containers from before this label existed have no id, and are still adopted.
+      const owner = container.Labels?.[LABELS.install];
+      if (owner && owner !== installId()) continue;
       await destroyContainer(container.Id, 5).catch(() => undefined);
       report.removed.push(container.Names?.[0] ?? container.Id.slice(0, 12));
     }
