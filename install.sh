@@ -130,14 +130,17 @@ case "$(uname -m)" in
   *) die "Unsupported processor: $(uname -m). Derailed ships 64-bit Intel and ARM builds." ;;
 esac
 
+# Read in a subshell. Sourcing os-release directly sets VERSION, NAME and others,
+# which silently overwrote the version of Derailed being installed: every Ubuntu box
+# ended up asking GitHub for a release called "v24.04.4 LTS (Noble Numbat)".
 if [ -r /etc/os-release ]; then
-  . /etc/os-release
-  OS_NAME="${PRETTY_NAME:-$ID}"
+  OS_NAME=$(. /etc/os-release 2>/dev/null && printf '%s' "${PRETTY_NAME:-$ID}")
+  OS_ID=$(. /etc/os-release 2>/dev/null && printf '%s' "${ID:-}${ID_LIKE:-}")
 else
-  ID=""; OS_NAME="$(uname -s)"
+  OS_ID=""; OS_NAME="$(uname -s)"
 fi
 
-case "${ID:-}${ID_LIKE:-}" in
+case "${OS_ID:-}" in
   *debian*|*ubuntu*) ;;
   *)
     warn "$OS_NAME isn't a tested platform. Derailed is built for Debian and Ubuntu."
