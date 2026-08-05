@@ -60,6 +60,25 @@ Biome handles formatting and linting; run `bun run lint` before pushing. TypeScr
 strict mode is on and there are no `any` escapes in the codebase. Please keep it that
 way.
 
+### No em dashes
+
+Not a preference, a rule, and `bun run lint` fails on one. No em dashes and no en
+dashes, in code, comments, documentation or interface copy.
+
+```
+apps/server/src/thing.ts:42  em dash
+  // the offending line is printed here, with the character in it
+  use a comma, a colon, a full stop, or brackets instead
+```
+
+They are the tell of copy that was pasted in or generated, they render at different
+widths depending on the font, and they are awkward to type on most keyboards. Every
+sentence that wanted one reads at least as well with a comma, a colon, a full stop, or
+a pair of brackets. Usually better, because the rewrite forces you to decide what the
+aside was actually for.
+
+If you hit it, `bun run check:style` prints every line and what to use instead.
+
 Commit messages describe the change and, where it matters, the reasoning. The history
 is the changelog until the first release.
 

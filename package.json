@@ -12,8 +12,9 @@
     "build": "bun run scripts/build.ts",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun test",
-    "lint": "biome check .",
-    "format": "biome format --write ."
+    "lint": "biome check . && bun run scripts/check-style.ts",
+    "format": "biome format --write .",
+    "check:style": "bun run scripts/check-style.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.0",
