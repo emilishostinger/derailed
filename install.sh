@@ -72,54 +72,50 @@ die()  { printf '\n  %s✗%s %s\n\n' "$RED" "$RESET" "$*" >&2; exit 1; }
 # -------------------------------------------------------------------- the splash
 #
 # The wordmark, in two tones of the violet the dashboard and the favicon already use:
-# #8b93e8 across DERA, #5b64c4 across ILED. They are the two ends of the logo tile's
-# gradient, so nothing new was invented for the terminal.
+# #8b93e8 across the top three rows, #5b64c4 across the bottom three. They are the two
+# ends of the logo tile's gradient, so nothing new was invented for the terminal, and
+# it falls the same way the tile does.
 #
-# Two rather than a ramp. Eight interpolated steps read as a smudge at this size, and
-# every step past the second is a colour the brand does not otherwise have. Two is the
-# palette; the split is just where the word happens to halve.
+# Two rather than a ramp. Interpolated steps read as a smudge at this size, and every
+# step past the second is a colour the brand does not otherwise have.
+#
+# Top to bottom also means a whole row is one colour, which is the entire implementation:
+# no cutting a line into pieces, and so no need to care that these glyphs are three
+# bytes each while mawk, `cut` and `fold` all count bytes and would happily slice a █
+# down the middle.
 #
 # Written out rather than generated. There are lovely tools for this (oh-my-logo and
 # friends), but every one of them is an npm package, and the promise this installer
 # makes is that it needs nothing on the machine before it runs. Six lines of text
 # cost nothing and keep that true.
 #
-# `~1` and `~2` mark where each tone starts and are swapped for colour escapes at run
-# time. The colour has to change *inside* each line, and cutting a line into pieces is
-# the one thing that cannot be done safely here: these glyphs are three bytes each,
-# mawk is what `awk` means on Debian and has no idea about multibyte characters, and
-# most `cut` and `fold` builds count bytes too. Any of them would slice a █ down the
-# middle and spray the terminal with replacement characters. Plain ASCII markers
-# substituted by `sed` cannot.
-#
 # Sixty-one columns wide including the indent, so it is shown only on a real terminal
 # with room for it. Piped to a file or a CI log it would be six lines of noise, and in
 # a narrow phone SSH client it would wrap into confetti. Both fall back to one line.
 
-WORDMARK='~1██████╗ ███████╗██████╗  █████╗ ~2██╗██╗     ███████╗██████╗
-~1██╔══██╗██╔════╝██╔══██╗██╔══██╗~2██║██║     ██╔════╝██╔══██╗
-~1██║  ██║█████╗  ██████╔╝███████║~2██║██║     █████╗  ██║  ██║
-~1██║  ██║██╔══╝  ██╔══██╗██╔══██║~2██║██║     ██╔══╝  ██║  ██║
-~1██████╔╝███████╗██║  ██║██║  ██║~2██║███████╗███████╗██████╔╝
-~1╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝~2╚═╝╚══════╝╚══════╝╚═════╝'
+WORDMARK='██████╗ ███████╗██████╗  █████╗ ██╗██╗     ███████╗██████╗
+██╔══██╗██╔════╝██╔══██╗██╔══██╗██║██║     ██╔════╝██╔══██╗
+██║  ██║█████╗  ██████╔╝███████║██║██║     █████╗  ██║  ██║
+██║  ██║██╔══╝  ██╔══██╗██╔══██║██║██║     ██╔══╝  ██║  ██║
+██████╔╝███████╗██║  ██║██║  ██║██║███████╗███████╗██████╔╝
+╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝'
 
 WORDMARK_WIDTH=61
-WORDMARK_BANDS=2
 
-# The two tones, in whatever the terminal understands.
-band_colour() {
+# The two tones, in whatever the terminal understands. Rows 1 to 3 get the first.
+row_colour() {
   case "$COLOR_DEPTH" in
     full)
       case "$1" in
-        1) printf '\033[38;2;139;147;232m' ;;
-        *) printf '\033[38;2;91;100;196m'  ;;
+        1|2|3) printf '\033[38;2;139;147;232m' ;;
+        *)     printf '\033[38;2;91;100;196m'  ;;
       esac
       ;;
     256)
       # 147 is #afafff and 62 is #5f5fd7: the closest the xterm cube comes to each.
       case "$1" in
-        1) printf '\033[38;5;147m' ;;
-        *) printf '\033[38;5;62m'  ;;
+        1|2|3) printf '\033[38;5;147m' ;;
+        *)     printf '\033[38;5;62m'  ;;
       esac
       ;;
     # Sixteen colours has one blue and one bright blue, and the plain one is unreadably
@@ -127,17 +123,6 @@ band_colour() {
     basic) printf '\033[1;34m' ;;
     *)     printf '' ;;
   esac
-}
-
-# One sed script that turns every marker into its colour, built once.
-palette() {
-  script=''
-  n=1
-  while [ "$n" -le "$WORDMARK_BANDS" ]; do
-    script="${script}s/~${n}/$(band_colour "$n")/g;"
-    n=$((n + 1))
-  done
-  printf '%s' "$script"
 }
 
 # Anything that isn't a plausible column count means "we don't actually know", so the
@@ -174,8 +159,10 @@ splash() {
   fi
 
   say ""
-  printf '%s\n' "$WORDMARK" | sed "$(palette)" | while IFS= read -r line; do
-    printf '  %s%s\n' "$line" "$RESET"
+  row=1
+  printf '%s\n' "$WORDMARK" | while IFS= read -r line; do
+    printf '  %s%s%s\n' "$(row_colour "$row")" "$line" "$RESET"
+    row=$((row + 1))
   done
   say ""
   say "  ${DIM}Your own tiny cloud. Self-hosted, on your own server.${RESET}"
