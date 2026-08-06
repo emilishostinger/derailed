@@ -551,4 +551,16 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_audit_at ON audit_log(at DESC);
     `,
   },
+  {
+    id: 19,
+    name: 'apps that sleep when nobody is looking',
+    sql: `
+      -- On a small server this is what lets somebody run twelve side projects rather
+      -- than four. Minutes of quiet before pausing; null means never sleep, which is
+      -- what every existing app should keep doing.
+      ALTER TABLE services ADD COLUMN sleep_after_minutes INTEGER;
+      -- When the proxy last saw a request for it, so "quiet" means something.
+      ALTER TABLE services ADD COLUMN last_seen_at INTEGER;
+    `,
+  },
 ];

@@ -34,6 +34,14 @@ import { listFiles, readFile, storageRoots, writeFile } from '../../runtime/file
 import { historyFor } from '../../runtime/metrics.ts';
 import { emitProject, emitService, presentService } from '../../runtime/present.ts';
 import { previewFile, refreshPreview } from '../../runtime/preview.ts';
+import {
+  isAsleep,
+  lastSeen,
+  MIN_MINUTES,
+  setSleepAfter,
+  sleepSettingFor,
+  wakeNow,
+} from '../../runtime/sleep.ts';
 import type { AppEnv } from '../auth.ts';
 import { badRequest, notFound, parseBody } from '../errors.ts';
 
@@ -437,6 +445,48 @@ serviceRoutes.put('/:id/files', async (c) => {
     throw badRequest(err instanceof Error ? err.message : 'That file could not be saved.');
   }
   return c.json({ ok: true });
+});
+
+/**
+ * Pausing an app when nobody is looking.
+ *
+ * On a small server this is the difference between running twelve side projects and
+ * four. The cost is that the first visitor after a quiet spell waits a few seconds,
+ * which is the trade anybody switching it on is choosing to make.
+ */
+serviceRoutes.put('/:id/sleep', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  if (service.kind !== 'app') throw badRequest('Only apps can be paused this way.');
+
+  const body = (await c.req.json().catch(() => ({}))) as { minutes?: number | null };
+  const minutes = body.minutes ?? null;
+  if (minutes !== null && (!Number.isFinite(minutes) || minutes < MIN_MINUTES)) {
+    throw badRequest(
+      `Wait at least ${MIN_MINUTES} minutes.`,
+      'Below that, waking it up costs more than the sleeping saved.',
+    );
+  }
+
+  setSleepAfter(service.id, minutes);
+  emitService(service.id);
+  return c.json({ minutes: sleepSettingFor(service.id) });
+});
+
+serviceRoutes.post('/:id/wake', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  return c.json({ woke: await wakeNow(service.id) });
+});
+
+serviceRoutes.get('/:id/sleep', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  return c.json({
+    minutes: sleepSettingFor(service.id),
+    asleep: await isAsleep(service.id),
+    lastSeenAt: lastSeen(service.id),
+  });
 });
 
 serviceRoutes.get('/:id/metrics', (c) => {

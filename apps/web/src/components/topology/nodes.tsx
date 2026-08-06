@@ -18,18 +18,32 @@ function NodeShell({
   selected,
   busy,
   failed,
+  /** 0 to 100. Drives a glow, so a busy app is visible from across the map. */
+  load,
   children,
 }: {
   selected?: boolean;
   busy?: boolean;
   failed?: boolean;
+  load?: number;
   children: React.ReactNode;
 }) {
+  // Only once it is genuinely working. A permanent halo on an idle app would be
+  // decoration; one that appears when something is under load is information.
+  const glow = load !== undefined && load > 25 ? Math.min(1, load / 100) : 0;
+
   return (
     <div
-      style={{ width: NODE_WIDTH, minHeight: NODE_HEIGHT }}
+      style={{
+        width: NODE_WIDTH,
+        minHeight: NODE_HEIGHT,
+        // Inline because the intensity is a number rather than one of a few classes.
+        boxShadow: glow
+          ? `0 0 ${8 + glow * 16}px rgba(114, 54, 227, ${0.15 + glow * 0.35})`
+          : undefined,
+      }}
       className={cx(
-        'relative flex cursor-pointer flex-col overflow-hidden rounded-[var(--radius-card)] border bg-surface text-left transition-[border-color,box-shadow] duration-150',
+        'relative flex cursor-pointer flex-col overflow-hidden rounded-[var(--radius-card)] border bg-surface text-left transition-[border-color,box-shadow] duration-500',
         selected
           ? 'border-accent shadow-[0_0_0_3px_var(--color-accent)]/20'
           : failed
@@ -62,6 +76,7 @@ export function AppNode({ data, selected }: NodeProps & { data: ServiceNodeData 
       selected={selected}
       busy={status === 'deploying'}
       failed={status === 'failed' || status === 'crashed'}
+      load={status === 'running' ? stats?.cpuPercent : undefined}
     >
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />

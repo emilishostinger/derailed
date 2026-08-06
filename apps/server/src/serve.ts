@@ -27,6 +27,7 @@ import { pruneMetrics } from './runtime/metrics.ts';
 import { startMonitor, stopMonitor } from './runtime/monitor.ts';
 import { startPreviews, stopPreviews } from './runtime/preview.ts';
 import { reconcile } from './runtime/reconcile.ts';
+import { startSleeper, stopSleeper } from './runtime/sleep.ts';
 import { startTrashSweep, stopTrashSweep } from './runtime/trash.ts';
 import { startUptime, stopUptime } from './runtime/uptime.ts';
 import { diskReport } from './system/disk.ts';
@@ -160,6 +161,7 @@ export async function serve(): Promise<void> {
     stopTrashSweep();
     stopPreviews();
     stopUptime();
+    stopSleeper();
     stopReleaseWatcher();
     stopPushWatcher();
     stopUpdateNotifier();
@@ -220,6 +222,7 @@ async function bootRuntime(): Promise<void> {
     startTrashSweep((line) => console.log(`  trash      →  ${line}`));
     startPreviews();
     startUptime();
+    startSleeper();
     startReleaseWatcher();
     startPushWatcher();
     startUpdateNotifier();
