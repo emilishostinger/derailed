@@ -47,11 +47,123 @@ else
   BOLD=''; DIM=''; RED=''; GREEN=''; YELLOW=''; RESET=''
 fi
 
+# How much colour this terminal can actually be trusted with. The wordmark is a
+# gradient, and a gradient rendered in sixteen colours is worse than no gradient.
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  case "${COLORTERM:-}" in
+    truecolor|24bit) COLOR_DEPTH=full ;;
+    *)
+      case "${TERM:-}" in
+        *256color*|*direct*) COLOR_DEPTH=256 ;;
+        *)                   COLOR_DEPTH=basic ;;
+      esac
+      ;;
+  esac
+else
+  COLOR_DEPTH=none
+fi
+
 say()  { printf '%s\n' "$*"; }
 step() { printf '  %s→%s %s\n' "$DIM" "$RESET" "$*"; }
 ok()   { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$*"; }
 warn() { printf '  %s!%s %s\n' "$YELLOW" "$RESET" "$*"; }
 die()  { printf '\n  %s✗%s %s\n\n' "$RED" "$RESET" "$*" >&2; exit 1; }
+
+# -------------------------------------------------------------------- the splash
+#
+# The wordmark, in the violet the dashboard and the favicon already use, shaded from
+# #8b93e8 at the top to #5b64c4 at the bottom: the same gradient as the logo tile.
+#
+# Written out rather than generated. There are lovely tools for this (oh-my-logo and
+# friends), but every one of them is an npm package, and the promise this installer
+# makes is that it needs nothing on the machine before it runs. Six lines of text
+# cost nothing and keep that true.
+#
+# Sixty-one columns wide including the indent, so it is shown only on a real terminal
+# with room for it. Piped to a file or a CI log it would be six lines of noise, and in
+# a narrow phone SSH client it would wrap into confetti. Both fall back to one line.
+
+WORDMARK='██████╗ ███████╗██████╗  █████╗ ██╗██╗     ███████╗██████╗
+██╔══██╗██╔════╝██╔══██╗██╔══██╗██║██║     ██╔════╝██╔══██╗
+██║  ██║█████╗  ██████╔╝███████║██║██║     █████╗  ██║  ██║
+██║  ██║██╔══╝  ██╔══██╗██╔══██║██║██║     ██╔══╝  ██║  ██║
+██████╔╝███████╗██║  ██║██║  ██║██║███████╗███████╗██████╔╝
+╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝'
+
+WORDMARK_WIDTH=61
+
+# One escape per row of the gradient, in whatever the terminal understands.
+row_colour() {
+  case "$COLOR_DEPTH" in
+    full)
+      case "$1" in
+        1) printf '\033[38;2;139;147;232m' ;;
+        2) printf '\033[38;2;129;138;225m' ;;
+        3) printf '\033[38;2;120;128;218m' ;;
+        4) printf '\033[38;2;110;119;210m' ;;
+        5) printf '\033[38;2;101;109;203m' ;;
+        *) printf '\033[38;2;91;100;196m'  ;;
+      esac
+      ;;
+    256)
+      # The nearest the xterm cube gets to that ramp without straying into magenta.
+      case "$1" in
+        1) printf '\033[38;5;147m' ;;
+        2) printf '\033[38;5;105m' ;;
+        3) printf '\033[38;5;104m' ;;
+        4) printf '\033[38;5;99m'  ;;
+        5) printf '\033[38;5;98m'  ;;
+        *) printf '\033[38;5;62m'  ;;
+      esac
+      ;;
+    basic) printf '\033[1;34m' ;;
+    *)     printf '' ;;
+  esac
+}
+
+# Anything that isn't a plausible column count means "we don't actually know", so the
+# next source gets a turn. A pty with nothing driving it reports a size of 0, which is
+# not a very narrow terminal, it is no answer at all.
+usable_width() {
+  case "$1" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  [ "$1" -ge 20 ] || return 1
+  printf '%s' "$1"
+}
+
+terminal_width() {
+  # Asked of the controlling terminal, not of stdout. `tput cols` here is read inside a
+  # command substitution, where stdout is a pipe rather than the terminal, so it
+  # answers from terminfo instead of from the window: a flat 80 whatever the real size
+  # is, which left the narrow-terminal guard below never firing. It stays as a second
+  # opinion, since an 80 that is merely conventional still beats no number at all.
+  usable_width "$(stty size </dev/tty 2>/dev/null | awk '{print $2}' || true)" && return 0
+  usable_width "$(tput cols 2>/dev/null || true)" && return 0
+  usable_width "${COLUMNS:-}" && return 0
+  # Nothing would tell us, so assume the eighty columns terminals have had since 1928.
+  printf '80'
+}
+
+splash() {
+  if [ ! -t 1 ] || [ "$(terminal_width)" -lt "$WORDMARK_WIDTH" ]; then
+    say ""
+    say "  ${BOLD}Derailed${RESET}"
+    say "  ${DIM}Self-hosted deploys on your own server.${RESET}"
+    say ""
+    return
+  fi
+
+  say ""
+  row=1
+  printf '%s\n' "$WORDMARK" | while IFS= read -r line; do
+    printf '  %s%s%s\n' "$(row_colour "$row")" "$line" "$RESET"
+    row=$((row + 1))
+  done
+  say ""
+  say "  ${DIM}Your own tiny cloud. Self-hosted, on your own server.${RESET}"
+  say ""
+}
 
 confirm() {
   [ "$ASSUME_YES" = "1" ] && return 0
@@ -110,10 +222,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-say ""
-say "  ${BOLD}Derailed${RESET}"
-say "  ${DIM}Self-hosted deploys on your own server.${RESET}"
-say ""
+splash
 
 # ------------------------------------------------------------------ environment
 
