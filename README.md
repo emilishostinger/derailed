@@ -72,6 +72,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |
 | 🖼️ **Your apps, not a process list** | Every tile carries the site's own icon and title, read from the thing that is actually running. Turn on screenshots and it carries a picture too. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
+| ⏰ **Things that run on a schedule** | WordPress cron, a nightly cleanup, a weekly report. Two questions: what to run and how often, with the how-often as a list of choices rather than five asterisks. Every run keeps what it printed, and a failure tells you. |
 | 🔑 **Password-protect anything, one toggle** | A username, a password, and the site is private. Or an address list. Or a "back shortly" page. All done by the proxy, so it works for WordPress, a folder of HTML, or anything else, unchanged. |
 | 🩹 **"Why did this break?"** | Reads the build log and answers in two sentences with something to press: a missing lockfile, no compiler for a native module, a database that was never connected, migrations that never ran, out of memory. Where it can fix it, it offers to. Where it does not know, it says so. |
 | 🔔 **It tells you when something dies** | Crashes, crash loops, failed deploys, a filling disk, an expiring certificate, a backup that turns out not to restore. To your phone, Discord, Slack, Telegram or email. The same problem is never reported twice, and every message says what to do. |
@@ -152,6 +153,7 @@ safe.
 [Disk space](docs/disk.md) ·
 [Alerts](docs/alerts.md) ·
 [Access](docs/access.md) ·
+[Scheduled jobs](docs/jobs.md) ·
 [Visitor figures](docs/analytics.md) ·
 [Coding agents](docs/mcp.md) ·
 [API](docs/api.md) ·

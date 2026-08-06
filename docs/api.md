@@ -88,6 +88,17 @@ Creating a service:
 | `POST /services/:id/preview` | Refresh one app's title, icon and picture now |
 | `GET /services/previews/:name` | The image itself. Behind the session, like everything |
 
+## Scheduled jobs
+
+| | |
+| --- | --- |
+| `GET /jobs` · `GET /services/:id/jobs` | Everything scheduled, or one app's |
+| `POST /jobs` | `{ serviceId, name, command, schedule }`. A null serviceId runs on the server |
+| `PATCH /jobs/:id` · `DELETE /jobs/:id` | Change or remove one |
+| `POST /jobs/:id/run` | Run it now, whatever the schedule says |
+| `GET /jobs/:id/runs` | The last twenty runs, with what they printed |
+| `POST /jobs/preview` | `{ schedule }` in words, and when it would next fire |
+
 ## Alerts
 
 | | |

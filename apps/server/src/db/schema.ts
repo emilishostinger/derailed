@@ -391,4 +391,43 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN maintenance INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    id: 14,
+    name: 'things that run on a schedule',
+    sql: `
+      -- Cron for people who do not know what cron is. The schedule is kept as a real
+      -- cron expression because that is the thing with well-defined semantics, and
+      -- the plain-language choices in the UI compile down to one of a handful of them.
+      --
+      -- A job with no service_id runs on the server rather than inside a container:
+      -- that is the "tidy up every night" case, and it is deliberately a different
+      -- shape rather than a magic service id.
+      CREATE TABLE jobs (
+        id           TEXT PRIMARY KEY,
+        service_id   TEXT REFERENCES services(id) ON DELETE CASCADE,
+        name         TEXT NOT NULL,
+        command      TEXT NOT NULL,
+        schedule     TEXT NOT NULL,
+        enabled      INTEGER NOT NULL DEFAULT 1,
+        last_run_at  INTEGER,
+        next_run_at  INTEGER,
+        created_at   INTEGER NOT NULL
+      );
+      CREATE INDEX idx_jobs_service ON jobs(service_id);
+      CREATE INDEX idx_jobs_next ON jobs(next_run_at);
+
+      -- Every run keeps what it printed. A scheduled job whose output goes nowhere is
+      -- a job nobody can tell has been quietly failing for a month.
+      CREATE TABLE job_runs (
+        id          TEXT PRIMARY KEY,
+        job_id      TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        started_at  INTEGER NOT NULL,
+        finished_at INTEGER,
+        exit_code   INTEGER,
+        output      TEXT,
+        trigger     TEXT NOT NULL DEFAULT 'schedule'
+      );
+      CREATE INDEX idx_job_runs_job ON job_runs(job_id, started_at DESC);
+    `,
+  },
 ];

@@ -12,6 +12,7 @@ import { publish } from './events/bus.ts';
 import { createApp } from './http/app.ts';
 import { isSameOrigin, userFromRequest } from './http/auth.ts';
 import { socketHandlers } from './http/sockets.ts';
+import { startJobs, stopJobs } from './jobs/run.ts';
 import { startUpdateNotifier, stopUpdateNotifier } from './mail/notify.ts';
 import { ensureCaddyRunning, pingCaddy } from './proxy/caddy.ts';
 import { startDomainWatcher, stopDomainWatcher } from './proxy/domainwatch.ts';
@@ -152,6 +153,7 @@ export async function serve(): Promise<void> {
     stopBackupSchedule();
     stopDrills();
     stopAlerts();
+    stopJobs();
     stopTrashSweep();
     stopPreviews();
     stopReleaseWatcher();
@@ -210,6 +212,7 @@ async function bootRuntime(): Promise<void> {
     startBackupSchedule();
     startDrills((line) => console.log(`  backups    →  ${line}`));
     startAlerts();
+    startJobs();
     startTrashSweep((line) => console.log(`  trash      →  ${line}`));
     startPreviews();
     startReleaseWatcher();

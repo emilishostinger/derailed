@@ -9,6 +9,7 @@ import { catalogRoutes, connectionRoutes, linkRoutes, singleLinkRoutes } from '.
 import { deploymentRoutes, serviceDeploymentRoutes } from './routes/deployments.ts';
 import { detectRoutes } from './routes/detect.ts';
 import { domainRoutes, serviceDomainRoutes } from './routes/domains.ts';
+import { jobRoutes, serviceJobRoutes } from './routes/jobs.ts';
 import { mailRoutes } from './routes/mail.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { projectServiceRoutes, serviceRoutes } from './routes/services.ts';
@@ -95,6 +96,8 @@ export function createApp() {
   api.route('/backups', backupRoutes);
   api.route('/trash', trashRoutes);
   api.route('/alerts', alertRoutes);
+  api.route('/jobs', jobRoutes);
+  api.route('/services', serviceJobRoutes);
 
   api.all('*', () => {
     throw notFound('That endpoint');

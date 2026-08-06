@@ -419,7 +419,8 @@ export type AlertEventKind =
   | 'certificate.expiring'
   | 'domain.drifted'
   | 'backup.failed'
-  | 'drill.failed';
+  | 'drill.failed'
+  | 'job.failed';
 
 export interface AlertSettings {
   channels: AlertChannel[];
@@ -441,6 +442,36 @@ export interface Diagnosis {
   /** Something Derailed can do about it, from the failure card. */
   fix?: 'add-swap' | 'reclaim-disk' | null;
   confident: boolean;
+}
+
+/**
+ * Something that runs on a schedule.
+ *
+ * With a `serviceId` it runs inside that app's container, so it has the app's
+ * environment and its files. Without one it runs on the server, which is the
+ * housekeeping that belongs to nobody in particular.
+ */
+export interface Job {
+  id: string;
+  serviceId: string | null;
+  name: string;
+  command: string;
+  /** A five-field cron expression. The dashboard's choices compile down to these. */
+  schedule: string;
+  enabled: boolean;
+  lastRunAt: number | null;
+  nextRunAt: number | null;
+  createdAt: number;
+}
+
+export interface JobRun {
+  id: string;
+  jobId: string;
+  startedAt: number;
+  finishedAt: number | null;
+  exitCode: number | null;
+  output: string | null;
+  trigger: 'schedule' | 'manual';
 }
 
 /** Detection result for a repo, phrased for humans, not machines. */

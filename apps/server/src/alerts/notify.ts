@@ -124,6 +124,7 @@ export const ALL_EVENTS: { kind: AlertEventKind; label: string; onByDefault: boo
   { kind: 'domain.drifted', label: 'A domain stops pointing here', onByDefault: true },
   { kind: 'backup.failed', label: 'A backup fails', onByDefault: true },
   { kind: 'drill.failed', label: 'A backup turns out not to restore', onByDefault: true },
+  { kind: 'job.failed', label: 'A scheduled job fails', onByDefault: true },
   { kind: 'deploy.succeeded', label: 'A deploy works', onByDefault: false },
 ];
 

@@ -13,6 +13,8 @@ import type {
   DrillResult,
   EnvVar,
   FreeDomain,
+  Job,
+  JobRun,
   LogLine,
   OffsiteSettings,
   OffsiteStatus,
@@ -318,6 +320,22 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  jobs: (serviceId: string) =>
+    api
+      .get<{ jobs: (Job & { scheduleInWords?: string })[] }>(`/services/${serviceId}/jobs`)
+      .then((r) => r.jobs),
+  createJob: (input: {
+    serviceId: string | null;
+    name: string;
+    command: string;
+    schedule: string;
+  }) => api.post<{ job: Job }>('/jobs', input),
+  updateJob: (id: string, patch: Record<string, unknown>) =>
+    api.patch<{ job: Job }>(`/jobs/${id}`, patch),
+  deleteJob: (id: string) => api.delete<{ ok: true }>(`/jobs/${id}`),
+  runJob: (id: string) => api.post<{ result: { ok: boolean; run: JobRun } }>(`/jobs/${id}/run`),
+  runsFor: (id: string) => api.get<{ runs: JobRun[] }>(`/jobs/${id}/runs`).then((r) => r.runs),
 
   setAccess: (
     serviceId: string,

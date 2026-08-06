@@ -20,6 +20,7 @@ import { AccessTab } from './AccessTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
+import { JobsTab } from './JobsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
@@ -40,6 +41,7 @@ type Tab =
   | 'terminal'
   | 'domains'
   | 'access'
+  | 'jobs'
   | 'settings';
 
 export function ServiceDrawer({
@@ -99,6 +101,7 @@ export function ServiceDrawer({
         ['terminal', 'Terminal'],
         ['domains', 'Domains'],
         ['access', 'Access'],
+        ['jobs', 'Scheduled'],
         ['settings', 'Settings'],
       ]
     : [
@@ -288,6 +291,7 @@ export function ServiceDrawer({
           {tab === 'terminal' && <TerminalTab service={service} />}
           {tab === 'domains' && <DomainsTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
+          {tab === 'jobs' && <JobsTab service={service} />}
           {tab === 'settings' && <Settings service={service} onClose={onClose} />}
         </div>
       </aside>
