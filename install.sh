@@ -71,54 +71,78 @@ die()  { printf '\n  %s✗%s %s\n\n' "$RED" "$RESET" "$*" >&2; exit 1; }
 
 # -------------------------------------------------------------------- the splash
 #
-# The wordmark, in the violet the dashboard and the favicon already use, shaded from
-# #8b93e8 at the top to #5b64c4 at the bottom: the same gradient as the logo tile.
+# The wordmark, in the violet the dashboard and the favicon already use, running left
+# to right from #8b93e8 to #5b64c4: the same gradient as the logo tile, turned on its
+# side so it sweeps across the word rather than down it.
 #
 # Written out rather than generated. There are lovely tools for this (oh-my-logo and
 # friends), but every one of them is an npm package, and the promise this installer
 # makes is that it needs nothing on the machine before it runs. Six lines of text
 # cost nothing and keep that true.
 #
+# `~1` to `~8` mark where one letter ends and the next begins, and are swapped for
+# colour escapes at run time. The colour has to change *inside* each line for a
+# left-to-right gradient, and cutting a line into pieces is the one thing that cannot
+# be done safely here: these glyphs are three bytes each, mawk is what `awk` means on
+# Debian and has no idea about multibyte characters, and most `cut` and `fold` builds
+# count bytes too. Any of them would slice a █ down the middle and spray the terminal
+# with replacement characters. Plain ASCII markers substituted by `sed` cannot.
+#
 # Sixty-one columns wide including the indent, so it is shown only on a real terminal
 # with room for it. Piped to a file or a CI log it would be six lines of noise, and in
 # a narrow phone SSH client it would wrap into confetti. Both fall back to one line.
 
-WORDMARK='██████╗ ███████╗██████╗  █████╗ ██╗██╗     ███████╗██████╗
-██╔══██╗██╔════╝██╔══██╗██╔══██╗██║██║     ██╔════╝██╔══██╗
-██║  ██║█████╗  ██████╔╝███████║██║██║     █████╗  ██║  ██║
-██║  ██║██╔══╝  ██╔══██╗██╔══██║██║██║     ██╔══╝  ██║  ██║
-██████╔╝███████╗██║  ██║██║  ██║██║███████╗███████╗██████╔╝
-╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝'
+WORDMARK='~1██████╗ ~2███████╗~3██████╗ ~4 █████╗ ~5██╗~6██╗     ~7███████╗~8██████╗
+~1██╔══██╗~2██╔════╝~3██╔══██╗~4██╔══██╗~5██║~6██║     ~7██╔════╝~8██╔══██╗
+~1██║  ██║~2█████╗  ~3██████╔╝~4███████║~5██║~6██║     ~7█████╗  ~8██║  ██║
+~1██║  ██║~2██╔══╝  ~3██╔══██╗~4██╔══██║~5██║~6██║     ~7██╔══╝  ~8██║  ██║
+~1██████╔╝~2███████╗~3██║  ██║~4██║  ██║~5██║~6███████╗~7███████╗~8██████╔╝
+~1╚═════╝ ~2╚══════╝~3╚═╝  ╚═╝~4╚═╝  ╚═╝~5╚═╝~6╚══════╝~7╚══════╝~8╚═════╝'
 
 WORDMARK_WIDTH=61
+WORDMARK_BANDS=8
 
-# One escape per row of the gradient, in whatever the terminal understands.
-row_colour() {
+# One escape per band of the gradient, in whatever the terminal understands.
+band_colour() {
   case "$COLOR_DEPTH" in
     full)
       case "$1" in
         1) printf '\033[38;2;139;147;232m' ;;
-        2) printf '\033[38;2;129;138;225m' ;;
-        3) printf '\033[38;2;120;128;218m' ;;
-        4) printf '\033[38;2;110;119;210m' ;;
-        5) printf '\033[38;2;101;109;203m' ;;
+        2) printf '\033[38;2;132;140;227m' ;;
+        3) printf '\033[38;2;125;134;222m' ;;
+        4) printf '\033[38;2;118;127;217m' ;;
+        5) printf '\033[38;2;112;120;211m' ;;
+        6) printf '\033[38;2;105;113;206m' ;;
+        7) printf '\033[38;2;98;107;201m'  ;;
         *) printf '\033[38;2;91;100;196m'  ;;
       esac
       ;;
     256)
-      # The nearest the xterm cube gets to that ramp without straying into magenta.
+      # The xterm cube has nothing between some of these, so a couple of bands repeat.
+      # A ramp that steps where it can beats one that wanders off into magenta to
+      # avoid ever repeating itself.
       case "$1" in
-        1) printf '\033[38;5;147m' ;;
-        2) printf '\033[38;5;105m' ;;
-        3) printf '\033[38;5;104m' ;;
-        4) printf '\033[38;5;99m'  ;;
-        5) printf '\033[38;5;98m'  ;;
-        *) printf '\033[38;5;62m'  ;;
+        1|2) printf '\033[38;5;147m' ;;
+        3|4) printf '\033[38;5;105m' ;;
+        5)   printf '\033[38;5;104m' ;;
+        6)   printf '\033[38;5;98m'  ;;
+        *)   printf '\033[38;5;62m'  ;;
       esac
       ;;
     basic) printf '\033[1;34m' ;;
     *)     printf '' ;;
   esac
+}
+
+# One sed script that turns every marker into its colour, built once.
+palette() {
+  script=''
+  n=1
+  while [ "$n" -le "$WORDMARK_BANDS" ]; do
+    script="${script}s/~${n}/$(band_colour "$n")/g;"
+    n=$((n + 1))
+  done
+  printf '%s' "$script"
 }
 
 # Anything that isn't a plausible column count means "we don't actually know", so the
@@ -155,10 +179,8 @@ splash() {
   fi
 
   say ""
-  row=1
-  printf '%s\n' "$WORDMARK" | while IFS= read -r line; do
-    printf '  %s%s%s\n' "$(row_colour "$row")" "$line" "$RESET"
-    row=$((row + 1))
+  printf '%s\n' "$WORDMARK" | sed "$(palette)" | while IFS= read -r line; do
+    printf '  %s%s\n' "$line" "$RESET"
   done
   say ""
   say "  ${DIM}Your own tiny cloud. Self-hosted, on your own server.${RESET}"
