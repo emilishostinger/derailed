@@ -327,6 +327,21 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  movePlan: () => api.get<{ plan: unknown }>('/backups/move/plan').then((r) => r.plan),
+  exportInstall: () => api.post<{ file: string; sizeBytes: number }>('/backups/move/export'),
+  importInstall: (plan: unknown) =>
+    api
+      .post<{
+        result: {
+          projects: number;
+          services: number;
+          domains: number;
+          afterwards: string[];
+          warnings: string[];
+        };
+      }>('/backups/move/import', { plan })
+      .then((r) => r.result),
+
   me: () => api.get<{ totpEnabled?: boolean; recoveryCodesLeft?: number }>('/auth/me'),
   startTotp: () => api.post<{ secret: string; url: string }>('/auth/totp/start'),
   confirmTotp: (code: string) =>

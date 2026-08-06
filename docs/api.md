@@ -105,6 +105,14 @@ Creating a service:
 | `GET /jobs/:id/runs` | The last twenty runs, with what they printed |
 | `POST /jobs/preview` | `{ schedule }` in words, and when it would next fire |
 
+## Moving servers
+
+| | |
+| --- | --- |
+| `GET /backups/move/plan` | Everything Derailed knows, minus the secrets |
+| `POST /backups/move/export` | Build the file: the plan plus a backup of every project |
+| `POST /backups/move/import` | `{ plan }`. Recreates the shape, starts nothing |
+
 ## Signing in
 
 | | |

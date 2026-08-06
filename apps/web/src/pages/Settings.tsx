@@ -5,6 +5,7 @@ import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { Alerts } from '../components/Alerts.tsx';
 import { playChime, setSoundsEnabled, soundsEnabled } from '../components/Celebrate.tsx';
+import { MoveServer } from '../components/MoveServer.tsx';
 import { Security } from '../components/Security.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
@@ -83,6 +84,10 @@ export function Settings() {
 
           <Section title="Update emails">
             <UpdateEmails />
+          </Section>
+
+          <Section title="Moving to another server">
+            <MoveServer />
           </Section>
 
           {/* This was behind a disclosure marked "Advanced", which held one field and

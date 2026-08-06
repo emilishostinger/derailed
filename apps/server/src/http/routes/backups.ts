@@ -10,6 +10,7 @@ import {
   setRetention,
 } from '../../backup/backup.ts';
 import { drillBackup, lastDrill } from '../../backup/drill.ts';
+import { describeInstall, exportInstall, importInstall } from '../../backup/migrate.ts';
 import {
   copyOffsite,
   forgetOffsiteSettings,
@@ -122,6 +123,31 @@ backupRoutes.post('/offsite/test', async (c) => {
   } catch (err) {
     if (err instanceof S3Error) throw badRequest(err.message, err.hint);
     throw err;
+  }
+});
+
+/**
+ * Moving to another server.
+ *
+ * Export builds one file with everything Derailed knows plus a backup of every
+ * project. Import recreates the shape of it and starts nothing.
+ */
+backupRoutes.get('/move/plan', (c) => c.json({ plan: describeInstall() }));
+
+backupRoutes.post('/move/export', async (c) => {
+  const { file, sizeBytes } = await exportInstall();
+  return c.json({ file: file.split('/').pop(), sizeBytes });
+});
+
+backupRoutes.post('/move/import', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { plan?: unknown };
+  if (!body.plan || typeof body.plan !== 'object') {
+    throw badRequest('That does not look like a Derailed file.');
+  }
+  try {
+    return c.json({ result: importInstall(body.plan as Parameters<typeof importInstall>[0]) });
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That file could not be read.');
   }
 });
 
