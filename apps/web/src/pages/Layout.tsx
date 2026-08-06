@@ -7,6 +7,7 @@ import {
   Bot,
   Boxes,
   ChevronDown,
+  ChevronLeft,
   Command,
   Database,
   Globe,
@@ -285,8 +286,8 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
         type="button"
         onClick={onOpenPalette}
         className="mx-3 mb-3 flex items-center gap-2 rounded-[var(--radius-control)] border border-line
-          bg-surface-2 px-2.5 py-1.5 text-[13px] text-ink-faint transition-colors
-          hover:border-line-strong hover:text-ink-muted"
+          bg-on-canvas px-2.5 py-1.5 text-[13px] text-ink-faint transition-colors
+          hover:border-line-strong hover:bg-on-canvas-strong hover:text-ink-muted"
       >
         <Command className="h-3.5 w-3.5" />
         Jump to…
@@ -428,8 +429,8 @@ function NavItem({
           className,
           'flex items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-[13px] font-medium transition-colors',
           isActive
-            ? 'bg-surface-2 text-ink'
-            : 'text-ink-muted hover:bg-surface-2/60 hover:text-ink',
+            ? 'bg-on-canvas-strong text-ink'
+            : 'text-ink-muted hover:bg-on-canvas hover:text-ink',
         )
       }
     >
@@ -465,8 +466,8 @@ function UpdatesNavItem() {
         cx(
           'flex items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-[13px] font-medium transition-colors',
           isActive
-            ? 'bg-surface-2 text-ink'
-            : 'text-ink-muted hover:bg-surface-2/60 hover:text-ink',
+            ? 'bg-on-canvas-strong text-ink'
+            : 'text-ink-muted hover:bg-on-canvas hover:text-ink',
         )
       }
     >
@@ -478,7 +479,7 @@ function UpdatesNavItem() {
         <span
           className={cx(
             'ml-auto flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold',
-            urgent ? 'bg-warn text-black' : 'bg-surface-2 text-ink-muted',
+            urgent ? 'bg-warn text-black' : 'bg-on-canvas-strong text-ink-muted',
           )}
         >
           {pending}
@@ -519,8 +520,8 @@ function ProjectItem({
           cx(
             'group flex items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-[13px] transition-colors',
             isActive
-              ? 'bg-surface-2 text-ink'
-              : 'text-ink-muted hover:bg-surface-2/60 hover:text-ink',
+              ? 'bg-on-canvas-strong text-ink'
+              : 'text-ink-muted hover:bg-on-canvas hover:text-ink',
           )
         }
       >
@@ -751,7 +752,7 @@ function BrokenDockerNotice() {
   return (
     <Link
       to="/server"
-      className="mx-2 mb-1 flex items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-[12px] text-warn transition-colors hover:bg-surface-2"
+      className="mx-2 mb-1 flex items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-[12px] text-warn transition-colors hover:bg-on-canvas"
     >
       <StatusDot status="failed" />
       <span className="truncate">Docker is unreachable</span>
@@ -768,7 +769,7 @@ function ThemeToggle() {
   const setTheme = useTheme((s) => s.setTheme);
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-control)] bg-surface-2 p-0.5">
+    <div className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-control)] bg-on-canvas p-0.5">
       {(['dark', 'light'] as const).map((option) => (
         <button
           key={option}
@@ -779,7 +780,7 @@ function ThemeToggle() {
           className={cx(
             'flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors',
             theme === option
-              ? 'bg-elevated text-ink shadow-[var(--d-shadow-card)]'
+              ? 'bg-surface text-ink shadow-[var(--d-shadow-card)]'
               : 'text-ink-faint hover:text-ink-muted',
           )}
         >
@@ -855,7 +856,7 @@ function AccountMenu() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors hover:bg-surface-2"
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors hover:bg-on-canvas"
       >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent">
           {(user?.email ?? '?').slice(0, 1).toUpperCase()}
@@ -1018,6 +1019,7 @@ export function PageHeader({
 }) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-5 max-md:pl-14">
+      <BackButton />
       <div className="flex min-w-0 items-baseline gap-2.5">
         <h1 className="truncate text-[15px] font-semibold text-ink">{title}</h1>
         {subtitle && <p className="truncate text-[13px] text-ink-faint">{subtitle}</p>}
@@ -1025,6 +1027,39 @@ export function PageHeader({
       {children}
       {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
     </header>
+  );
+}
+
+/**
+ * Back, in the corner every application puts it in.
+ *
+ * Only when there is somewhere to go. React Router keeps an index on the history
+ * entry it owns, so a page opened directly, or the first one after a sign-in, knows
+ * it is the beginning and does not offer to leave. `history.length` cannot answer
+ * this: it counts the whole tab, including whatever was open before this app was.
+ */
+function BackButton() {
+  const navigate = useNavigate();
+  // Read on every navigation, because the index changes underneath us.
+  const location = useLocation();
+  const index =
+    typeof window === 'undefined'
+      ? 0
+      : ((window.history.state as { idx?: number } | null)?.idx ?? 0);
+
+  if (index <= 0) return null;
+
+  return (
+    <button
+      key={location.key}
+      type="button"
+      aria-label="Back"
+      title="Back"
+      className="-ml-2 shrink-0 rounded-[var(--radius-control)] p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+      onClick={() => navigate(-1)}
+    >
+      <ChevronLeft className="h-4 w-4" />
+    </button>
   );
 }
 

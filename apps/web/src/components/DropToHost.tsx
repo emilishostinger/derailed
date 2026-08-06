@@ -142,15 +142,28 @@ function PlaceIt({
   async function go(projectId: string | null) {
     setBusy(true);
     setError(null);
+
+    // Three calls have to succeed together. If the last one fails, the first two have
+    // already happened, and without this you are left with an empty project and a
+    // broken app named after a file you never managed to upload. Tidy up behind us,
+    // and only remove the project if this is the one that made it.
+    let madeProject: string | null = null;
+    let madeService: string | null = null;
     try {
       const label = name.trim() || suggested || 'site';
       const project = projectId
         ? projects.find((entry) => entry.id === projectId)!
         : await endpoints.createProject(label);
+      if (!projectId) madeProject = project.id;
+
       const service = await endpoints.createUploadApp(project.id, label);
+      madeService = service.id;
+
       await endpoints.uploadFiles(service.id, file);
       await onDone(project.slug);
     } catch (err) {
+      if (madeService) await endpoints.deleteService(madeService).catch(() => undefined);
+      if (madeProject) await endpoints.deleteProject(madeProject).catch(() => undefined);
       setError(err);
       setBusy(false);
     }

@@ -50,6 +50,8 @@
   --color-surface: var(--d-surface);
   --color-surface-2: var(--d-surface-2);
   --color-elevated: var(--d-elevated);
+  --color-on-canvas: var(--d-on-canvas);
+  --color-on-canvas-strong: var(--d-on-canvas-strong);
   --color-line: var(--d-line);
   --color-line-strong: var(--d-line-strong);
   --color-ink: var(--d-ink);
@@ -129,6 +131,9 @@
   --d-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
   --d-shadow-pop: 0 8px 32px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   --d-shadow-shell: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.35);
+  /* On a dark canvas a highlight is a lift, so these go up. */
+  --d-on-canvas: #171922;
+  --d-on-canvas-strong: #1f2230;
   --d-grid-line: #1a1c23;
   --d-canvas-grid: #131419;
 
@@ -161,6 +166,10 @@
   --d-shadow-card: 0 1px 2px rgb(16 18 24 / 0.05);
   --d-shadow-pop: 0 12px 32px rgb(16 18 24 / 0.12), 0 0 0 1px rgb(16 18 24 / 0.05);
   --d-shadow-shell: 0 1px 2px rgb(16 18 24 / 0.06), 0 10px 30px rgb(16 18 24 / 0.08);
+  /* And on a light one it is a press, so these go down. Lighter than the canvas
+     would be a highlight on nothing: the sidebar is the canvas. */
+  --d-on-canvas: #e2e5ee;
+  --d-on-canvas-strong: #d7dbe7;
   --d-grid-line: #e6e8f0;
   --d-canvas-grid: #f0f2f7;
 
