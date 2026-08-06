@@ -36,6 +36,16 @@ app. See [deploying](deploying.md).
 Otherwise, hit Deploy (or `⌘K` → "Deploy …"), or have a coding agent do it through
 [MCP](mcp.md).
 
+### Will it tell me when there are updates?
+
+If you ask it to. **Settings** has update emails: give it a mail server to send
+through and an address to send to, and it emails when the list of pending updates
+changes, at most once a day. Optionally only for security updates.
+
+It sends when the set of updates *changes*, not every day, because a daily email
+saying the same three packages are still waiting is an email nobody reads by the end
+of the week.
+
 ### Can I deploy without GitHub at all?
 
 Yes, two ways. Drag in a zip: a folder of HTML is served as it is, a folder of PHP gets PHP and

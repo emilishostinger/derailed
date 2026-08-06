@@ -2,6 +2,7 @@ import { ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
+import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner } from '../components/ui.tsx';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
@@ -58,6 +59,10 @@ export function Settings() {
 
           <Section title="Keeping up to date">
             <UpdateCheck />
+          </Section>
+
+          <Section title="Update emails">
+            <UpdateEmails />
           </Section>
 
           <details className="group">

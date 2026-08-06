@@ -9,6 +9,7 @@ import { publish } from './events/bus.ts';
 import { createApp } from './http/app.ts';
 import { userFromRequest } from './http/auth.ts';
 import { socketHandlers } from './http/sockets.ts';
+import { startUpdateNotifier, stopUpdateNotifier } from './mail/notify.ts';
 import { ensureCaddyRunning, pingCaddy } from './proxy/caddy.ts';
 import { startDomainWatcher, stopDomainWatcher } from './proxy/domainwatch.ts';
 import { checkDiskSpace, pruneOldDeployments } from './runtime/housekeeping.ts';
@@ -115,6 +116,7 @@ export async function serve(): Promise<void> {
     stopDomainWatcher();
     stopBackupSchedule();
     stopReleaseWatcher();
+    stopUpdateNotifier();
     stopTrafficCollector();
     stopMonitor();
     server.stop();
@@ -164,6 +166,7 @@ async function bootRuntime(): Promise<void> {
     startDomainWatcher();
     startBackupSchedule();
     startReleaseWatcher();
+    startUpdateNotifier();
     startTrafficCollector();
     pruneTraffic();
 

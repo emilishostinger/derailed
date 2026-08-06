@@ -8,6 +8,7 @@ import { catalogRoutes, connectionRoutes, linkRoutes, singleLinkRoutes } from '.
 import { deploymentRoutes, serviceDeploymentRoutes } from './routes/deployments.ts';
 import { detectRoutes } from './routes/detect.ts';
 import { domainRoutes, serviceDomainRoutes } from './routes/domains.ts';
+import { mailRoutes } from './routes/mail.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { projectServiceRoutes, serviceRoutes } from './routes/services.ts';
 import { systemRoutes } from './routes/system.ts';
@@ -58,6 +59,7 @@ export function createApp() {
   // Everything below needs a session.
   api.use('*', requireAuth);
   api.route('/system', systemRoutes);
+  api.route('/mail', mailRoutes);
   api.route('/detect', detectRoutes);
   api.route('/projects', projectRoutes);
   api.route('/projects', projectServiceRoutes);

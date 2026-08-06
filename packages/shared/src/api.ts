@@ -172,3 +172,28 @@ export const createDomainRequest = z.object({
   alsoAddWww: z.boolean().optional(),
 });
 export type CreateDomainRequest = z.infer<typeof createDomainRequest>;
+
+/**
+ * Where update emails come from and go to.
+ *
+ * The password is write-only: it is accepted here and never sent back, so the
+ * dashboard shows whether one is stored rather than what it is.
+ */
+export const patchMailRequest = z.object({
+  host: z.string().trim().max(255).optional(),
+  port: z.number().int().min(1).max(65535).optional(),
+  security: z.enum(['tls', 'starttls', 'none']).optional(),
+  username: z.string().trim().max(255).optional(),
+  password: z.string().max(500).optional(),
+  from: z.string().trim().max(320).optional(),
+  fromName: z.string().trim().max(120).optional(),
+  notifyUpdates: z.boolean().optional(),
+  notifyTo: z.string().trim().max(320).optional(),
+  securityOnly: z.boolean().optional(),
+});
+export type PatchMailRequest = z.infer<typeof patchMailRequest>;
+
+export const testMailRequest = z.object({
+  to: z.string().trim().max(320).optional(),
+});
+export type TestMailRequest = z.infer<typeof testMailRequest>;

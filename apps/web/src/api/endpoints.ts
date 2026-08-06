@@ -10,6 +10,21 @@ import type {
 } from '@derailed/shared';
 import { api } from './client.ts';
 
+export interface MailSettings {
+  host: string;
+  port: number;
+  security: 'tls' | 'starttls' | 'none';
+  username: string;
+  /** Whether a password is stored. Never the password itself. */
+  hasPassword: boolean;
+  from: string;
+  fromName: string;
+  notifyUpdates: boolean;
+  notifyTo: string;
+  securityOnly: boolean;
+  lastSentAt: number | null;
+}
+
 export interface DetectResponse {
   detect: DetectResult;
   repo: { url: string; path: string; branch: string };
@@ -64,6 +79,11 @@ export const endpoints = {
       .then((r) => r.service),
 
   service: (id: string) => api.get<{ service: Service }>(`/services/${id}`).then((r) => r.service),
+  mail: () => api.get<{ mail: MailSettings }>('/mail').then((r) => r.mail),
+  saveMail: (patch: Record<string, unknown>) =>
+    api.patch<{ mail: MailSettings }>('/mail', patch).then((r) => r.mail),
+  testMail: (to?: string) => api.post<{ ok: true; to: string }>('/mail/test', { to }),
+
   patchService: (id: string, patch: Record<string, unknown>) =>
     api.patch<{ service: Service }>(`/services/${id}`, patch).then((r) => r.service),
   deleteService: (id: string) => api.delete<{ ok: true }>(`/services/${id}`),

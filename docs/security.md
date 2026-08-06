@@ -38,8 +38,10 @@ is safe enough for what you are about to put on it.
 
 ## Secrets at rest
 
-Database passwords, repository tokens and environment variable values are encrypted
-with AES-256-GCM using `/var/lib/derailed/secret.key` (mode 600).
+Database passwords, repository tokens, the SMTP password for update emails, and
+environment variable values are encrypted with AES-256-GCM using
+`/var/lib/derailed/secret.key` (mode 600). None of them is ever sent back to the
+dashboard: the settings page is told whether a password is stored, never what it is.
 
 Honest threat model: this protects the SQLite file if it is copied off the machine. It
 does not protect against someone who is already root on the machine, because they can
