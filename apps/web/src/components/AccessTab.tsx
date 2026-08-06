@@ -1,6 +1,6 @@
 import type { Service } from '@derailed/shared';
 import { Lock, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useProjects } from '../stores/projects.ts';
 import { useToasts } from '../stores/toasts.ts';
@@ -178,6 +178,73 @@ export function AccessTab({ service }: { service: Service }) {
         />
       </section>
 
+      <section className="border-t border-line pt-4">
+        <p className="eyebrow mb-2">Sending email</p>
+        <AppMail service={service} />
+      </section>
+
+      <ErrorNote error={error} />
+    </div>
+  );
+}
+
+/**
+ * Letting an app send email with whatever Derailed sends its own with.
+ *
+ * The number one "I installed it and it half works" complaint in self-hosting:
+ * WordPress password resets, Gitea invitations, Vaultwarden verification, all of
+ * which need an SMTP server nobody has.
+ */
+function AppMail({ service }: { service: Service }) {
+  const [state, setState] = useState<{ enabled: boolean; available: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const push = useToasts((s) => s.push);
+
+  useEffect(() => {
+    endpoints
+      .appMail(service.id)
+      .then(setState)
+      .catch(() => undefined);
+  }, [service.id]);
+
+  if (!state) return null;
+
+  if (!state.available && !state.enabled) {
+    return (
+      <p className="text-[13px] text-ink-faint">
+        Derailed has nothing to send email with yet. Set up a mail provider under Settings, and this
+        app can borrow it.
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <Switch
+        checked={state.enabled}
+        label="Let this app send email"
+        hint="Adds the usual SMTP variables, using the same provider Derailed sends its own notifications through. They appear on the Variables tab like anything else."
+        disabled={busy}
+        onChange={async (next) => {
+          setBusy(true);
+          setError(null);
+          try {
+            await endpoints.setAppMail(service.id, next);
+            setState({ ...state, enabled: next });
+            push({
+              message: next
+                ? 'Done. Redeploy the app for it to pick them up.'
+                : 'Removed. Redeploy the app to stop using them.',
+              tone: 'ok',
+            });
+          } catch (err) {
+            setError(err);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
       <ErrorNote error={error} />
     </div>
   );

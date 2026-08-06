@@ -532,6 +532,14 @@ export interface QueryResult {
   readOnly: boolean;
 }
 
+/** One thing in an app's storage, for the Files tab. */
+export interface FileEntry {
+  name: string;
+  directory: boolean;
+  sizeBytes: number;
+  modifiedAt: number;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

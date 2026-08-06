@@ -13,6 +13,7 @@ import type {
   Domain,
   DrillResult,
   EnvVar,
+  FileEntry,
   FreeDomain,
   Job,
   JobRun,
@@ -324,6 +325,24 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  files: (serviceId: string, path?: string) =>
+    api.get<{ roots: string[]; path: string | null; entries: FileEntry[] }>(
+      `/services/${serviceId}/files${path ? `?path=${encodeURIComponent(path)}` : ''}`,
+    ),
+  readFile: (serviceId: string, path: string) =>
+    api
+      .get<{ contents: string }>(
+        `/services/${serviceId}/files/read?path=${encodeURIComponent(path)}`,
+      )
+      .then((r) => r.contents),
+  writeFile: (serviceId: string, path: string, contents: string) =>
+    api.put<{ ok: true }>(`/services/${serviceId}/files`, { path, contents }),
+
+  appMail: (serviceId: string) =>
+    api.get<{ enabled: boolean; available: boolean }>(`/services/${serviceId}/mail`),
+  setAppMail: (serviceId: string, enabled: boolean) =>
+    api.put<{ enabled: boolean }>(`/services/${serviceId}/mail`, { enabled }),
 
   setDomainPath: (domainId: string, pathPrefix: string | null) =>
     api.put<{ domain: Domain }>(`/domains/${domainId}/path`, { pathPrefix }),

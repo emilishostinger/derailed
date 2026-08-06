@@ -72,6 +72,8 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |
 | 🖼️ **Your apps, not a process list** | Every tile carries the site's own icon and title, read from the thing that is actually running. Turn on screenshots and it carries a picture too. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
+| 📁 **Files, without SSH** | Browse an app's storage, open a file, edit it, save it. Scoped to the folders you attached, which are the only ones worth editing anyway. |
+| ✉️ **Your apps can send email** | One toggle hands an app the same mail settings Derailed uses, under every name the common apps look for. The number one "I installed it and it half works" problem in self-hosting. |
 | 🔀 **One domain, several apps** | `example.com` your site, `example.com/blog` WordPress, `example.com/api` your backend. Longest path wins, and it is a text field rather than a proxy rule. |
 | 🔎 **Look inside your database** | Tables, row counts, and the rows themselves, plus a box for asking questions. Runs the engine's own client inside its own container, so nothing is bundled and no port is opened. Reads only. |
 | 📉 **Load, with a memory** | Processor and memory kept by the hour for a month, with every deploy drawn on the chart. "Memory started climbing on Tuesday" is an observation; "right after that deploy" is a diagnosis. |

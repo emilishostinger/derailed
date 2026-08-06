@@ -28,7 +28,9 @@ import {
 } from '../../docker/containers.ts';
 import { LABELS, labelFilter } from '../../docker/labels.ts';
 import { publish } from '../../events/bus.ts';
+import { AppMailError, appCanSendMail, mailCredentials, setAppMail } from '../../mail/appmail.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
+import { listFiles, readFile, storageRoots, writeFile } from '../../runtime/files.ts';
 import { historyFor } from '../../runtime/metrics.ts';
 import { emitProject, emitService, presentService } from '../../runtime/present.ts';
 import { previewFile, refreshPreview } from '../../runtime/preview.ts';
@@ -360,6 +362,83 @@ serviceRoutes.post('/:id/upload', async (c) => {
  * every request, so the figures are a by-product of serving the site rather than
  * something extra done to the people reading it.
  */
+/**
+ * Whether this app may send email, using whatever Derailed sends its own with.
+ *
+ * Written as ordinary variables so they are visible on the Variables tab and behave
+ * like everything else. Nothing magic, nothing hidden.
+ */
+serviceRoutes.put('/:id/mail', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  try {
+    setAppMail(service.id, body.enabled === true);
+  } catch (err) {
+    if (err instanceof AppMailError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+  return c.json({ enabled: appCanSendMail(service.id), redeployNeeded: true });
+});
+
+serviceRoutes.get('/:id/mail', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  return c.json({ enabled: appCanSendMail(service.id), available: mailCredentials() !== null });
+});
+
+/**
+ * An app's own storage, browsable.
+ *
+ * Confined to the folders explicitly attached as storage, not the whole container.
+ * A browser rooted at `/` would be a way to read every process's environment, and
+ * there is already a Terminal tab for anybody who means to do that.
+ */
+serviceRoutes.get('/:id/files', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  const roots = storageRoots(service.id);
+  const path = c.req.query('path') ?? roots[0];
+  if (!path) return c.json({ roots, path: null, entries: [] });
+
+  try {
+    return c.json({ roots, path, entries: await listFiles(service.id, path) });
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That folder could not be read.');
+  }
+});
+
+serviceRoutes.get('/:id/files/read', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  const path = c.req.query('path');
+  if (!path) throw badRequest('Which file?');
+
+  try {
+    return c.json({ path, contents: await readFile(service.id, path) });
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That file could not be read.');
+  }
+});
+
+serviceRoutes.put('/:id/files', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; contents?: string };
+  if (!body.path) throw badRequest('Which file?');
+  if (typeof body.contents !== 'string') throw badRequest('There is nothing to save.');
+
+  try {
+    await writeFile(service.id, body.path, body.contents);
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That file could not be saved.');
+  }
+  return c.json({ ok: true });
+});
+
 serviceRoutes.get('/:id/metrics', (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');

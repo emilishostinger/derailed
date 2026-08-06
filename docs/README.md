@@ -15,6 +15,7 @@ about five minutes.
 - **[Databases](databases.md)**: engines, credentials, connecting an app
 - **[Storage](storage.md)**: what survives a redeploy, and what does not
 - **[Backups](backups.md)**: schedules, retention, restoring, taking a copy away
+- **[Files and app email](files.md)**: browsing an app's storage, and letting it send mail
 - **[Scheduled jobs](jobs.md)**: cron, in plain words, with the output kept
 - **[Who can see your apps](access.md)**: passwords, address lists and maintenance mode
 - **[Alerts](alerts.md)**: being told when something breaks, without it becoming noise

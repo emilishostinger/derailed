@@ -21,6 +21,7 @@ import { BrowseTab } from './BrowseTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
+import { FilesTab } from './FilesTab.tsx';
 import { JobsTab } from './JobsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
@@ -38,6 +39,7 @@ type Tab =
   | 'traffic'
   | 'metrics'
   | 'browse'
+  | 'files'
   | 'deployments'
   | 'variables'
   | 'connection'
@@ -103,6 +105,7 @@ export function ServiceDrawer({
         ['variables', 'Variables'],
         ['connection', 'Connections'],
         ['storage', 'Storage'],
+        ['files', 'Files'],
         ['terminal', 'Terminal'],
         ['domains', 'Domains'],
         ['access', 'Access'],
@@ -298,6 +301,7 @@ export function ServiceDrawer({
           {tab === 'domains' && <DomainsTab service={service} />}
           {tab === 'metrics' && <MetricsTab service={service} />}
           {tab === 'browse' && <BrowseTab service={service} />}
+          {tab === 'files' && <FilesTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}
           {tab === 'settings' && <Settings service={service} onClose={onClose} />}
