@@ -56,6 +56,13 @@ domainRoutes.post('/', async (c) => {
     alsoAddWww?: boolean;
     /** Which of the pair people should see. The other redirects to it. */
     primary?: 'apex' | 'www';
+    /**
+     * An existing domain this new one should send people to.
+     *
+     * For adding the www half after the fact. Asking for the pair again is not the
+     * same request: the apex already exists, so it would be refused as a duplicate.
+     */
+    redirectTo?: string;
   };
 
   const hostname = (body.hostname ?? '').trim().toLowerCase().replace(/\.$/, '');
@@ -70,6 +77,24 @@ domainRoutes.post('/', async (c) => {
   const www = wwwVariant(hostname);
   const pair = alsoAddWww && www ? [hostname, www] : [hostname];
   for (const candidate of pair) assertUsable(candidate);
+
+  // Pairing with something that already exists: one new domain, pointed at it.
+  if (body.redirectTo) {
+    const target = findDomain(body.redirectTo);
+    if (!target) throw badRequest('There is no domain here to send people to.');
+    if (target.redirectTo) {
+      throw badRequest(
+        `${target.hostname} already sends people somewhere else.`,
+        'Point the new one at the address people see instead.',
+      );
+    }
+    // The redirect half answers on the same app, or the redirect has nothing to
+    // serve and the visitor gets an error instead of a redirect.
+    const made = createDomain(target.serviceId ?? null, hostname, 'custom');
+    setRedirect(made.id, target.id);
+    await checkDomain(made.id);
+    return c.json({ domains: [findDomain(made.id)] }, 201);
+  }
 
   const added = pair.map((candidate) => createDomain(null, candidate, 'custom'));
 

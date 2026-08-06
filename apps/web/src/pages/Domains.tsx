@@ -367,25 +367,6 @@ function Row({
             </button>
           </>
         ) : null}
-
-        {partner && (
-          <>
-            <span className="text-ink-faint">·</span>
-            <span className="text-ink-faint">
-              <span className="">{partner.hostname}</span> sends people here
-            </span>
-            <button
-              type="button"
-              className="text-accent hover:underline"
-              onClick={async () => {
-                await endpoints.makePrimary(partner.id).catch(() => undefined);
-                onChange();
-              }}
-            >
-              swap
-            </button>
-          </>
-        )}
       </div>
 
       {/* What to go and do, as the record itself rather than a paragraph describing
@@ -419,6 +400,10 @@ function Row({
             A new record takes a few minutes to spread. Derailed keeps checking.
           </p>
         </div>
+      )}
+
+      {domain.kind === 'custom' && (
+        <WwwHalf domain={domain} partner={partner} serverIp={serverIp} onChange={onChange} />
       )}
 
       {choosing && (
@@ -552,4 +537,137 @@ function statusLabel(domain: DomainRow): string {
   if (domain.dnsStatus === 'unchecked') return 'Checking…';
   if (!domain.serviceId) return 'Points here, not in use yet';
   return 'Getting a certificate…';
+}
+
+/** `www.example.com` for `example.com`, and the other way round. */
+function otherHalf(hostname: string): string {
+  return hostname.startsWith('www.') ? hostname.slice(4) : `www.${hostname}`;
+}
+
+/**
+ * The www half of a domain, nested under the half it belongs to.
+ *
+ * This replaces a link that said "swap", which is a verb with no object: it never
+ * said what was being swapped with what, and the thing it changed, which of the two
+ * addresses people actually land on, was written as a sentence three items along a
+ * row of dots. It is a choice between two named addresses, so it is drawn as one.
+ *
+ * When the pair does not exist yet it offers to make it, because "should www work
+ * too" is a question everybody answers yes to and nobody enjoys being asked twice.
+ */
+function WwwHalf({
+  domain,
+  partner,
+  serverIp,
+  onChange,
+}: {
+  domain: DomainRow;
+  partner?: DomainRow;
+  serverIp?: string | null;
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const other = otherHalf(domain.hostname);
+  const isApex = !domain.hostname.startsWith('www.');
+
+  // A subdomain that is not www has no obvious pair, so nothing is offered for it.
+  const pairable = isApex ? domain.hostname.split('.').length === 2 : true;
+  if (!pairable) return null;
+
+  async function run(work: () => Promise<unknown>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await work();
+      onChange();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!partner) {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-line px-3.5 py-2.5">
+        <p className="min-w-0 flex-1 text-[12px] text-ink-muted">
+          <span className="text-ink">{other}</span> is not set up. Most people type it out of habit,
+          and without it they get an error.
+        </p>
+        <button
+          type="button"
+          className="btn-secondary shrink-0 text-[12px]"
+          disabled={busy}
+          onClick={() => void run(() => endpoints.addPairedDomain(other, domain.id))}
+        >
+          {busy && <Spinner />}
+          Send {other} here too
+        </button>
+        <ErrorNote error={error} />
+      </div>
+    );
+  }
+
+  const needsRecord = partner.dnsStatus !== 'ok' && serverIp;
+
+  return (
+    <div className="mt-2 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5">
+      <p className="text-[12px] font-medium text-ink">Which one do people see?</p>
+      <p className="mt-0.5 text-[11px] text-ink-faint">
+        Both work. The other one sends visitors to whichever you pick, so a link shared anywhere
+        ends up at the same address.
+      </p>
+
+      <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
+        {[domain, partner].map((option) => {
+          const chosen = option.id === domain.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={busy || chosen}
+              onClick={() => void run(() => endpoints.makePrimary(option.id))}
+              className={cx(
+                'flex items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12px] transition-colors',
+                chosen
+                  ? 'border-accent bg-accent-soft text-ink'
+                  : 'border-line text-ink-muted hover:border-line-strong hover:text-ink',
+              )}
+            >
+              <span
+                className={cx(
+                  'flex h-3 w-3 shrink-0 items-center justify-center rounded-full border',
+                  chosen ? 'border-accent bg-accent-solid' : 'border-line-strong',
+                )}
+              >
+                {chosen && <span className="h-1 w-1 rounded-full bg-white" />}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{option.hostname}</span>
+              {chosen && <span className="shrink-0 text-[11px] text-ink-faint">shown</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {needsRecord && (
+        <div className="mt-2.5 border-t border-line pt-2.5">
+          <p className="text-[12px] text-ink">
+            <span className="text-ink-muted">{partner.hostname}</span> needs a record of its own
+            before it can redirect.
+          </p>
+          <dl className="mt-1.5 grid grid-cols-[3.5rem_1fr] gap-y-1 text-[12px]">
+            <dt className="text-ink-faint">Type</dt>
+            <dd className="text-ink">A</dd>
+            <dt className="text-ink-faint">Name</dt>
+            <dd className="truncate text-ink">{partner.hostname}</dd>
+            <dt className="text-ink-faint">Points to</dt>
+            <dd className="text-ink">{serverIp}</dd>
+          </dl>
+        </div>
+      )}
+
+      <ErrorNote error={error} />
+    </div>
+  );
 }

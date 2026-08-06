@@ -141,6 +141,12 @@ export const endpoints = {
       alsoAddWww,
       primary,
     }),
+  /** Adds the other half of a pair (usually www) and points it at an existing one. */
+  addPairedDomain: (hostname: string, redirectTo: string) =>
+    api.post<{ domains: import('../pages/Domains.tsx').DomainRow[] }>('/domains', {
+      hostname,
+      redirectTo,
+    }),
   makePrimary: (domainId: string) =>
     api.put<{ domain: Domain }>(`/domains/${domainId}/primary`, {}),
   setDomainService: (domainId: string, serviceId: string | null) =>

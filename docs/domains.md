@@ -33,6 +33,16 @@ certificate. They show as one row, and there is a link to swap which is which.
 This is one question asked once, rather than two addresses that answer independently
 and disagree about which is canonical.
 
+### example.com and www.example.com, after the fact
+
+If only one half is set up, the domain's card offers the other and explains why:
+most people type `www` out of habit, and without it they get an error rather than
+your site.
+
+Once both exist, **Which one do people see?** picks the address visitors end up at.
+The other sends them there, so a link shared anywhere lands in the same place. The
+redirecting half needs its own A record, which the card shows underneath.
+
 ## Automatic addresses
 
 Every app gets an address for free the first time it goes live. What that address looks
