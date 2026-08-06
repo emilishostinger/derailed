@@ -52,7 +52,7 @@ This is the part that matters. A throwaway $5 Ubuntu box, destroyed afterwards.
 ## The dashboard
 
 - [ ] Both themes checked on the topology view, drawer, and wizard
-- [ ] `⌘K` finds projects, services and actions
+- [ ] `⌘K` finds projects, services, actions and pages of the handbook
 - [ ] Topology canvas: drag-to-link works, "Tidy up" lays out sensibly, positions survive a reload
 - [ ] Deploying a service animates on the canvas and settles when it's done
 

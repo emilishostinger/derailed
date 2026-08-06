@@ -71,10 +71,9 @@ die()  { printf '\n  %s✗%s %s\n\n' "$RED" "$RESET" "$*" >&2; exit 1; }
 
 # -------------------------------------------------------------------- the splash
 #
-# The wordmark, in two tones of the violet the dashboard and the favicon already use:
-# #8b93e8 across the top three rows, #5b64c4 across the bottom three. They are the two
-# ends of the logo tile's gradient, so nothing new was invented for the terminal, and
-# it falls the same way the tile does.
+# The wordmark, in two tones of the purple the dashboard and the favicon already use:
+# a lighter #a78bfa across the top three rows and the brand #7236e3 across the bottom
+# three, so nothing new was invented for the terminal.
 #
 # Two rather than a ramp. Interpolated steps read as a smudge at this size, and every
 # step past the second is a colour the brand does not otherwise have.
@@ -103,28 +102,28 @@ WORDMARK='██████╗ ███████╗██████╗  �
 WORDMARK_WIDTH=61
 
 # The two tones, in whatever the terminal understands. Rows 1 to 3 get the first.
-# Both sit either side of the brand green (#3ecf8e): a pale mint on top, a deeper
-# green below. The dark one is the one that has to survive a white terminal, so it
-# is kept dark enough to read there rather than matching the top for brightness.
+# The lower half is the brand purple itself (#7236e3) and the upper half a lighter
+# lavender. That way round because the darker tone is the one that has to survive a
+# white terminal, where it reads at 6.3:1, and it is also the colour people know.
 row_colour() {
   case "$COLOR_DEPTH" in
     full)
       case "$1" in
-        1|2|3) printf '\033[38;2;95;220;162m' ;;
-        *)     printf '\033[38;2;33;159;110m' ;;
+        1|2|3) printf '\033[38;2;167;139;250m' ;;
+        *)     printf '\033[38;2;114;54;227m'  ;;
       esac
       ;;
     256)
-      # 79 is #5fd7af and 35 is #00875f: the closest the xterm cube comes to each.
+      # 141 is #af87ff and 98 is #875fd7: the closest the xterm cube comes to each.
       case "$1" in
-        1|2|3) printf '\033[38;5;79m' ;;
-        *)     printf '\033[38;5;35m' ;;
+        1|2|3) printf '\033[38;5;141m' ;;
+        *)     printf '\033[38;5;98m'  ;;
       esac
       ;;
-    # Sixteen colours has one green and one bright green, and the plain one is
+    # Sixteen colours has one magenta and one bright magenta, and the plain one is
     # unreadably dark on half the themes people use. One tone is better than an
     # invisible half.
-    basic) printf '\033[1;32m' ;;
+    basic) printf '\033[1;35m' ;;
     *)     printf '' ;;
   esac
 }

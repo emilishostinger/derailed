@@ -103,7 +103,7 @@ export function Switch({
         className={cx(
           'mt-0.5 h-[18px] w-8 shrink-0 rounded-full border transition-colors',
           'disabled:pointer-events-none',
-          checked ? 'border-accent bg-accent' : 'border-line-strong bg-on-canvas',
+          checked ? 'border-accent-solid bg-accent-solid' : 'border-line-strong bg-sunken',
         )}
       >
         <span

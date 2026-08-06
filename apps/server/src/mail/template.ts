@@ -14,7 +14,7 @@ import type { UpdateItem } from '../system/updates.ts';
  * inline styles are the light ones rather than the dark.
  */
 
-const BRAND = '#0d6b45';
+const BRAND = '#7236e3';
 const INK = '#16181d';
 const MUTED = '#5b6270';
 const LINE = '#e2e5ee';
@@ -163,7 +163,7 @@ export function htmlFor(notice: UpdateNotice): string {
     .d-ink    { color: #f4f6fa !important; }
     .d-muted  { color: #9aa3b5 !important; }
     .d-line   { border-color: #262a36 !important; }
-    .d-brand  { color: #3ecf8e !important; }
+    .d-brand  { color: #a78bfa !important; }
     .d-danger { background: #2a1416 !important; color: #f0736b !important; }
     .d-warn   { background: #241d0c !important; color: #e0b64a !important; }
   }

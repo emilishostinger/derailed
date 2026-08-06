@@ -113,7 +113,7 @@ export function LogViewer({
       <div
         ref={scroller}
         onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-auto rounded-[var(--radius-card)] border border-line bg-canvas p-3 font-mono text-[12px] leading-relaxed"
+        className="min-h-0 flex-1 overflow-auto rounded-[var(--radius-card)] border border-line bg-sunken p-3 font-mono text-[12px] leading-relaxed"
       >
         {visible.length === 0 ? (
           <p className="text-ink-faint">{search ? 'Nothing matches that.' : emptyMessage}</p>

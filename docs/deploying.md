@@ -26,6 +26,12 @@ In order, first match wins:
 The check for step 3 runs only after 1 and 2 have declined, because half the frameworks
 in the world also keep an `index.html` at their root.
 
+### The panel
+
+Clicking an app opens a panel on the right with its logs, deploys, variables, storage,
+domains and a terminal. Drag its left edge to make it wider, which is worth doing for
+the log; the width is remembered. Double-click that edge to put it back.
+
 ### Settings that matter
 
 On an app's **Settings** tab:

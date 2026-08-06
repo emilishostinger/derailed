@@ -77,7 +77,7 @@ export function DropToHost() {
   return (
     <>
       {dragging && (
-        <div className="pointer-events-none fixed inset-2 z-50 flex items-center justify-center rounded-[var(--radius-shell)] border-2 border-dashed border-accent bg-canvas/80 backdrop-blur-sm">
+        <div className="deep-surface pointer-events-none fixed inset-2 z-50 flex items-center justify-center rounded-[var(--radius-shell)] border-2 border-dashed border-accent bg-canvas/95 backdrop-blur-sm">
           <div className="flex flex-col items-center text-center">
             <CloudUpload className="h-8 w-8 text-accent" />
             <p className="mt-3 text-[15px] font-semibold text-ink">Drop it anywhere</p>

@@ -10,10 +10,10 @@
 
 No YAML. No `docker-compose` to babysit. No Kubernetes. No monthly bill.
 
-[![MIT licence](https://img.shields.io/badge/licence-MIT-0d6b45)](LICENSE)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-5f27c9)](LICENSE)
 [![Built with Bun](https://img.shields.io/badge/built%20with-Bun-fbf0df)](https://bun.sh)
-[![Self-hosted](https://img.shields.io/badge/self--hosted-your%20server-3ecf8e)](docs/install.md)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-0d6b45)](docs/contributing.md)
+[![Self-hosted](https://img.shields.io/badge/self--hosted-your%20server-7236e3)](docs/install.md)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-5f27c9)](docs/contributing.md)
 
 <br>
 
@@ -74,9 +74,9 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 |  |  |
 | --- | --- |
 | ![Command palette](docs/images/command-palette.png) | ![Service drawer](docs/images/service.png) |
-| Everything two keystrokes away with `⌘K` | Logs, deploys, variables and domains in one place |
+| `⌘K` finds projects, apps, actions and the handbook | Logs, deploys, variables and domains in one place |
 | ![New service](docs/images/new-service.png) | ![New database](docs/images/new-database.png) |
-| Paste a link, confirm what was found | Databases in one click, private by default |
+| A ready-made app, a GitHub link, an image or a zip | Databases in one click, private by default |
 
 There is a light theme too:
 

@@ -68,6 +68,13 @@ The certificate arrives on its own, usually within a minute.
   an ordinary `.tar.gz` with a SQL dump and a tar per stored folder, and you can
   download it and take it elsewhere.
 
+## Finding things
+
+The search box at the top of every page, or `⌘K`, reaches everything: a project, an
+app, a domain, a page of this handbook, and actions like deploying. It searches the
+handbook's text and not only its titles, so "sql dump" or "nixpacks" finds the page
+that explains it.
+
 ## What next
 
 - [Deploying](deploying.md): branches, build settings, rollback

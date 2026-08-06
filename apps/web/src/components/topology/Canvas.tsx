@@ -175,7 +175,7 @@ function Canvas({
         minZoom={0.3}
         maxZoom={1.5}
         nodesConnectable
-        className="bg-canvas"
+        className="bg-sunken"
       >
         {/* Barely there: enough to read as a surface and to see movement against, not
             enough to compete with the nodes. */}

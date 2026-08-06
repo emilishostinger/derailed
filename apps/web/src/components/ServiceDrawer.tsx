@@ -25,6 +25,7 @@ import { TechIcon } from './TechIcon.tsx';
 import { TerminalTab } from './TerminalTab.tsx';
 import { TrafficTab } from './TrafficTab.tsx';
 import { cx, ErrorNote, Spinner, StatusPill, Switch } from './ui.tsx';
+import { useDrawerWidth } from './useDrawerWidth.ts';
 
 type Tab =
   | 'overview'
@@ -51,6 +52,7 @@ export function ServiceDrawer({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const load = useProjects((s) => s.load);
+  const drawer = useDrawerWidth();
 
   useEffect(() => live.subscribe([topics.service(service.id)]), [service.id]);
 
@@ -110,7 +112,46 @@ export function ServiceDrawer({
         className="animate-overlay-in fixed inset-0 z-30 cursor-default bg-black/30"
         onClick={onClose}
       />
-      <aside className="animate-drawer-in fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l border-line bg-surface shadow-[var(--d-shadow-pop)]">
+      <aside
+        className="animate-drawer-in fixed inset-y-0 right-0 z-40 flex flex-col border-l border-line bg-surface shadow-[var(--d-shadow-pop)]"
+        style={{ width: drawer.width, maxWidth: '100vw' }}
+      >
+        {/* The grip. Its hit area is wider than the line you can see, because a 2px
+            target is a target you miss. */}
+        {/* A div rather than a button: the ARIA window-splitter pattern is a focusable
+            `separator` with a value, and putting that role on a button throws the
+            button's own semantics away for a role it cannot legally have. */}
+        {/* biome-ignore lint/a11y/useSemanticElements: the rule suggests <hr>, which
+            cannot take focus and cannot hold the line you can see. A focusable
+            separator carrying a value is the ARIA splitter pattern, and a div is the
+            only element it fits on. */}
+        <div
+          role="separator"
+          tabIndex={0}
+          aria-orientation="vertical"
+          aria-label="Resize this panel"
+          aria-valuenow={drawer.width}
+          aria-valuemin={drawer.min}
+          aria-valuemax={drawer.max}
+          onPointerDown={drawer.onPointerDown}
+          onKeyDown={drawer.onKeyDown}
+          onDoubleClick={drawer.reset}
+          title="Drag to resize. Double-click to reset"
+          className={cx(
+            'group absolute inset-y-0 -left-1.5 z-10 w-3 cursor-col-resize touch-none',
+            'focus-visible:outline-none',
+          )}
+        >
+          <span
+            className={cx(
+              'absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 transition-colors',
+              drawer.dragging
+                ? 'bg-accent'
+                : 'bg-transparent group-hover:bg-accent/50 group-focus-visible:bg-accent',
+            )}
+          />
+        </div>
+
         <header className="shrink-0 border-b border-line px-5 pt-4">
           <div className="flex items-start gap-2.5">
             <TechIcon service={service} className="mt-0.5 h-7 w-7 text-[11px]" />

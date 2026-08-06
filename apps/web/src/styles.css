@@ -35,18 +35,62 @@
  * than a second set of utility classes. Dark is the default; `:root.light`
  * overrides it. Both are designed, not one derived from the other.
  *
- * The neutrals are cool and very slightly indigo, carrying a trace of the mark's
- * own hue rather than being the flat charcoal every developer tool ships. Enough
- * that the surfaces feel related to the accent; not so much that anything looks
- * tinted. They were briefly warm, which turned out to read as heritage rather than
- * as modern, and this is a tool for putting things on the internet today.
+ * In the light theme the canvas is a deep violet and the panels float on it as
+ * plain white and grey. That is the whole idea: the colour people remember is the
+ * one holding everything else, not a button somewhere in the corner. It follows
+ * that the sidebar, which sits directly on that canvas rather than on a panel,
+ * needs light text there, which is what the rail tokens below are for.
+ *
+ * The dark theme is neutral grey throughout, and deliberately so. A violet canvas
+ * under violet panels is one colour reading as two shades of itself, and the whole
+ * screen goes flat and slightly bruised. Grey underneath is what lets the accent
+ * still be the only colour on the page.
  *
  * Nothing glows and nothing is a gradient. The mark is allowed one; the interface
  * around it is not.
  * ------------------------------------------------------------------------- */
 
+/* `--d-ink` is what every `text-ink` utility resolves to, and it is deliberately a
+ * layer of indirection over `--d-ink-base`. That is what lets one rule re-point the
+ * ink inside the sidebar without a second set of utility classes, and one more rule
+ * put it back for the few light panels that live in there. */
+:root {
+  --d-ink: var(--d-ink-base);
+  --d-ink-muted: var(--d-ink-muted-base);
+  --d-ink-faint: var(--d-ink-faint-base);
+  --d-line: var(--d-line-base);
+  --d-line-strong: var(--d-line-strong-base);
+}
+
+/* Anything that sits on the canvas rather than on a panel: the sidebar, the deploy
+ * log, the drag-and-drop overlay, the topology background. The canvas is deep violet
+ * in both themes now, so the ink on it has to be light in both, and the borders have
+ * to lift rather than press. One rule, so a new deep surface is one class away. */
+.deep-surface {
+  --d-ink: var(--d-rail-ink);
+  --d-ink-muted: var(--d-rail-ink-muted);
+  --d-ink-faint: var(--d-rail-ink-faint);
+  --d-line: var(--d-rail-line);
+  --d-line-strong: var(--d-rail-line-strong);
+}
+
+/* Except the things inside those that are their own light surface: a popup, a
+ * topology node, the selected half of the theme switch. Those are panels wherever
+ * they happen to be sitting. */
+.deep-surface .panel,
+.deep-surface .card,
+.deep-surface .on-surface {
+  --d-ink: var(--d-ink-base);
+  --d-ink-muted: var(--d-ink-muted-base);
+  --d-ink-faint: var(--d-ink-faint-base);
+  --d-line: var(--d-line-base);
+  --d-line-strong: var(--d-line-strong-base);
+}
+
 @theme inline {
   --color-canvas: var(--d-canvas);
+  /* Recessed inside a panel: a log pane, the topology background. */
+  --color-sunken: var(--d-sunken);
   --color-surface: var(--d-surface);
   --color-surface-2: var(--d-surface-2);
   --color-elevated: var(--d-elevated);
@@ -59,6 +103,10 @@
   --color-ink-faint: var(--d-ink-faint);
   --color-accent: var(--d-accent);
   --color-accent-hover: var(--d-accent-hover);
+  /* The brand purple itself, for anything filled with it. Identical in both themes,
+     because a brand colour that changes with the theme is not one. */
+  --color-accent-solid: var(--d-accent-solid);
+  --color-accent-solid-hover: var(--d-accent-solid-hover);
   --color-accent-soft: var(--d-accent-soft);
   --color-accent-ink: var(--d-accent-ink);
   --color-ok: var(--d-ok);
@@ -84,45 +132,45 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* The accent is a deep green, and where it sits was decided with the palette
- * validator rather than by eye.
+/* The accent is #7236e3, and where everything sits was decided by arithmetic
+ * rather than by eye: every pairing the interface puts next to each other was
+ * measured, 4.5:1 for text and 3:1 for anything that is only a shape.
  *
- * The pair worth protecting is the primary button against the destructive one: a
- * "Deploy" and a "Delete it" must never be mistaken for each other. Green puts 28
- * between them in the light theme and 33 in the dark, which is as far apart as this
- * palette gets. An orange accent, tried first, managed 10, which is below the
- * distance at which two colours are reliably told apart with full colour vision.
+ * Two results worth recording. White on the accent is 6.3:1, so the primary button
+ * keeps a white label in both themes even though the accent itself is lifted in the
+ * dark one, where #7236e3 on a dark panel would be 3:1 and unreadable as text.
  *
- * Green does sit close to the green that means "running", and that is left alone on
- * purpose. They are never contrasted to identify anything; both mean the same thing
- * in the only sense that matters here, which is that nothing is wrong. And because
- * the accent no longer competes with the warm end, the amber warning went back to
- * the value it had before any of this.
- *
- * `accent-ink` differs per theme because the accent does: white on the light
- * theme's deep green is 6.5:1, and the dark theme's is bright enough that its label
- * has to be near-black to be read at all.
+ * And "deploying" blue had to move. Purple and blue are neighbours, and the old
+ * #1f6fd0 was only 14.5 from the accent in OKLab: a deploying badge read as the
+ * brand colour rather than as a state. Pushing it away from purple pushes it toward
+ * the green that means "running", so it was chosen to clear 15 from both, which
+ * #0369a1 and #5ac8fa do.
  */
 
 /* Dark. The default, and what the README screenshots show. */
 :root {
-  --d-canvas: #0b0c11;
-  --d-surface: #121319;
-  --d-surface-2: #1a1c23;
-  --d-elevated: #21232b;
-  --d-line: #262832;
-  --d-line-strong: #383b47;
-  --d-ink: #f4f6fa;
-  --d-ink-muted: #8b90a0;
-  --d-ink-faint: #61667a;
-  --d-accent: #3ecf8e;
-  --d-accent-hover: #58dba0;
-  --d-accent-soft: #0e2a1e;
-  --d-accent-ink: #08251a;
+  --d-canvas: #0e0e10;
+  --d-surface: #18181a;
+  --d-surface-2: #222225;
+  --d-elevated: #26262a;
+  --d-line-base: #28282c;
+  --d-line-strong-base: #3f3f45;
+  --d-ink-base: #f4f4f5;
+  --d-ink-muted-base: #9a9aa4;
+  --d-ink-faint-base: #71717c;
+  /* Accent text has to be lifted here: the brand purple on a dark panel is 2.83:1,
+     which is unreadable as a link. The fill below is not lifted, because the white
+     label on it is 6.26:1 whatever is behind it, so a button never needed it. */
+  --d-accent: #a78bfa;
+  --d-accent-hover: #bda5fc;
+  --d-accent-solid: #7236e3;
+  --d-accent-solid-hover: #8449ea;
+  --d-accent-soft: #241c3a;
+  --d-accent-ink: #ffffff;
   --d-ok: #4cb782;
   --d-ok-soft: #10231b;
-  --d-busy: #4ea7fc;
-  --d-busy-soft: #0e1e2e;
+  --d-busy: #5ac8fa;
+  --d-busy-soft: #0d2130;
   --d-warn: #f2c94c;
   --d-warn-soft: #251f10;
   --d-danger: #eb5757;
@@ -131,33 +179,46 @@
   --d-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
   --d-shadow-pop: 0 8px 32px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   --d-shadow-shell: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.35);
-  /* On a dark canvas a highlight is a lift, so these go up. */
-  --d-on-canvas: #171922;
-  --d-on-canvas-strong: #1f2230;
-  --d-grid-line: #1a1c23;
-  --d-canvas-grid: #131419;
+  /* The canvas is dark in both themes, so a highlight on it is always a lift. */
+  --d-on-canvas: #1a1a1d;
+  --d-on-canvas-strong: #26262a;
+  --d-sunken: #0e0e10;
+  --d-grid-line: #232327;
+  --d-canvas-grid: #1b1b1e;
+
+  /* The sidebar's own ink. The same as the panel ink here, because in this theme
+     the canvas and the panels are both dark; it is the light theme that needs the
+     two to differ. Named separately so the rule that uses them can be one rule. */
+  --d-rail-ink: #f4f4f5;
+  --d-rail-ink-muted: #9a9aa4;
+  --d-rail-ink-faint: #71717c;
+  --d-rail-line: #28282c;
+  --d-rail-line-strong: #3f3f45;
 
   color-scheme: dark;
 }
 
 :root.light {
-  --d-canvas: #edeff4;
+  /* Sampled from the reference: the deep violet that everything else sits on. */
+  --d-canvas: #120c29;
   --d-surface: #ffffff;
-  --d-surface-2: #f4f5f9;
+  --d-surface-2: #f4f4f6;
   --d-elevated: #ffffff;
-  --d-line: #e4e6ee;
-  --d-line-strong: #ced2de;
-  --d-ink: #13151c;
-  --d-ink-muted: #656a7a;
-  --d-ink-faint: #929aab;
-  --d-accent: #0d6b45;
-  --d-accent-hover: #0a5637;
-  --d-accent-soft: #e6f4ed;
+  --d-line-base: #e5e5e9;
+  --d-line-strong-base: #c4c4cc;
+  --d-ink-base: #151517;
+  --d-ink-muted-base: #63636e;
+  --d-ink-faint-base: #8b8b96;
+  --d-accent: #7236e3;
+  --d-accent-hover: #5f27c9;
+  --d-accent-solid: #7236e3;
+  --d-accent-solid-hover: #5f27c9;
+  --d-accent-soft: #efe9fd;
   --d-accent-ink: #ffffff;
   --d-ok: #227d51;
   --d-ok-soft: #e8f5ee;
-  --d-busy: #1f6fd0;
-  --d-busy-soft: #e8f1fc;
+  --d-busy: #0369a1;
+  --d-busy-soft: #e6f2f9;
   --d-warn: #96690a;
   --d-warn-soft: #fbf3e0;
   --d-danger: #c8393c;
@@ -166,12 +227,22 @@
   --d-shadow-card: 0 1px 2px rgb(16 18 24 / 0.05);
   --d-shadow-pop: 0 12px 32px rgb(16 18 24 / 0.12), 0 0 0 1px rgb(16 18 24 / 0.05);
   --d-shadow-shell: 0 1px 2px rgb(16 18 24 / 0.06), 0 10px 30px rgb(16 18 24 / 0.08);
-  /* And on a light one it is a press, so these go down. Lighter than the canvas
-     would be a highlight on nothing: the sidebar is the canvas. */
-  --d-on-canvas: #e2e5ee;
-  --d-on-canvas-strong: #d7dbe7;
-  --d-grid-line: #e6e8f0;
-  --d-canvas-grid: #f0f2f7;
+  /* The canvas is dark here too, so a hover in the sidebar lifts rather than
+     presses. It used to press, back when the sidebar was the lighter of the two. */
+  --d-on-canvas: #1e1642;
+  --d-on-canvas-strong: #2a1f57;
+  --d-sunken: #f4f4f6;
+  --d-grid-line: #e7e7ec;
+  --d-canvas-grid: #f1f1f4;
+
+  /* Light text, because the sidebar is on that violet rather than on a panel. */
+  --d-rail-ink: #f3f1fb;
+  --d-rail-ink-muted: #a49ec6;
+  --d-rail-ink-faint: #807aa4;
+  /* A border on the canvas has to be a lift too. The panel line is near-white and
+     drew a bright outline round everything in the sidebar. */
+  --d-rail-line: #2a2150;
+  --d-rail-line-strong: #3d3170;
 
   color-scheme: light;
 }
@@ -343,7 +414,7 @@ h3 {
   }
 
   .btn-primary {
-    @apply btn bg-accent text-accent-ink hover:bg-accent-hover;
+    @apply btn bg-accent-solid text-accent-ink hover:bg-accent-solid-hover;
   }
 
   .btn-secondary {

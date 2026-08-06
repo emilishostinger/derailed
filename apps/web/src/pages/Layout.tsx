@@ -2,25 +2,22 @@ import { schemas } from '@derailed/shared';
 import {
   Activity,
   Archive,
-  ArrowRight,
   ArrowUpCircle,
   BookOpen,
   Bot,
   Boxes,
   ChevronDown,
   ChevronLeft,
-  Command,
   Database,
   Globe,
   LogOut,
   Menu,
   Moon,
-  Pencil,
   Plus,
+  Search,
   Settings2,
   ShieldAlert,
   Sun,
-  Trash2,
   UserCog,
   X,
 } from 'lucide-react';
@@ -28,16 +25,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
 import { CommandPalette } from '../components/CommandPalette.tsx';
-import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
 import { Wordmark } from '../components/Logo.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { cx, ErrorNote, Modal, Spinner, StatusDot } from '../components/ui.tsx';
+import { usePalette } from '../stores/palette.ts';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
 import { useTheme } from '../stores/theme.ts';
 
 export function Layout() {
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const paletteOpen = usePalette((s) => s.open);
+  const setPaletteOpen = usePalette((s) => s.setOpen);
+  const togglePalette = usePalette((s) => s.toggle);
   const projectsLoaded = useProjects((s) => s.loaded);
   const loadProjects = useProjects((s) => s.load);
 
@@ -52,18 +51,18 @@ export function Layout() {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setPaletteOpen((open) => !open);
+        togglePalette();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [togglePalette]);
 
   // The canvas is the background everything sits on. Only the main area is lifted
   // off it; the sidebar stays down on the canvas, which is what gives the contrast.
   return (
     <div className="flex h-full gap-2 bg-canvas p-2">
-      <Sidebar onOpenPalette={() => setPaletteOpen(true)} />
+      <Sidebar />
       <MobileNav />
       <main className="shell flex min-w-0 flex-1 flex-col">
         <InsecureNotice />
@@ -258,7 +257,7 @@ function InsecureNotice() {
   );
 }
 
-function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
+function Sidebar() {
   // Remembered, because someone who folded the list away wants it folded away
   // tomorrow as well, and a preference that resets is worse than no preference.
   const [projectsOpen, setProjectsOpen] = useState(
@@ -277,7 +276,7 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
   // Not a slab. It sits directly on the canvas, so the only thing raised off the
   // background is the work itself, and the navigation reads as part of the frame.
   return (
-    <aside className="flex w-60 shrink-0 flex-col max-md:hidden">
+    <aside className="deep-surface flex w-60 shrink-0 flex-col max-md:hidden">
       {/* The theme control lives up here beside the mark, where there was empty space
           anyway, rather than competing with the address for the width of one row. */}
       <div className="flex items-center justify-between px-3 pt-4 pb-2">
@@ -287,19 +286,7 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
         <ThemeToggle />
       </div>
 
-      <button
-        type="button"
-        onClick={onOpenPalette}
-        className="mx-3 mb-3 flex items-center gap-2 rounded-[var(--radius-control)] border border-line
-          bg-on-canvas px-2.5 py-1.5 text-[13px] text-ink-faint transition-colors
-          hover:border-line-strong hover:bg-on-canvas-strong hover:text-ink-muted"
-      >
-        <Command className="h-3.5 w-3.5" />
-        Jump to…
-        <span className="kbd ml-auto">⌘K</span>
-      </button>
-
-      <nav className="flex-1 overflow-y-auto px-3 pb-3">
+      <nav className="flex-1 overflow-y-auto px-3 pt-1 pb-3">
         {/* What you made. */}
         <NavGroup>
           <NavItem
@@ -733,7 +720,7 @@ function ThemeToggle() {
           className={cx(
             'flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors',
             theme === option
-              ? 'bg-surface text-ink shadow-[var(--d-shadow-card)]'
+              ? 'on-surface bg-surface text-ink shadow-[var(--d-shadow-card)]'
               : 'text-ink-faint hover:text-ink-muted',
           )}
         >
@@ -972,14 +959,49 @@ export function PageHeader({
 }) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-5 max-md:pl-14">
-      <BackButton />
-      <div className="flex min-w-0 items-baseline gap-2.5">
-        <h1 className="truncate text-[15px] font-semibold text-ink">{title}</h1>
-        {subtitle && <p className="truncate text-[13px] text-ink-faint">{subtitle}</p>}
+      {/* Three columns of equal weight rather than a centred element positioned
+          absolutely. Absolute centring puts the bar under a long project name or a
+          wide pair of buttons at some window size nobody tested; this cannot, and
+          the sides truncate instead. */}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <BackButton />
+        <div className="flex min-w-0 items-baseline gap-2.5">
+          <h1 className="truncate text-[15px] font-semibold text-ink">{title}</h1>
+          {subtitle && <p className="truncate text-[13px] text-ink-faint">{subtitle}</p>}
+        </div>
+        {children}
       </div>
-      {children}
-      {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
+
+      <CommandBar />
+
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">{actions}</div>
     </header>
+  );
+}
+
+/**
+ * The way into the command palette, in the middle of the top of the page.
+ *
+ * It used to sit in the sidebar, which is where a navigation tree goes rather than
+ * where a search box does. Up here it reads as the thing you type into to get
+ * anywhere, which is what it is.
+ *
+ * Hidden below `md`, where the sidebar is a drawer and there is no room for it. The
+ * keyboard shortcut still works, and nothing here is only reachable through it.
+ */
+function CommandBar() {
+  const openPalette = usePalette((s) => s.setOpen);
+
+  return (
+    <button
+      type="button"
+      onClick={() => openPalette(true)}
+      className="hidden h-8 w-full max-w-sm shrink items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-2.5 text-[13px] text-ink-faint transition-colors hover:border-line-strong hover:text-ink-muted md:flex"
+    >
+      <Search className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">Jump to a project, a domain, anything</span>
+      <span className="kbd ml-auto shrink-0">⌘K</span>
+    </button>
   );
 }
 

@@ -32,7 +32,7 @@ export function inline(text: string, keyPrefix = ''): ReactNode[] {
 
     if (token.startsWith('`')) {
       out.push(
-        <code key={key} className="rounded-[4px] bg-on-canvas px-1 py-0.5 text-[0.9em] text-ink">
+        <code key={key} className="rounded-[4px] bg-sunken px-1 py-0.5 text-[0.9em] text-ink">
           {token.slice(1, -1)}
         </code>,
       );
@@ -133,7 +133,7 @@ export function render(markdown: string): ReactNode[] {
       out.push(
         <pre
           key={next()}
-          className="overflow-x-auto rounded-[var(--radius-card)] border border-line bg-on-canvas p-3.5 text-[12.5px] leading-relaxed text-ink-muted"
+          className="overflow-x-auto rounded-[var(--radius-card)] border border-line bg-sunken p-3.5 text-[12.5px] leading-relaxed text-ink-muted"
         >
           <code>{body.join('\n')}</code>
         </pre>,

@@ -48,7 +48,6 @@ export function headerSafe(value: string): string {
 /** RFC 5322 wants a US-ASCII header; anything else is encoded rather than dropped. */
 export function encodeHeaderWord(value: string): string {
   const clean = headerSafe(value);
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to find them.
   if (!/[^\x20-\x7e]/.test(clean)) return clean;
   return `=?UTF-8?B?${Buffer.from(clean, 'utf8').toString('base64')}?=`;
 }

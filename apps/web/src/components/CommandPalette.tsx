@@ -1,4 +1,8 @@
 import {
+  Activity,
+  Archive,
+  ArrowUpCircle,
+  BookOpen,
   Bot,
   Boxes,
   CornerDownLeft,
@@ -13,17 +17,44 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
+import { loadTopic } from '../help/load.ts';
+import { TOPICS } from '../help/manifest.ts';
 import { useProjects } from '../stores/projects.ts';
 import { useTheme } from '../stores/theme.ts';
 import { cx, StatusDot } from './ui.tsx';
 
-const GROUP_ORDER = ['Projects', 'Services', 'Domains', 'Actions', 'Navigate'];
+const GROUP_ORDER = ['Projects', 'Services', 'Domains', 'Actions', 'Navigate', 'Handbook'];
+
+/**
+ * An excerpt with the markdown taken out of it.
+ *
+ * The handbook is searched as its source, so a match can land in the middle of a
+ * table row or a heading and arrive as `| **Vaultwarden** | ## Your domains`. None
+ * of that means anything in a one-line result.
+ */
+function readable(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/[#*`>|]/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Below this, a body search matches half the handbook and helps nobody. */
+const BODY_SEARCH_FROM = 3;
 
 interface Command {
   id: string;
   label: string;
   /** Shown to the right, where this goes or what it belongs to. */
   detail?: string;
+  /**
+   * A second line under the label. `detail` is a short chip on the right and does
+   * not shrink, so a sentence put there squeezes the label to nothing: the first
+   * version of the handbook results showed an excerpt and no title at all.
+   */
+  sub?: string;
   group: string;
   icon: React.ReactNode;
   keywords?: string;
@@ -111,12 +142,52 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         run: () => navigate('/'),
       },
       {
+        id: 'go-domains',
+        label: 'Go to domains',
+        group: 'Navigate',
+        keywords: 'dns https certificate ssl address hostname',
+        icon: <Globe className="h-4 w-4" />,
+        run: () => navigate('/domains'),
+      },
+      {
+        id: 'go-server',
+        label: 'Go to the server',
+        group: 'Navigate',
+        keywords: 'cpu memory disk docker machine stats',
+        icon: <Activity className="h-4 w-4" />,
+        run: () => navigate('/server'),
+      },
+      {
+        id: 'go-backups',
+        label: 'Go to backups',
+        group: 'Navigate',
+        keywords: 'backup restore archive snapshot schedule',
+        icon: <Archive className="h-4 w-4" />,
+        run: () => navigate('/backups'),
+      },
+      {
+        id: 'go-updates',
+        label: 'Go to updates',
+        group: 'Navigate',
+        keywords: 'update upgrade security patch version',
+        icon: <ArrowUpCircle className="h-4 w-4" />,
+        run: () => navigate('/updates'),
+      },
+      {
         id: 'go-agents',
         label: 'Go to coding agents',
         group: 'Navigate',
         keywords: 'mcp agent claude cursor codex token key editor',
         icon: <Bot className="h-4 w-4" />,
         run: () => navigate('/agents'),
+      },
+      {
+        id: 'go-help',
+        label: 'Go to the handbook',
+        group: 'Navigate',
+        keywords: 'help docs documentation manual guide',
+        icon: <BookOpen className="h-4 w-4" />,
+        run: () => navigate('/help'),
       },
       {
         id: 'go-settings',
@@ -138,14 +209,59 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     return items;
   }, [projects, navigate, theme, toggleTheme]);
 
+  /**
+   * The handbook, searched by its text rather than only its titles.
+   *
+   * Last in the order on purpose. Someone typing "back" almost always wants the
+   * Backups page, not the page about backups, and a body search that outranked the
+   * app itself would be worse than not having one. It earns its place when the
+   * thing you are looking for is an explanation: "sql dump", "zip", "nixpacks".
+   */
+  const handbook = useMemo<Command[]>(() => {
+    const needle = query.trim().toLowerCase();
+    if (needle.length < BODY_SEARCH_FROM) return [];
+
+    const found: Command[] = [];
+    for (const topic of TOPICS) {
+      const heading = `${topic.title} ${topic.blurb}`.toLowerCase();
+      if (heading.includes(needle)) {
+        found.push({
+          id: `help-${topic.slug}`,
+          label: topic.title,
+          sub: topic.blurb,
+          group: 'Handbook',
+          icon: <BookOpen className="h-4 w-4" />,
+          run: () => navigate(`/help/${topic.slug}`),
+        });
+        continue;
+      }
+      const body = loadTopic(topic);
+      const at = body.toLowerCase().indexOf(needle);
+      if (at < 0) continue;
+      const from = Math.max(0, at - 40);
+      found.push({
+        id: `help-${topic.slug}`,
+        label: topic.title,
+        sub: `${from > 0 ? '…' : ''}${readable(body.slice(from, at + 90))}…`,
+        group: 'Handbook',
+        icon: <BookOpen className="h-4 w-4" />,
+        run: () => navigate(`/help/${topic.slug}`),
+      });
+    }
+    return found;
+  }, [query, navigate]);
+
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = needle
-      ? commands.filter((command) =>
-          `${command.label} ${command.detail ?? ''} ${command.keywords ?? ''}`
-            .toLowerCase()
-            .includes(needle),
-        )
+      ? [
+          ...commands.filter((command) =>
+            `${command.label} ${command.detail ?? ''} ${command.keywords ?? ''}`
+              .toLowerCase()
+              .includes(needle),
+          ),
+          ...handbook,
+        ]
       : commands;
 
     // Commands are built per service, so they arrive interleaved. Sorting into a
@@ -153,7 +269,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     return [...filtered].sort(
       (a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group),
     );
-  }, [commands, query]);
+  }, [commands, handbook, query]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: resetting the highlight is the point. It must react to the query, not to `active`.
   useEffect(() => setActive(0), [query]);
@@ -241,10 +357,22 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     index === active ? 'bg-surface-2 text-ink' : 'text-ink-muted',
                   )}
                 >
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center text-ink-faint">
+                  <span
+                    className={cx(
+                      'flex h-4 w-4 shrink-0 items-center justify-center text-ink-faint',
+                      command.sub && 'mt-0.5 self-start',
+                    )}
+                  >
                     {command.icon}
                   </span>
-                  <span className="min-w-0 flex-1 truncate">{command.label}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{command.label}</span>
+                    {command.sub && (
+                      <span className="mt-0.5 block truncate text-[12px] text-ink-faint">
+                        {command.sub}
+                      </span>
+                    )}
+                  </span>
                   {command.detail && (
                     <span className="shrink-0 truncate text-[12px] text-ink-faint">
                       {command.detail}
