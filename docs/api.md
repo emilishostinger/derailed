@@ -63,6 +63,9 @@ Creating a service:
 | `GET /services/:id/env` · `PUT` | Environment variables |
 | `GET /services/:id/traffic?range=24h\|7d\|30d` | Visitor figures |
 | `GET /services/:id/connection` | Database credentials and ready-made commands |
+| `GET /services/:id/tables` | The tables in a database, with rough row counts |
+| `GET /services/:id/tables/:table` | A page of one table |
+| `POST /services/:id/query` | `{ sql }`. Statements that read, and nothing else |
 | `GET /services/:id/links` | What this app is connected to |
 | `GET /services/:id/volumes` · `POST` | Storage |
 | `GET /services/:id/domains` · `POST` | Its addresses |

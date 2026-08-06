@@ -5,7 +5,13 @@ import { errorResponse, notFound } from './errors.ts';
 import { alertRoutes } from './routes/alerts.ts';
 import { authRoutes } from './routes/auth.ts';
 import { backupRoutes } from './routes/backups.ts';
-import { catalogRoutes, connectionRoutes, linkRoutes, singleLinkRoutes } from './routes/catalog.ts';
+import {
+  browseRoutes,
+  catalogRoutes,
+  connectionRoutes,
+  linkRoutes,
+  singleLinkRoutes,
+} from './routes/catalog.ts';
 import { deploymentRoutes, serviceDeploymentRoutes } from './routes/deployments.ts';
 import { detectRoutes } from './routes/detect.ts';
 import { domainRoutes, serviceDomainRoutes } from './routes/domains.ts';
@@ -83,6 +89,7 @@ export function createApp() {
   api.route('/services', serviceDeploymentRoutes);
   api.route('/services', serviceDomainRoutes);
   api.route('/services', connectionRoutes);
+  api.route('/services', browseRoutes);
   api.route('/services', linkRoutes);
   api.route('/services', serviceVolumeRoutes);
   api.route('/deployments', deploymentRoutes);

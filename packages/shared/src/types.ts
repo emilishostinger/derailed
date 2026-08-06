@@ -512,6 +512,21 @@ export interface DeployDiff {
   summary: string;
 }
 
+/** One table inside a database, for the Browse tab. */
+export interface TableSummary {
+  name: string;
+  /** An estimate, from the engine's own statistics, and said to be one. */
+  approximateRows: number;
+}
+
+export interface QueryResult {
+  columns: string[];
+  rows: string[][];
+  truncated: boolean;
+  /** Always true today. The query box only runs statements that read. */
+  readOnly: boolean;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

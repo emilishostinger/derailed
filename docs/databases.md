@@ -85,3 +85,31 @@ do, and a redeploy of the app in front of it does not touch it.
 
 If you delete a database, its volume goes with it, and the data is gone. Derailed asks
 you to type the name first.
+
+
+## Looking inside
+
+Every SQL database has a **Browse** tab: the tables, roughly how many rows each has,
+and the first hundred rows of whichever one you pick.
+
+There is also a box for asking a question:
+
+```sql
+select count(*) from users where created_at > '2026-01-01'
+```
+
+**It only runs statements that read.** `select`, `show`, `describe`, `explain` and
+`with`, and nothing else. That is an allowlist of first words rather than a search for
+dangerous ones, because a denylist is a guess about every way somebody could write
+`DROP`, and being wrong once means losing a database. A second statement smuggled in
+after a semicolon is refused for the same reason.
+
+To change data, use the **Terminal** tab, where the engine's own client is one command
+away and it is obvious what you are doing.
+
+Nothing is bundled to make this work: it runs the database's own `psql` or `mysql`
+inside the database's own container, the same way backups do. No driver in the binary,
+no port opened, nothing new listening.
+
+PostgreSQL, MySQL and MariaDB for now. Redis and MongoDB are not tables, and a screen
+pretending otherwise would be worse than pointing at the Terminal tab.

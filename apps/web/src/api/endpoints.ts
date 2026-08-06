@@ -21,8 +21,10 @@ import type {
   OffsiteSettings,
   OffsiteStatus,
   Project,
+  QueryResult,
   Service,
   SwapState,
+  TableSummary,
   TrashItem,
   Volume,
 } from '@derailed/shared';
@@ -322,6 +324,17 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  tables: (serviceId: string) =>
+    api.get<{ tables: TableSummary[] }>(`/services/${serviceId}/tables`).then((r) => r.tables),
+  readTable: (serviceId: string, table: string) =>
+    api
+      .get<{ result: QueryResult }>(`/services/${serviceId}/tables/${encodeURIComponent(table)}`)
+      .then((r) => r.result),
+  runQuery: (serviceId: string, sql: string) =>
+    api
+      .post<{ result: QueryResult }>(`/services/${serviceId}/query`, { sql })
+      .then((r) => r.result),
 
   metrics: (serviceId: string, range: '24h' | '7d' | '30d') =>
     api

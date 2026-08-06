@@ -1,5 +1,6 @@
 import { schemas } from '@derailed/shared';
 import { Hono } from 'hono';
+import { canBrowse, listTables, readTable, runQuery } from '../../catalog/browse.ts';
 import { connectionUrl, credentialsFor, startDatabaseContainer } from '../../catalog/create.ts';
 import { DATABASE_ENGINES, findEngine } from '../../catalog/databases.ts';
 import { connectServices, disconnectServices, refreshLinksTo } from '../../catalog/links.ts';
@@ -14,6 +15,56 @@ import type { AppEnv } from '../auth.ts';
 import { badRequest, notFound, parseBody } from '../errors.ts';
 
 export const catalogRoutes = new Hono<AppEnv>();
+/**
+ * Looking inside a database.
+ *
+ * Runs the engine's own client inside the database's own container, so there is no
+ * driver bundled here, no port opened, and nothing new listening anywhere.
+ */
+export const browseRoutes = new Hono<AppEnv>();
+
+browseRoutes.get('/:id/tables', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+  if (!canBrowse(service.dbEngine)) {
+    throw badRequest(
+      `Derailed cannot browse ${service.dbEngine ?? 'this'} yet.`,
+      "Its Terminal tab has the engine's own client on it.",
+    );
+  }
+  return c.json({ tables: await listTables(service.id) });
+});
+
+browseRoutes.get('/:id/tables/:table', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+  try {
+    return c.json({
+      result: await readTable(
+        service.id,
+        c.req.param('table'),
+        Number(c.req.query('limit') ?? 100) || 100,
+        Number(c.req.query('offset') ?? 0) || 0,
+      ),
+    });
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That did not work.');
+  }
+});
+
+browseRoutes.post('/:id/query', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+  const body = (await c.req.json().catch(() => ({}))) as { sql?: string };
+  if (!body.sql?.trim()) throw badRequest('There is no query to run.');
+
+  try {
+    return c.json({ result: await runQuery(service.id, body.sql) });
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That query did not work.');
+  }
+});
+
 export const connectionRoutes = new Hono<AppEnv>();
 export const linkRoutes = new Hono<AppEnv>();
 

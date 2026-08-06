@@ -17,6 +17,7 @@ import { live } from '../api/ws.ts';
 import { useProjects } from '../stores/projects.ts';
 import { toastUndo } from '../stores/toasts.ts';
 import { AccessTab } from './AccessTab.tsx';
+import { BrowseTab } from './BrowseTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
@@ -36,6 +37,7 @@ type Tab =
   | 'overview'
   | 'traffic'
   | 'metrics'
+  | 'browse'
   | 'deployments'
   | 'variables'
   | 'connection'
@@ -109,6 +111,7 @@ export function ServiceDrawer({
       ]
     : [
         ['overview', 'Overview'],
+        ['browse', 'Browse'],
         ['connection', 'Connection'],
         ['variables', 'Variables'],
         ['terminal', 'Terminal'],
@@ -294,6 +297,7 @@ export function ServiceDrawer({
           {tab === 'terminal' && <TerminalTab service={service} />}
           {tab === 'domains' && <DomainsTab service={service} />}
           {tab === 'metrics' && <MetricsTab service={service} />}
+          {tab === 'browse' && <BrowseTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}
           {tab === 'settings' && <Settings service={service} onClose={onClose} />}
