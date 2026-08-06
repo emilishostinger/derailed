@@ -116,6 +116,16 @@ export interface Service {
   updatedAt: number;
   /** When it was deleted, if it was. Deleted things are kept for a week. */
   deletedAt?: number | null;
+  /**
+   * Who is allowed to see this app. Enforced by the proxy, so it works for anything
+   * without the app itself being changed. The password hash is never included.
+   */
+  access?: {
+    hasPassword: boolean;
+    username: string | null;
+    allowFrom: string[];
+    maintenance: boolean;
+  };
 
   /** Derived, attached by the API for convenience. */
   status?: ServiceStatus;

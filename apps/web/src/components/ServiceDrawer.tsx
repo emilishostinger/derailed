@@ -16,6 +16,7 @@ import { endpoints } from '../api/endpoints.ts';
 import { live } from '../api/ws.ts';
 import { useProjects } from '../stores/projects.ts';
 import { toastUndo } from '../stores/toasts.ts';
+import { AccessTab } from './AccessTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
@@ -38,6 +39,7 @@ type Tab =
   | 'storage'
   | 'terminal'
   | 'domains'
+  | 'access'
   | 'settings';
 
 export function ServiceDrawer({
@@ -96,6 +98,7 @@ export function ServiceDrawer({
         ['storage', 'Storage'],
         ['terminal', 'Terminal'],
         ['domains', 'Domains'],
+        ['access', 'Access'],
         ['settings', 'Settings'],
       ]
     : [
@@ -284,6 +287,7 @@ export function ServiceDrawer({
           {tab === 'storage' && <StorageTab service={service} />}
           {tab === 'terminal' && <TerminalTab service={service} />}
           {tab === 'domains' && <DomainsTab service={service} />}
+          {tab === 'access' && <AccessTab service={service} />}
           {tab === 'settings' && <Settings service={service} onClose={onClose} />}
         </div>
       </aside>

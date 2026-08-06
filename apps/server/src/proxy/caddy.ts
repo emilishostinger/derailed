@@ -194,6 +194,14 @@ export async function ensureCaddyRunning(onLog?: (line: string) => void): Promis
 
   const existing = await findContainerByName(caddyConfig.containerName);
   if (existing) {
+    // Whatever this container publishes is the truth, whatever the configuration
+    // says. Without this, a container created on a moved port is later adopted by a
+    // Derailed still holding the default, and every push then goes to whatever else
+    // happens to answer there. On a machine with a second Caddy on it, that is
+    // somebody else's proxy being handed our entire configuration.
+    await adoptPortsFrom(existing.Id);
+  }
+  if (existing) {
     // A container made by an older Derailed is missing the folder the access log is
     // written to, so the traffic figures would stay empty forever with nothing saying
     // why. Replacing it costs a couple of seconds of downtime, once.
@@ -353,6 +361,29 @@ async function missingLogMount(id: string): Promise<boolean> {
 async function missingAdminSocketMount(id: string): Promise<boolean> {
   if (!caddyAdminOverSocket) return false;
   return !(await hasMount(id, CADDY_ADMIN_DIR_IN_CONTAINER));
+}
+
+/**
+ * Reads the ports an existing container actually publishes, and uses those.
+ *
+ * Docker reports bindings as `{"2019/tcp":[{"HostIp":"127.0.0.1","HostPort":"2020"}]}`,
+ * which is the only record of a decision `resolvePorts` made on some earlier boot.
+ */
+async function adoptPortsFrom(id: string): Promise<void> {
+  const inspected = (await inspectContainer(id).catch(() => null)) as {
+    HostConfig?: { PortBindings?: Record<string, { HostPort?: string }[]> };
+  } | null;
+  const bindings = inspected?.HostConfig?.PortBindings;
+  if (!bindings) return;
+
+  const published = (containerPort: number): number | null => {
+    const port = Number(bindings[`${containerPort}/tcp`]?.[0]?.HostPort);
+    return Number.isFinite(port) && port > 0 ? port : null;
+  };
+
+  httpPort = published(INTERNAL_HTTP) ?? httpPort;
+  httpsPort = published(INTERNAL_HTTPS) ?? httpsPort;
+  if (!caddyAdminOverSocket) adminPort = published(INTERNAL_ADMIN) ?? adminPort;
 }
 
 /** Whether this container predates Derailed obtaining certificates of its own. */

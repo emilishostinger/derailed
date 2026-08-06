@@ -27,6 +27,24 @@ export interface RouteSpec {
    * and retry until the allowance for the whole domain was gone.
    */
   providedCert?: boolean;
+  /** Who is allowed to see this, and whether it is showing a holding page instead. */
+  access?: AccessSpec;
+}
+
+/**
+ * Restrictions on who gets to see an app.
+ *
+ * All of it is enforced by the proxy rather than by the app, which is the entire
+ * point: it works for WordPress, for a folder of HTML, and for something written in a
+ * language nobody here has heard of, without any of them being changed.
+ */
+export interface AccessSpec {
+  /** A username and a bcrypt hash. Caddy checks it; Derailed never sees the password again. */
+  basicAuth?: { username: string; hash: string } | null;
+  /** Addresses and CIDR ranges. Anything not in the list gets a plain refusal. */
+  allowFrom?: string[] | null;
+  /** Shows a holding page to everyone, whatever else is set. */
+  maintenance?: boolean;
 }
 
 /** A certificate Derailed obtained, by the paths Caddy will see inside its container. */
@@ -71,7 +89,8 @@ interface CaddyMatcher {
   host?: string[];
   /** "http" or "https", lets one server treat the two ports differently. */
   protocol?: string;
-  not?: { path: string[] }[];
+  not?: ({ path: string[] } | { remote_ip: { ranges: string[] } })[];
+  remote_ip?: { ranges: string[] };
 }
 
 interface CaddyRoute {
@@ -200,6 +219,94 @@ function redirectToHttps(route: RouteSpec): CaddyRoute {
   };
 }
 
+/**
+ * The page visitors see while an app is deliberately not serving.
+ *
+ * 503 rather than 200, so a search engine that comes past treats it as temporary and
+ * does not replace the real page with this one in its index.
+ */
+const MAINTENANCE_BODY = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Back shortly</title>
+<style>
+  body{font:16px/1.6 system-ui,sans-serif;color:#1c1b22;background:#faf9fb;
+       display:grid;place-items:center;min-height:100vh;margin:0;padding:24px}
+  main{max-width:26rem;text-align:center}
+  h1{font-size:1.25rem;margin:0 0 .5rem}
+  p{margin:0;color:#5b5a66}
+  @media(prefers-color-scheme:dark){body{color:#eceaf2;background:#131218}p{color:#a6a3b3}}
+</style></head>
+<body><main><h1>Back shortly</h1>
+<p>This site is having a little work done. Please try again in a few minutes.</p>
+</main></body></html>`;
+
+/**
+ * The handlers that run before the app sees a request.
+ *
+ * Order matters and is deliberate. The holding page comes first, because during
+ * maintenance nobody should get through whatever else is configured. The address
+ * check comes before the password, so somebody who is not allowed to be here is
+ * turned away without being invited to guess a password.
+ */
+function accessHandlers(access: AccessSpec | undefined): unknown[] {
+  if (!access) return [];
+  const handlers: unknown[] = [];
+
+  if (access.maintenance) {
+    handlers.push({
+      handler: 'static_response',
+      status_code: 503,
+      headers: {
+        'Content-Type': ['text/html; charset=utf-8'],
+        // Explicitly uncached: a holding page kept by a CDN or a browser outlives the
+        // maintenance it was announcing, and then the site is "down" for people whose
+        // cache still has it.
+        'Cache-Control': ['no-store'],
+        'Retry-After': ['600'],
+      },
+      body: MAINTENANCE_BODY,
+    });
+    return handlers;
+  }
+
+  if (access.allowFrom?.length) {
+    handlers.push({
+      handler: 'subroute',
+      routes: [
+        {
+          match: [{ not: [{ remote_ip: { ranges: access.allowFrom } }] }],
+          handle: [
+            {
+              handler: 'static_response',
+              status_code: 403,
+              headers: { 'Content-Type': ['text/plain; charset=utf-8'] },
+              body: 'This site is only available from certain addresses.\n',
+            },
+          ],
+          terminal: true,
+        },
+      ],
+    });
+  }
+
+  if (access.basicAuth) {
+    handlers.push({
+      handler: 'authentication',
+      providers: {
+        http_basic: {
+          // Named so the browser's own prompt says something, since that dialog is
+          // the entire interface for this and Derailed cannot style it.
+          realm: 'This site is private',
+          accounts: [{ username: access.basicAuth.username, password: access.basicAuth.hash }],
+        },
+      },
+    });
+  }
+
+  return handlers;
+}
+
 function routeFor(route: RouteSpec): CaddyRoute {
   if (route.redirectTo) {
     return {
@@ -217,6 +324,18 @@ function routeFor(route: RouteSpec): CaddyRoute {
     };
   }
 
+  // During maintenance the app is left out of the chain entirely rather than sitting
+  // behind a handler that happens to stop before reaching it. Caddy would not call it,
+  // but "the app is not reached" is worth being structurally true rather than a
+  // property of how the proxy chains handlers.
+  if (route.access?.maintenance) {
+    return {
+      match: [{ host: [route.hostname] }],
+      handle: accessHandlers(route.access),
+      terminal: true,
+    };
+  }
+
   return {
     match: [{ host: [route.hostname] }],
     handle: [
@@ -225,6 +344,7 @@ function routeFor(route: RouteSpec): CaddyRoute {
         routes: [
           {
             handle: [
+              ...accessHandlers(route.access),
               {
                 handler: 'reverse_proxy',
                 upstreams: [{ dial: `${route.upstream}:${route.port}` }],

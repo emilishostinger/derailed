@@ -13,6 +13,7 @@ import { findProject } from '../../db/repo/projects.ts';
 import {
   createAppService,
   findService,
+  setAccess,
   setRepoToken,
   softDeleteService,
   updateService,
@@ -32,6 +33,31 @@ import { emitProject, emitService, presentService } from '../../runtime/present.
 import { previewFile, refreshPreview } from '../../runtime/preview.ts';
 import type { AppEnv } from '../auth.ts';
 import { badRequest, notFound, parseBody } from '../errors.ts';
+
+/**
+ * A single address or a CIDR range, v4 or v6.
+ *
+ * Checked here rather than left to Caddy: a typo in this list is a config the proxy
+ * rejects wholesale, which would take every site on the machine down over one bad
+ * entry in one app's settings.
+ */
+function isAddressOrRange(value: string): boolean {
+  const [address, bits] = value.trim().split('/');
+  if (!address) return false;
+
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(address);
+  if (v4) {
+    if (v4.slice(1).some((part) => Number(part) > 255)) return false;
+    return bits === undefined || (Number(bits) >= 0 && Number(bits) <= 32);
+  }
+
+  // Deliberately loose on v6: the shapes are many and Caddy is the real judge. This
+  // only has to reject things that are obviously not addresses at all.
+  if (/^[0-9a-f:]+$/i.test(address) && address.includes(':')) {
+    return bits === undefined || (Number(bits) >= 0 && Number(bits) <= 128);
+  }
+  return false;
+}
 
 export const projectServiceRoutes = new Hono<AppEnv>();
 export const serviceRoutes = new Hono<AppEnv>();
@@ -177,6 +203,45 @@ serviceRoutes.delete('/:id', async (c) => {
   });
   emitProject(projectId);
   return c.json({ ok: true, undoable: true, kind: 'service', id: service.id });
+});
+
+/**
+ * Who is allowed to see this app.
+ *
+ * The password is hashed on the way in and never readable afterwards: the proxy
+ * checks it against the hash and Derailed has no reason to be able to read it back.
+ */
+serviceRoutes.put('/:id/access', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  if (service.kind !== 'app') throw badRequest('Only apps are served to visitors.');
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    username?: string | null;
+    password?: string | null;
+    allowFrom?: string[] | null;
+    maintenance?: boolean;
+  };
+
+  if (typeof body.password === 'string' && body.password.length > 0 && body.password.length < 6) {
+    throw badRequest('Use at least six characters.');
+  }
+
+  if (body.allowFrom) {
+    for (const entry of body.allowFrom) {
+      if (!isAddressOrRange(entry)) {
+        throw badRequest(
+          `"${entry}" is not an address or a range.`,
+          'Use something like 203.0.113.7, or 203.0.113.0/24 for a whole range.',
+        );
+      }
+    }
+  }
+
+  const updated = await setAccess(service.id, body);
+  await syncRoutes();
+  emitService(service.id);
+  return c.json({ service: presentService(updated ?? service) });
 });
 
 serviceRoutes.post('/:id/start', async (c) => {

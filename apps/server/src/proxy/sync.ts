@@ -4,7 +4,7 @@ import { port as panelPort } from '../config.ts';
 import { runningDeployment } from '../db/repo/deployments.ts';
 import { allDomains } from '../db/repo/domains.ts';
 import { findProject } from '../db/repo/projects.ts';
-import { containerName, findService } from '../db/repo/services.ts';
+import { accessFor, containerName, findService } from '../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
 import { buildCaddyConfig, HOST_GATEWAY, pushCaddyConfig } from './caddy.ts';
@@ -60,12 +60,20 @@ export function currentRoutes(): RouteSpec[] {
     const free = isCoveredByFreeDomain(domain.hostname);
     if (!ipBased && !free && domain.dnsStatus !== 'ok') continue;
 
+    const auth = accessFor(service.id);
     routes.push({
       hostname: domain.hostname,
       upstream: containerName(project.slug, service.slug, deployment.id),
       port: resolvePort(service.port, null),
       https: !ipBased,
       providedCert: free,
+      // Enforced by the proxy rather than the app, which is what makes it work for
+      // WordPress, a folder of HTML and anything else without touching any of them.
+      access: {
+        basicAuth: auth,
+        allowFrom: service.access?.allowFrom ?? null,
+        maintenance: service.access?.maintenance ?? false,
+      },
     });
   }
 

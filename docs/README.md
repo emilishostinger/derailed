@@ -15,6 +15,7 @@ about five minutes.
 - **[Databases](databases.md)**: engines, credentials, connecting an app
 - **[Storage](storage.md)**: what survives a redeploy, and what does not
 - **[Backups](backups.md)**: schedules, retention, restoring, taking a copy away
+- **[Who can see your apps](access.md)**: passwords, address lists and maintenance mode
 - **[Alerts](alerts.md)**: being told when something breaks, without it becoming noise
 - **[Disk space](disk.md)**: what is using it, freeing it up safely, and swap
 - **[Trash](trash.md)**: deleting is undoable for a week, and what that does and does not cover

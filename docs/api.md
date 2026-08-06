@@ -57,6 +57,7 @@ Creating a service:
 | `PATCH /services/:id` | Branch, folder, port, health path, memory limit, image, and `deployOnPush` / `deployOnRelease` |
 | `DELETE /services/:id` | Stops it and frees its addresses. Everything stored is kept for a week; see the trash below |
 | `POST /services/:id/start` · `/stop` · `/restart` | Control it |
+| `PUT /services/:id/access` | Password, address list, maintenance. The password is hashed and never returned |
 | `POST /services/:id/upload` | `multipart/form-data` with `file`, a zip, up to 200 MB |
 | `PUT /services/:id/repo-token` | `{ token }` for a private repository, or `null` to clear |
 | `GET /services/:id/env` · `PUT` | Environment variables |

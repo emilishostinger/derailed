@@ -376,4 +376,19 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_services_deleted ON services(deleted_at);
     `,
   },
+  {
+    id: 13,
+    name: 'who is allowed to see this app',
+    sql: `
+      -- A username and a bcrypt hash, both stored on the service, because "only
+      -- people with this password can see this site" is a property of the site and
+      -- not of an account on this server. Caddy does the checking.
+      ALTER TABLE services ADD COLUMN auth_user TEXT;
+      ALTER TABLE services ADD COLUMN auth_hash TEXT;
+      -- A JSON array of addresses and ranges. Empty or null means everyone.
+      ALTER TABLE services ADD COLUMN allow_from TEXT;
+      -- When set, visitors get a "back shortly" page instead of the app.
+      ALTER TABLE services ADD COLUMN maintenance INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

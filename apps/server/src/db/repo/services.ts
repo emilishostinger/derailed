@@ -37,6 +37,10 @@ interface ServiceRow {
   created_at: number;
   updated_at: number;
   deleted_at?: number | null;
+  auth_user?: string | null;
+  auth_hash?: string | null;
+  allow_from?: string | null;
+  maintenance?: 0 | 1;
 }
 
 function toService(row: ServiceRow): Service {
@@ -72,6 +76,13 @@ function toService(row: ServiceRow): Service {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at ?? null,
+    // The hash is never included: it is Caddy's business, not the browser's.
+    access: {
+      hasPassword: !!row.auth_hash,
+      username: row.auth_user ?? null,
+      allowFrom: row.allow_from ? (JSON.parse(row.allow_from) as string[]) : [],
+      maintenance: row.maintenance === 1,
+    },
   };
 }
 
@@ -323,6 +334,72 @@ export function updateService(
 export function softDeleteService(id: string, at = Date.now()): void {
   releaseDomainsFor(id);
   db().query('UPDATE services SET deleted_at = ? WHERE id = ?').run(at, id);
+}
+
+/**
+ * Who may see this app.
+ *
+ * The password is hashed here and never stored in the clear: Caddy checks it against
+ * the hash, and Derailed has no reason to be able to read it back. Passing null for
+ * the password clears it; leaving it undefined keeps whatever is stored.
+ */
+export async function setAccess(
+  id: string,
+  patch: {
+    username?: string | null;
+    password?: string | null;
+    allowFrom?: string[] | null;
+    maintenance?: boolean;
+  },
+): Promise<Service | null> {
+  const assignments: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  if (patch.password === null) {
+    assignments.push('auth_user = NULL', 'auth_hash = NULL');
+  } else if (patch.password !== undefined && patch.password !== '') {
+    // bcrypt, because that is what Caddy's http_basic provider verifies against.
+    assignments.push('auth_user = ?', 'auth_hash = ?');
+    values.push(
+      patch.username?.trim() || 'visitor',
+      await Bun.password.hash(patch.password, { algorithm: 'bcrypt', cost: 12 }),
+    );
+  } else if (patch.username !== undefined && patch.username !== null) {
+    assignments.push('auth_user = ?');
+    values.push(patch.username.trim() || 'visitor');
+  }
+
+  if (patch.allowFrom !== undefined) {
+    assignments.push('allow_from = ?');
+    values.push(patch.allowFrom?.length ? JSON.stringify(patch.allowFrom) : null);
+  }
+  if (patch.maintenance !== undefined) {
+    assignments.push('maintenance = ?');
+    values.push(patch.maintenance ? 1 : 0);
+  }
+
+  if (!assignments.length) return findService(id);
+
+  assignments.push('updated_at = ?');
+  values.push(Date.now());
+  db()
+    .query(`UPDATE services SET ${assignments.join(', ')} WHERE id = ?`)
+    .run(...values, id);
+  return findService(id);
+}
+
+/** The hash, for building the proxy configuration. Never leaves the server. */
+export function accessFor(id: string): {
+  username: string;
+  hash: string;
+} | null {
+  const row = db()
+    .query<{ auth_user: string | null; auth_hash: string | null }, [string]>(
+      'SELECT auth_user, auth_hash FROM services WHERE id = ?',
+    )
+    .get(id);
+  if (!row?.auth_hash) return null;
+  return { username: row.auth_user ?? 'visitor', hash: row.auth_hash };
 }
 
 export function restoreService(id: string): void {

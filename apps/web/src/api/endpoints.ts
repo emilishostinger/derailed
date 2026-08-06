@@ -319,6 +319,16 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  setAccess: (
+    serviceId: string,
+    patch: {
+      username?: string | null;
+      password?: string | null;
+      allowFrom?: string[] | null;
+      maintenance?: boolean;
+    },
+  ) => api.put<{ service: Service }>(`/services/${serviceId}/access`, patch),
+
   whyBroken: (deploymentId: string) =>
     api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),
 
