@@ -35,7 +35,7 @@ export const useTheme = create<ThemeState>((set, get) => ({
     });
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme === 'light' ? '#fbfbfc' : '#08090a');
+      ?.setAttribute('content', theme === 'light' ? '#e6e8ee' : '#050610');
     try {
       localStorage.setItem(KEY, theme);
     } catch {

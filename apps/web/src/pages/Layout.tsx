@@ -58,10 +58,11 @@ export function Layout() {
   }, []);
 
   return (
-    <div className="flex h-full bg-canvas">
+    /* The canvas shows through as a gutter, and the two slabs sit on it. */
+    <div className="flex h-full gap-2 bg-canvas p-2">
       <Sidebar onOpenPalette={() => setPaletteOpen(true)} />
       <MobileNav />
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="shell flex min-w-0 flex-1 flex-col">
         <InsecureNotice />
         <Outlet />
       </main>
@@ -84,7 +85,7 @@ function MobileNav() {
         type="button"
         aria-label="Menu"
         onClick={() => setOpen(true)}
-        className="fixed top-3 left-3 z-30 rounded-[var(--radius-control)] border border-line bg-surface p-2 text-ink-muted shadow-[var(--d-shadow-card)] md:hidden"
+        className="fixed top-4 left-4 z-30 rounded-[var(--radius-control)] border border-line bg-surface p-2 text-ink-muted shadow-[var(--d-shadow-card)] md:hidden"
       >
         <Menu className="h-4 w-4" />
       </button>
@@ -268,7 +269,7 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const onProjects = useLocation().pathname === '/';
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-surface max-md:hidden">
+    <aside className="shell flex w-60 shrink-0 flex-col max-md:hidden">
       <div className="px-3 pt-4 pb-2">
         <NavLink to="/" className="block px-2 py-1">
           <Wordmark />
