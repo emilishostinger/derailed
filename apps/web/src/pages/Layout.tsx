@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowRight,
   ArrowUpCircle,
+  Bot,
   Boxes,
   ChevronDown,
   ChevronsUpDown,
@@ -23,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
 import { CommandPalette } from '../components/CommandPalette.tsx';
 import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
@@ -128,6 +129,9 @@ function MobileNav() {
             </MobileLink>
             <MobileLink to="/updates" onGo={() => setOpen(false)}>
               Updates
+            </MobileLink>
+            <MobileLink to="/agents" onGo={() => setOpen(false)}>
+              Coding agents
             </MobileLink>
             <MobileLink to="/settings" onGo={() => setOpen(false)}>
               Settings
@@ -259,6 +263,9 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
   }, [projectsOpen]);
 
   const projects = useProjects((s) => s.projects);
+  // Whether the Projects row currently leads anywhere. On the dashboard it does not,
+  // which is what frees the click up to mean "fold this away".
+  const onProjects = useLocation().pathname === '/';
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-surface max-md:hidden">
@@ -281,64 +288,86 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
       </button>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-3">
-        <NavItem
-          to="/"
-          icon={<Boxes className="h-4 w-4" />}
-          end
-          // Inside the row rather than beside it, so one highlight covers the whole
-          // thing and the chevron is somewhere to aim at rather than a lone glyph.
-          trailing={
-            projects.length > 0 && (
-              <button
-                type="button"
-                className="-mr-1 rounded-[4px] p-0.5 text-ink-faint transition-colors hover:text-ink"
-                aria-label={projectsOpen ? 'Hide the project list' : 'Show the project list'}
-                onClick={(event) => {
-                  // The row is a link; the chevron is not a way of following it.
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setProjectsOpen((open) => !open);
-                }}
-              >
+        {/* What you made. */}
+        <NavGroup>
+          <NavItem
+            to="/"
+            icon={<Boxes className="h-4 w-4" />}
+            end
+            aria-expanded={projects.length > 0 ? projectsOpen : undefined}
+            // The whole row folds the list, not a 14-pixel glyph at the end of it. The
+            // chevron stays as the thing that says which way it will go, but it is no
+            // longer the only place you are allowed to hit.
+            onClick={(event) => {
+              // Leave modified clicks alone: cmd-click still opens a tab.
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              if (projects.length === 0) return;
+              if (onProjects) {
+                // Already here, so the click has nowhere to take you and can mean the
+                // only other thing it could mean. Clicking again puts it back.
+                event.preventDefault();
+                setProjectsOpen((open) => !open);
+              } else {
+                // Arriving from elsewhere: go, and show the list you came to see.
+                setProjectsOpen(true);
+              }
+            }}
+            trailing={
+              projects.length > 0 && (
                 <ChevronDown
-                  className={cx('h-3.5 w-3.5 transition-transform', !projectsOpen && '-rotate-90')}
+                  aria-hidden="true"
+                  className={cx(
+                    '-mr-0.5 h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform',
+                    !projectsOpen && '-rotate-90',
+                  )}
                 />
-              </button>
-            )
-          }
-        >
-          Projects
-        </NavItem>
+              )
+            }
+          >
+            Projects
+          </NavItem>
 
-        {projectsOpen && projects.length > 0 && (
-          <ul className="mt-1 mb-3 ml-2 space-y-px border-l border-line pl-2">
-            {projects.map((project) => (
-              <li key={project.id}>
-                <ProjectItem
-                  id={project.id}
-                  slug={project.slug}
-                  name={project.name}
-                  services={project.services ?? []}
-                  backedUp={project.backupSchedule !== 'off'}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+          {projectsOpen && projects.length > 0 && (
+            <ul className="mt-1 mb-1 ml-2 space-y-px border-l border-line pl-2">
+              {projects.map((project) => (
+                <li key={project.id}>
+                  <ProjectItem
+                    id={project.id}
+                    slug={project.slug}
+                    name={project.name}
+                    services={project.services ?? []}
+                    backedUp={project.backupSchedule !== 'off'}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <NavItem to="/domains" icon={<Globe className="h-4 w-4" />}>
-          Domains
-        </NavItem>
-        <NavItem to="/server" icon={<Activity className="h-4 w-4" />}>
-          Server
-        </NavItem>
-        <NavItem to="/backups" icon={<Archive className="h-4 w-4" />}>
-          Backups
-        </NavItem>
-        <UpdatesNavItem />
-        <NavItem to="/settings" icon={<Settings2 className="h-4 w-4" />}>
-          Settings
-        </NavItem>
+          <NavItem to="/domains" icon={<Globe className="h-4 w-4" />}>
+            Domains
+          </NavItem>
+        </NavGroup>
+
+        {/* The machine underneath it. */}
+        <NavGroup label="Your server">
+          <NavItem to="/server" icon={<Activity className="h-4 w-4" />}>
+            Server
+          </NavItem>
+          <NavItem to="/backups" icon={<Archive className="h-4 w-4" />}>
+            Backups
+          </NavItem>
+          <UpdatesNavItem />
+        </NavGroup>
+
+        {/* Things you set up once. */}
+        <NavGroup label="Setup">
+          <NavItem to="/agents" icon={<Bot className="h-4 w-4" />}>
+            Coding agents
+          </NavItem>
+          <NavItem to="/settings" icon={<Settings2 className="h-4 w-4" />}>
+            Settings
+          </NavItem>
+        </NavGroup>
       </nav>
 
       <SystemPanel />
@@ -348,13 +377,31 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
   );
 }
 
+/**
+ * A run of related destinations.
+ *
+ * Six items in one column is a list you read from the top every time. Split into what
+ * you made, the machine under it, and what you set up once, it becomes three short
+ * lists you can aim at. The first has no heading: it is where you already are.
+ */
+function NavGroup({ label, children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-3 first:mt-0">
+      {label && <p className="eyebrow px-2 pt-1 pb-1.5">{label}</p>}
+      {children}
+    </div>
+  );
+}
+
 function NavItem({
   to,
   icon,
   end,
   className,
   trailing,
+  onClick,
   children,
+  ...rest
 }: {
   to: string;
   icon: React.ReactNode;
@@ -362,12 +409,15 @@ function NavItem({
   className?: string;
   /** Sits at the right of the same row, inside the same highlight. */
   trailing?: React.ReactNode;
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
   children: React.ReactNode;
-}) {
+} & React.AriaAttributes) {
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={onClick}
+      {...rest}
       className={({ isActive }) =>
         cx(
           className,

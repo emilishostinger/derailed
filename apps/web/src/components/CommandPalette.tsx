@@ -1,4 +1,5 @@
 import {
+  Bot,
   Boxes,
   CornerDownLeft,
   Database,
@@ -108,6 +109,14 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         group: 'Navigate',
         icon: <Boxes className="h-4 w-4" />,
         run: () => navigate('/'),
+      },
+      {
+        id: 'go-agents',
+        label: 'Go to coding agents',
+        group: 'Navigate',
+        keywords: 'mcp agent claude cursor codex token editor',
+        icon: <Bot className="h-4 w-4" />,
+        run: () => navigate('/agents'),
       },
       {
         id: 'go-settings',

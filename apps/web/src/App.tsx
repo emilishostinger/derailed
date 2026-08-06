@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { FullPageLoader } from './components/ui.tsx';
+import { Agents } from './pages/Agents.tsx';
 import { Backups } from './pages/Backups.tsx';
 import { Dashboard } from './pages/Dashboard.tsx';
 import { Domains } from './pages/Domains.tsx';
@@ -35,6 +36,7 @@ export function App() {
           <Route path="/server" element={<Server />} />
           <Route path="/updates" element={<Updates />} />
           <Route path="/backups" element={<Backups />} />
+          <Route path="/agents" element={<Agents />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

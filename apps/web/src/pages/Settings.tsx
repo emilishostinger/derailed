@@ -2,7 +2,6 @@ import { ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
-import { ApiTokens } from '../components/ApiTokens.tsx';
 import { ErrorNote, Field, Spinner } from '../components/ui.tsx';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
@@ -56,10 +55,6 @@ export function Settings() {
 
           <Section title="Addresses for your apps">
             <AppDomain />
-          </Section>
-
-          <Section title="Coding agents (MCP)">
-            <ApiTokens />
           </Section>
 
           <Section title="Keeping up to date">
