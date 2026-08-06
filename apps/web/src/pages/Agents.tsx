@@ -13,10 +13,11 @@ export function Agents() {
   return (
     <>
       <PageHeader title="Coding agents" subtitle="Drive this server from your editor, over MCP" />
+      {/* No padding here: with nothing set up yet the whole area is an empty state,
+          and its backdrop is meant to reach the header rather than stop short of it.
+          The list state brings its own width and padding. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl p-5">
-          <ApiTokens />
-        </div>
+        <ApiTokens />
       </div>
     </>
   );

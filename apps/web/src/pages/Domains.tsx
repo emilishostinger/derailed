@@ -99,42 +99,49 @@ export function Domains() {
           </div>
         )}
 
-        {!loading && (
+        {/* Nothing added yet: the empty state is the page, so it is not boxed inside a
+            padded column. Its backdrop reaches the header the same way it does on the
+            dashboard and inside an empty project. */}
+        {!loading && own.length === 0 && (
+          <>
+            {error != null && (
+              <div className="mx-auto max-w-3xl px-5 pt-5">
+                <ErrorNote error={error} />
+              </div>
+            )}
+            <EmptyState
+              icon={<Globe className="h-5 w-5" />}
+              title="No domains yet"
+              body="Add a domain you own and Derailed checks that it points at this server. Once it does, any of your apps can answer on it."
+              action={
+                <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
+                  Add a domain
+                </button>
+              }
+              // With no list to sit under, this belongs in the same centred column.
+              note={AUTO_ADDRESS_NOTE}
+            />
+          </>
+        )}
+
+        {!loading && own.length > 0 && (
           <div className="mx-auto max-w-3xl space-y-8 p-5">
             <ErrorNote error={error} />
 
-            <section>
-              {own.length === 0 ? (
-                <EmptyState
-                  icon={<Globe className="h-5 w-5" />}
-                  title="No domains yet"
-                  body="Add a domain you own and Derailed checks that it points at this server. Once it does, any of your apps can answer on it."
-                  action={
-                    <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
-                      Add a domain
-                    </button>
-                  }
-                  note={AUTO_ADDRESS_NOTE}
+            <div className="space-y-2">
+              {own.map((domain) => (
+                <Row
+                  key={domain.id}
+                  domain={domain}
+                  partner={redirects.find((entry) => entry.redirectTo === domain.id)}
+                  serverIp={serverIp}
+                  onChange={refresh}
                 />
-              ) : (
-                <div className="space-y-2">
-                  {own.map((domain) => (
-                    <Row
-                      key={domain.id}
-                      domain={domain}
-                      partner={redirects.find((entry) => entry.redirectTo === domain.id)}
-                      serverIp={serverIp}
-                      onChange={refresh}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+              ))}
+            </div>
 
-            {/* Under a list this is a footnote and reads left, with the rows. With no
-                domains there is no list to sit under, so it goes inside the empty state
-                instead and shares its centring. */}
-            {own.length > 0 && <p className="text-[12px] text-ink-faint">{AUTO_ADDRESS_NOTE}</p>}
+            {/* Under a list this is a footnote, and reads left with the rows. */}
+            <p className="text-[12px] text-ink-faint">{AUTO_ADDRESS_NOTE}</p>
           </div>
         )}
       </div>

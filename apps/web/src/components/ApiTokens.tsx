@@ -68,6 +68,11 @@ export function ApiTokens() {
   if (tokens.length === 0 && !fresh) {
     return (
       <>
+        {error != null && (
+          <div className="mx-auto max-w-3xl px-5 pt-5">
+            <ErrorNote error={error} />
+          </div>
+        )}
         <EmptyState
           icon={<KeyRound className="h-5 w-5" />}
           title="No tokens yet"
@@ -85,13 +90,12 @@ export function ApiTokens() {
           }
           note="You get the token and the settings to paste into your agent. It is shown once."
         />
-        <ErrorNote error={error} />
       </>
     );
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5 p-5">
       <p className="text-[13px] text-ink-muted">
         Derailed comes with an MCP server, so a coding agent such as Claude Code, Cursor or Codex
         can deploy apps, read logs and add domains for you while you work. Create a token, paste the
