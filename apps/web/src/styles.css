@@ -39,12 +39,11 @@
  * than a second set of utility classes. Dark is the default; `:root.light`
  * overrides it. Both are designed, not one derived from the other.
  *
- * The neutrals are warm graphite, not the blue-grey every developer tool reaches
- * for. It is the one decision that stops this looking like the same dashboard as
- * everyone else's, and it earns its keep twice: the indigo of the mark is cool, so
- * it sits against these rather than dissolving into them, and the signal colours
- * that actually matter, a green that means running and a red that means broken,
- * read as signals rather than as more of the interface.
+ * The neutrals are cool and very slightly indigo, carrying a trace of the mark's
+ * own hue rather than being the flat charcoal every developer tool ships. Enough
+ * that the surfaces feel related to the accent; not so much that anything looks
+ * tinted. They were briefly warm, which turned out to read as heritage rather than
+ * as modern, and this is a tool for putting things on the internet today.
  *
  * Nothing glows and nothing is a gradient. The mark is allowed one; the interface
  * around it is not.
@@ -88,18 +87,18 @@
 
 /* Dark. The default, and what the README screenshots show. */
 :root {
-  --d-canvas: #0a0908;
-  --d-surface: #131211;
-  --d-surface-2: #1b1a18;
-  --d-elevated: #22201e;
-  --d-line: #272522;
-  --d-line-strong: #3a3630;
-  --d-ink: #f8f7f4;
-  --d-ink-muted: #8f8981;
-  --d-ink-faint: #68635c;
+  --d-canvas: #0b0c11;
+  --d-surface: #121319;
+  --d-surface-2: #1a1c23;
+  --d-elevated: #21232b;
+  --d-line: #262832;
+  --d-line-strong: #383b47;
+  --d-ink: #f4f6fa;
+  --d-ink-muted: #8b90a0;
+  --d-ink-faint: #61667a;
   --d-accent: #6e79d6;
   --d-accent-hover: #828cdf;
-  --d-accent-soft: #1c1c2c;
+  --d-accent-soft: #1c1f38;
   --d-accent-ink: #ffffff;
   --d-ok: #4cb782;
   --d-ok-soft: #10231b;
@@ -113,22 +112,22 @@
   --d-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
   --d-shadow-pop: 0 8px 32px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   --d-shadow-shell: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.35);
-  --d-grid-line: #1b1a18;
-  --d-canvas-grid: #121110;
+  --d-grid-line: #1a1c23;
+  --d-canvas-grid: #131419;
 
   color-scheme: dark;
 }
 
 :root.light {
-  --d-canvas: #ebe8e3;
+  --d-canvas: #edeff4;
   --d-surface: #ffffff;
-  --d-surface-2: #f5f3ef;
+  --d-surface-2: #f4f5f9;
   --d-elevated: #ffffff;
-  --d-line: #e5e1da;
-  --d-line-strong: #d0cabf;
-  --d-ink: #1a1816;
-  --d-ink-muted: #6c665e;
-  --d-ink-faint: #97918a;
+  --d-line: #e4e6ee;
+  --d-line-strong: #ced2de;
+  --d-ink: #13151c;
+  --d-ink-muted: #656a7a;
+  --d-ink-faint: #929aab;
   --d-accent: #5b64c4;
   --d-accent-hover: #4b54b4;
   --d-accent-soft: #eeeffb;
@@ -145,8 +144,8 @@
   --d-shadow-card: 0 1px 2px rgb(16 18 24 / 0.05);
   --d-shadow-pop: 0 12px 32px rgb(16 18 24 / 0.12), 0 0 0 1px rgb(16 18 24 / 0.05);
   --d-shadow-shell: 0 1px 2px rgb(16 18 24 / 0.06), 0 10px 30px rgb(16 18 24 / 0.08);
-  --d-grid-line: #e8e4dd;
-  --d-canvas-grid: #efece7;
+  --d-grid-line: #e6e8f0;
+  --d-canvas-grid: #f0f2f7;
 
   color-scheme: light;
 }
@@ -355,6 +354,10 @@ h3 {
     linear-gradient(to right, var(--d-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--d-grid-line) 1px, transparent 1px);
   background-size: 32px 32px;
+  /* Up by one line. The first horizontal rule of the grid used to land immediately
+     under the page header's own border, and two 1px lines touching read as one 2px
+     line: a top bar that looks twice as heavy as every other divider in the app. */
+  background-position: 0 -1px;
   mask-image: radial-gradient(ellipse 75% 55% at 50% 0%, #000 20%, transparent 72%);
 }
 

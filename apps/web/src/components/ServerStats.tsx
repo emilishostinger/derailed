@@ -1,4 +1,4 @@
-import { CircleCheck, Cpu, HardDrive, MemoryStick, TriangleAlert } from 'lucide-react';
+import { CircleCheck, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { formatBytes } from '../pages/Layout.tsx';
@@ -69,25 +69,24 @@ export function ServerStats() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Meter
-          icon={<Cpu className="h-3.5 w-3.5" />}
+        <StatTile
           label="Processor"
-          percent={stats.cpu.percent}
+          value={`${stats.cpu.percent}%`}
           detail={`${stats.cpu.cores} core${stats.cpu.cores === 1 ? '' : 's'}`}
           history={cpuHistory}
         />
-        <Meter
-          icon={<MemoryStick className="h-3.5 w-3.5" />}
+        <StatTile
           label="Memory"
-          percent={stats.memory.percent}
+          value={`${stats.memory.percent}%`}
           detail={`${formatBytes(stats.memory.usedBytes)} of ${formatBytes(stats.memory.totalBytes)}`}
           history={memHistory}
         />
-        <Meter
-          icon={<HardDrive className="h-3.5 w-3.5" />}
+        <StatTile
           label="Disk"
-          percent={diskPercent ?? 0}
+          value={disk ? formatBytes(disk.totalBytes - disk.freeBytes) : '-'}
+          unit={disk ? `of ${formatBytes(disk.totalBytes)}` : undefined}
           detail={disk ? `${formatBytes(disk.freeBytes)} free` : 'Unknown'}
+          percent={diskPercent ?? undefined}
         />
       </div>
 
@@ -101,47 +100,77 @@ export function ServerStats() {
   );
 }
 
-function Meter({
-  icon,
+/**
+ * One number, the way you would say it out loud, with its recent shape beside it.
+ *
+ * A current value and its trend is a stat tile, not a chart: there is no axis worth
+ * drawing for "processor, 2%". The figure leads at display size and the sparkline is
+ * context behind it, which is the opposite of the old arrangement, where the number
+ * was a caption on the right of a progress bar.
+ *
+ * The value uses the font's proportional figures rather than tabular ones. Tabular
+ * gives every digit the width of a zero, which reads loose at this size; nothing
+ * moves when it changes because the sparkline is pinned to the other end of the row.
+ */
+function StatTile({
   label,
-  percent,
+  value,
+  unit,
   detail,
   history,
+  percent,
 }: {
-  icon: React.ReactNode;
   label: string;
-  percent: number;
+  value: string;
+  /** Said quietly after the value: "34 GB of 400 GB". */
+  unit?: string;
   detail: string;
   history?: number[];
+  /** Draws a meter instead of a sparkline, for a share of something finite. */
+  percent?: number;
 }) {
-  const tone = percent > 90 ? 'bg-danger' : percent > 75 ? 'bg-warn' : 'bg-ok';
-  const toneText = percent > 90 ? 'text-danger' : percent > 75 ? 'text-warn' : 'text-ok';
+  // Severity, and only at the point where it is worth saying. The banner above
+  // carries the words and the icon, so this is never the only thing saying it.
+  const tone =
+    percent === undefined
+      ? 'text-accent'
+      : percent > 90
+        ? 'text-danger'
+        : percent > 75
+          ? 'text-warn'
+          : 'text-accent';
 
   return (
-    <div className="card p-3.5">
-      <div className="flex items-center gap-1.5 text-[12px] text-ink-muted">
-        <span className="text-ink-faint">{icon}</span>
-        {label}
-        <span className="ml-auto text-[13px] font-medium text-ink tabular">{percent}%</span>
+    <div className="card p-4">
+      <p className="text-[12px] text-ink-muted">{label}</p>
+
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <p className="text-[26px] leading-none font-semibold text-ink">
+          {value}
+          {unit && <span className="ml-1 text-[13px] font-normal text-ink-faint">{unit}</span>}
+        </p>
+        {history && (
+          <Sparkline values={history} max={100} filled className={cx('h-9 w-24 shrink-0', tone)} />
+        )}
       </div>
 
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
+      {percent !== undefined && (
         <div
-          className={cx('h-full rounded-full transition-[width] duration-500', tone)}
-          style={{ width: `${Math.min(100, Math.max(2, percent))}%` }}
-        />
-      </div>
-
-      {history && (
-        <Sparkline
-          values={history}
-          max={100}
-          filled
-          className={cx('mt-2.5 h-8 w-full', toneText)}
-        />
+          className={cx(
+            'mt-3 h-1.5 overflow-hidden rounded-full',
+            // The empty part of the track is a lighter step of the fill's own colour,
+            // so the whole bar reads as one measurement rather than a bar on a shelf.
+            percent > 90 ? 'bg-danger-soft' : percent > 75 ? 'bg-warn-soft' : 'bg-accent-soft',
+          )}
+        >
+          <div
+            className={cx('h-full rounded-full bg-current transition-[width] duration-500', tone)}
+            style={{ width: `${Math.min(100, Math.max(2, percent))}%` }}
+          />
+        </div>
       )}
 
-      <p className="mt-1.5 text-[11px] text-ink-faint tabular">{detail}</p>
+      <p className="mt-2.5 text-[11px] text-ink-faint">{detail}</p>
     </div>
   );
 }

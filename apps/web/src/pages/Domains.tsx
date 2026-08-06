@@ -3,14 +3,12 @@ import {
   CheckCircle2,
   Clock,
   Copy,
-  CornerDownRight,
   ExternalLink,
   Globe,
   Lock,
   Plus,
   RefreshCw,
   Trash2,
-  TriangleAlert,
   Unlock,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -308,25 +306,24 @@ function Row({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: right-click is a shortcut here, and everything in the menu is also reachable by clicking.
     <div className="card p-4" onContextMenu={menu.onContextMenu}>
-      <div className="flex items-center gap-2">
+      {/* The name is the thing. Everything else on this card is about it. */}
+      <div className="flex items-center gap-2.5">
         {secure ? (
-          <Lock className="h-3.5 w-3.5 shrink-0 text-ok" />
+          <Lock className="h-4 w-4 shrink-0 text-ok" />
         ) : ready ? (
-          <Unlock className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
+          <Unlock className="h-4 w-4 shrink-0 text-ink-faint" />
         ) : (
-          <Clock className="h-3.5 w-3.5 shrink-0 text-warn" />
+          <Clock className="h-4 w-4 shrink-0 text-warn" />
         )}
 
-        <span className="min-w-0 flex-1">
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            className="truncate font-mono text-[13px] text-ink hover:text-accent hover:underline"
-          >
-            {domain.hostname}
-          </a>
-        </span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="min-w-0 flex-1 truncate font-mono text-[14px] text-ink hover:text-accent hover:underline"
+        >
+          {domain.hostname}
+        </a>
 
         <CopyButton value={url} />
         <a href={url} target="_blank" rel="noreferrer" className="btn-ghost px-1.5">
@@ -334,59 +331,85 @@ function Row({
         </a>
       </div>
 
-      {partner && (
-        <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-faint">
-          <CornerDownRight className="h-3 w-3 shrink-0" />
-          <span className="font-mono">{partner.hostname}</span>
-          sends people here
-          <button
-            type="button"
-            className="text-accent hover:underline"
-            onClick={async () => {
-              await endpoints.makePrimary(partner.id).catch(() => undefined);
-              onChange();
-            }}
-          >
-            (swap them)
-          </button>
-        </p>
-      )}
+      {/* One quiet line for everything else: what answers on it, how it is doing, and
+          the other half of the pair if it has one. It used to be three stacked rows of
+          competing colours, which made a card about one domain look like a report. */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 pl-6.5 text-[12px]">
+        <span className={ready ? 'text-ok' : 'text-warn'}>{statusLabel(domain)}</span>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-muted">
         {domain.serviceName && domain.projectSlug ? (
-          <Link to={`/p/${domain.projectSlug}`} className="truncate hover:text-ink">
-            {domain.projectName} / {domain.serviceName}
-          </Link>
+          <>
+            <span className="text-ink-faint">·</span>
+            <Link
+              to={`/p/${domain.projectSlug}`}
+              className="truncate text-ink-muted hover:text-ink"
+            >
+              {domain.projectName} / {domain.serviceName}
+            </Link>
+          </>
         ) : domain.kind === 'custom' ? (
-          <button
-            type="button"
-            className="text-accent hover:underline"
-            onClick={() => setChoosing(true)}
-          >
-            Choose an app
-          </button>
+          <>
+            <span className="text-ink-faint">·</span>
+            <button
+              type="button"
+              className="text-accent hover:underline"
+              onClick={() => setChoosing(true)}
+            >
+              Choose an app
+            </button>
+          </>
         ) : null}
-        <span className={cx('flex items-center gap-1', ready ? 'text-ok' : 'text-warn')}>
-          {ready ? <CheckCircle2 className="h-3 w-3" /> : <TriangleAlert className="h-3 w-3" />}
-          {statusLabel(domain)}
-        </span>
+
+        {partner && (
+          <>
+            <span className="text-ink-faint">·</span>
+            <span className="text-ink-faint">
+              <span className="font-mono">{partner.hostname}</span> sends people here
+            </span>
+            <button
+              type="button"
+              className="text-accent hover:underline"
+              onClick={async () => {
+                await endpoints.makePrimary(partner.id).catch(() => undefined);
+                onChange();
+              }}
+            >
+              swap
+            </button>
+          </>
+        )}
       </div>
 
+      {/* What to go and do, as the record itself rather than a paragraph describing
+          one. This is the shape every domain provider's form asks for, so it can be
+          copied across field by field instead of read and translated. */}
       {domain.kind === 'custom' && domain.dnsStatus !== 'ok' && serverIp && (
-        <div className="mt-2.5 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3 text-[12px] text-ink-muted">
-          At your domain provider, add an <span className="font-mono text-ink">A</span> record for{' '}
-          <span className="font-mono text-ink">{domain.hostname}</span> pointing to{' '}
-          <span className="font-mono text-ink">{serverIp}</span>. Derailed keeps checking. A new
-          record can take a few minutes to reach everyone, so this is normal at first.
-          <button
-            type="button"
-            className="btn-secondary mt-2.5 flex text-[12px]"
-            disabled={checking}
-            onClick={() => void check()}
-          >
-            {checking && <Spinner />}
-            Check now
-          </button>
+        <div className="mt-3 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[12px] font-medium text-ink">Add this record at your domain host</p>
+            <button
+              type="button"
+              className="btn-secondary shrink-0 text-[12px]"
+              disabled={checking}
+              onClick={() => void check()}
+            >
+              {checking && <Spinner />}
+              Check now
+            </button>
+          </div>
+
+          <dl className="mt-2.5 grid grid-cols-[3.5rem_1fr] gap-y-1 text-[12px]">
+            <dt className="text-ink-faint">Type</dt>
+            <dd className="font-mono text-ink">A</dd>
+            <dt className="text-ink-faint">Name</dt>
+            <dd className="truncate font-mono text-ink">{domain.hostname}</dd>
+            <dt className="text-ink-faint">Points to</dt>
+            <dd className="font-mono text-ink">{serverIp}</dd>
+          </dl>
+
+          <p className="mt-2.5 text-[11px] text-ink-faint">
+            A new record takes a few minutes to spread. Derailed keeps checking.
+          </p>
         </div>
       )}
 
