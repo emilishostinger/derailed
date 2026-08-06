@@ -30,7 +30,9 @@ export function Security() {
   const [error, setError] = useState<unknown>(null);
   const push = useToasts((s) => s.push);
 
-  const load = () => {
+  // Stable across renders, so the effect below can declare it honestly rather than
+  // suppressing the rule. Recreated every render, it would refetch on every keystroke.
+  const load = useCallback(() => {
     endpoints
       .sessions()
       .then(setSessions)
@@ -39,13 +41,9 @@ export function Security() {
       .me()
       .then((me) => setEnabled(me.totpEnabled ?? false))
       .catch(() => setEnabled(false));
-  };
+  }, []);
 
-  // Loaded once on mount. `load` is recreated every render, so it is deliberately
-  // not a dependency: including it would refetch on every keystroke in the form.
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(load, [load]);
 
   if (enabled === null) return null;
 
