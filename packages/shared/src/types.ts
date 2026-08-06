@@ -558,6 +558,12 @@ export interface UptimeSummary {
   uptimePercent: number | null;
 }
 
+/** A port an existing container publishes, for the adopt screen. */
+export interface AdoptablePort {
+  container: number;
+  published: number | null;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

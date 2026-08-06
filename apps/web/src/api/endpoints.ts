@@ -327,6 +327,23 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  adoptable: () =>
+    api
+      .get<{
+        containers: {
+          id: string;
+          name: string;
+          image: string;
+          state: string;
+          ports: { container: number; published: number | null }[];
+          suggestedPort: number | null;
+          blocked: string | null;
+        }[];
+      }>('/system/adoptable')
+      .then((r) => r.containers),
+  adopt: (input: { containerId: string; projectName?: string; appName?: string; port?: number }) =>
+    api.post<{ projectId: string; serviceId: string }>('/system/adopt', input),
+
   movePlan: () => api.get<{ plan: unknown }>('/backups/move/plan').then((r) => r.plan),
   exportInstall: () => api.post<{ file: string; sizeBytes: number }>('/backups/move/export'),
   importInstall: (plan: unknown) =>

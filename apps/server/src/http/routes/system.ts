@@ -1,5 +1,6 @@
 import { schemas } from '@derailed/shared';
 import { Hono } from 'hono';
+import { AdoptError, adopt, adoptable } from '../../catalog/adopt.ts';
 import { paths } from '../../config.ts';
 import { createDomain, findDomainByHostname, listDomains } from '../../db/repo/domains.ts';
 import { listServices } from '../../db/repo/services.ts';
@@ -42,6 +43,32 @@ systemRoutes.get('/', async (c) => c.json({ system: await systemInfo() }));
 systemRoutes.get('/update', async (c) => c.json({ update: await checkForUpdate() }));
 
 systemRoutes.get('/stats', async (c) => c.json({ stats: await serverStats() }));
+
+/**
+ * Things already on this machine that Derailed could take over.
+ *
+ * Adopting is shallow on purpose: the container is left exactly as it was found and
+ * gains an address, a certificate and a place in the topology. Derailed does not
+ * learn how to rebuild it, and says so.
+ */
+systemRoutes.get('/adoptable', async (c) => c.json({ containers: await adoptable() }));
+
+systemRoutes.post('/adopt', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    containerId?: string;
+    projectName?: string;
+    appName?: string;
+    port?: number;
+  };
+  if (!body.containerId) throw badRequest('Which container?');
+
+  try {
+    return c.json(await adopt(body.containerId, body));
+  } catch (err) {
+    if (err instanceof AdoptError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
 
 systemRoutes.get('/cost', (c) => c.json({ cost: costComparison() }));
 

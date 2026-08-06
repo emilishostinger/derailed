@@ -23,6 +23,7 @@ import { ProjectPreview } from '../components/SitePreview.tsx';
 import { cx, EmptyState, ErrorNote, Field, Modal, Spinner, StatusDot } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
+import { useToasts } from '../stores/toasts.ts';
 import { NewButton, PageHeader } from './Layout.tsx';
 
 export function Dashboard() {
@@ -172,7 +173,7 @@ function AlsoHere() {
                 <StatusDot status={container.state === 'running' ? 'running' : 'stopped'} />
               </div>
               <p className="truncate text-[12px] text-ink-muted">{container.image}</p>
-              <p className="mt-auto flex flex-wrap gap-x-3 border-t border-line pt-2.5 text-[11px] text-ink-faint">
+              <p className="flex flex-wrap gap-x-3 text-[11px] text-ink-faint">
                 <span>{container.status}</span>
                 {container.ports.map((port) => (
                   <span key={port} className="tabular">
@@ -180,6 +181,11 @@ function AlsoHere() {
                   </span>
                 ))}
               </p>
+              {/* Derailed did not start it and will not take it over, but it can give
+                  it an address, a certificate and a place in the topology. */}
+              <div className="mt-auto border-t border-line pt-2.5">
+                <AdoptButton id={container.id} name={container.name} />
+              </div>
             </div>
           ))}
         </div>
@@ -189,10 +195,59 @@ function AlsoHere() {
         <p className="pt-3 text-[12px] text-ink-faint">
           {extra.length === 0
             ? 'Nothing else is running here. Anything you start outside Derailed shows up in this list.'
-            : 'Derailed did not start these, so it leaves them alone. They are here so the list matches what is really on the machine.'}
+            : 'Derailed did not start these and leaves them alone. Take one over and it keeps running exactly as it is, but gains a web address, a certificate and a place in the map.'}
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Taking over something already running.
+ *
+ * Shallow on purpose: the container is untouched and simply becomes something
+ * Derailed can route to and watch. It says what it cannot do, because "why will it
+ * not redeploy?" is the obvious next question.
+ */
+function AdoptButton({ id, name }: { id: string; name: string }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const load = useProjects((s) => s.load);
+  const push = useToasts((s) => s.push);
+
+  if (done) return <p className="text-[11px] text-ok">Taken over. It is in Adopted.</p>;
+
+  return (
+    <button
+      type="button"
+      className="btn-ghost !px-0 text-[12px]"
+      disabled={busy}
+      onClick={async (event) => {
+        event.preventDefault();
+        setBusy(true);
+        try {
+          const { containers } = { containers: await endpoints.adoptable() };
+          const match = containers.find((entry) => entry.id === id);
+          await endpoints.adopt({
+            containerId: id,
+            appName: name,
+            port: match?.suggestedPort ?? undefined,
+          });
+          await load();
+          setDone(true);
+          push({
+            message: `${name} is now in Derailed. It keeps running as it is; give it an address on its Domains tab.`,
+            tone: 'ok',
+          });
+        } catch {
+          push({ message: `${name} could not be taken over.`, tone: 'danger' });
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? 'Taking it over…' : 'Take it over'}
+    </button>
   );
 }
 

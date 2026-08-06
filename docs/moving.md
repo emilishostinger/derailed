@@ -58,3 +58,23 @@ The import tells you, but in short:
 
 Keep the old server running until the new one is answering. Nothing about this is
 destructive to the machine you are leaving.
+
+
+## Bringing in what is already here
+
+A machine that already runs containers is not a dead end. Derailed lists everything it
+did not start under **Also on this server** on the dashboard, and each one has a
+**Take it over** button.
+
+Adopting is deliberately shallow. The container is not restarted, relabelled or
+rebuilt: it keeps running exactly as it was, started however you started it. What it
+gains is a place in Derailed: a web address, a certificate, the uptime check, and a
+node on the map.
+
+**What it does not gain is deploys.** Derailed did not build it and does not know how,
+so there is no redeploy button and no repository behind it. Point Derailed at the
+repository as a new app when you want that.
+
+The port is guessed conservatively: the familiar web ports first, then anything that
+is not obviously a database, then nothing at all. An address pointed at Postgres
+answers with binary nonsense, which is a worse first impression than an empty field.

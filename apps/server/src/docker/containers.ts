@@ -10,6 +10,8 @@ export interface ContainerSummary {
   Status: string;
   Labels: Record<string, string>;
   Created: number;
+  /** Only present on the list endpoint, and only for containers that publish any. */
+  Ports?: { IP?: string; PrivatePort: number; PublicPort?: number; Type: string }[];
 }
 
 export interface ContainerInspect {
