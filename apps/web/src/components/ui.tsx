@@ -157,12 +157,19 @@ export function CopyButton({
 /** The one empty-state shape, so every "nothing here yet" reads the same. */
 export function EmptyState({
   icon,
+  unframedIcon,
   title,
   body,
   action,
   note,
 }: {
   icon: ReactNode;
+  /**
+   * The icon is usually one glyph, which wants a frame around it to read as a
+   * subject rather than a stray mark. Set this when the icon is already a composed
+   * thing, a row of brand tiles say, and the box would just be a box around a box.
+   */
+  unframedIcon?: boolean;
   title: string;
   body: string;
   action?: ReactNode;
@@ -178,9 +185,13 @@ export function EmptyState({
     <div className="relative flex h-full min-h-[420px] flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
       <div className="rails pointer-events-none absolute inset-0" aria-hidden="true" />
       <div className="relative flex flex-col items-center">
-        <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-[var(--radius-card)] border border-line bg-surface text-ink-faint">
-          {icon}
-        </span>
+        {unframedIcon ? (
+          <span className="mb-4 flex items-center justify-center">{icon}</span>
+        ) : (
+          <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-[var(--radius-card)] border border-line bg-surface text-ink-faint">
+            {icon}
+          </span>
+        )}
         <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
         <p className="mt-1.5 max-w-sm text-[13px] text-ink-muted">{body}</p>
         {action && <div className="mt-5">{action}</div>}

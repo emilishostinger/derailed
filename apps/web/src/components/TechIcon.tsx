@@ -21,6 +21,10 @@ import { cx } from './ui.tsx';
  */
 const ALIASES: Record<string, string> = {
   // agents
+  'claude code': 'claude',
+  claude: 'claude',
+  cursor: 'cursor',
+  codex: 'openai',
   openclaw: 'openclaw',
   'hermes agent': 'hermesagent',
   hermes: 'hermesagent',
@@ -157,15 +161,28 @@ export function BrandTile({
       className={cx('flex shrink-0 items-center justify-center rounded-[6px]', className)}
       style={{ backgroundColor: brand.hex }}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="h-[62%] w-[62%]"
-        fill={readableOn(brand.hex)}
-        aria-hidden="true"
-      >
-        <title>{brand.title}</title>
-        <path d={brand.path} />
-      </svg>
+      {brand.art ? (
+        // A picture, not a silhouette: framed rather than recoloured, and given a
+        // little more of the tile because it has its own internal margins.
+        <svg
+          viewBox={brand.art.viewBox}
+          className="h-[78%] w-[78%]"
+          aria-hidden="true"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: authored in this file, never from input.
+          dangerouslySetInnerHTML={{ __html: brand.art.svg }}
+        />
+      ) : (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-[62%] w-[62%]"
+          fill={readableOn(brand.hex)}
+          fillRule={brand.evenOdd ? 'evenodd' : undefined}
+          aria-hidden="true"
+        >
+          <title>{brand.title}</title>
+          <path d={brand.path} />
+        </svg>
+      )}
     </span>
   );
 }

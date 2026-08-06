@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { OtherSoftware } from '../api/endpoints.ts';
 import { endpoints } from '../api/endpoints.ts';
+import { DropToHost } from '../components/DropToHost.tsx';
 import { cx, EmptyState, ErrorNote, Field, Modal, Spinner, StatusDot } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
@@ -32,6 +33,10 @@ export function Dashboard() {
 
   return (
     <>
+      {/* The whole page is a drop target. This is the shortest path there is from a
+          folder on your computer to a website, so it should not be behind a wizard. */}
+      <DropToHost />
+
       <PageHeader
         title="Projects"
         subtitle={projects.length > 0 ? `${projects.length}` : undefined}

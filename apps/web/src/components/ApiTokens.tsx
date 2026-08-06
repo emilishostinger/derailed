@@ -2,6 +2,8 @@ import { Check, Copy, KeyRound, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useSession } from '../stores/session.ts';
+import { BRANDS } from './brands.ts';
+import { BrandTile } from './TechIcon.tsx';
 import { cx, EmptyState, ErrorNote, Spinner } from './ui.tsx';
 
 interface Token {
@@ -74,7 +76,10 @@ export function ApiTokens() {
           </div>
         )}
         <EmptyState
-          icon={<KeyRound className="h-5 w-5" />}
+          // The three tools by name would mean nothing to someone who has not met
+          // them; their marks are recognised on sight by everyone who has.
+          icon={<AgentMarks />}
+          unframedIcon
           title="No tokens yet"
           body="A token lets a coding agent such as Claude Code, Cursor or Codex deploy apps, read logs and add domains for you, from the editor you are already in."
           action={
@@ -185,6 +190,21 @@ export function ApiTokens() {
 
       <ErrorNote error={error} />
     </div>
+  );
+}
+
+/** The three this is for, said in the one way that needs no explaining. */
+function AgentMarks() {
+  const marks = ['claude', 'cursor', 'openai']
+    .map((key) => BRANDS[key])
+    .filter((brand): brand is NonNullable<typeof brand> => !!brand);
+
+  return (
+    <span className="flex items-center gap-2">
+      {marks.map((brand) => (
+        <BrandTile key={brand.title} brand={brand} className="h-9 w-9" />
+      ))}
+    </span>
   );
 }
 
