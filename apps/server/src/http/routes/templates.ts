@@ -3,7 +3,13 @@ import { queueDeployment } from '../../build/pipeline.ts';
 import { connectionUrl, createDatabaseFromCatalog, credentialsFor } from '../../catalog/create.ts';
 import { findEngine } from '../../catalog/databases.ts';
 import { connectServices } from '../../catalog/links.ts';
-import { APP_TEMPLATES, CATEGORY_ORDER, findTemplate } from '../../catalog/templates.ts';
+import {
+  APP_TEMPLATES,
+  CATEGORY_ORDER,
+  fetchTemplate,
+  findTemplate,
+  TemplateError,
+} from '../../catalog/templates.ts';
 import { replaceUserEnv } from '../../db/repo/env.ts';
 import { findProject } from '../../db/repo/projects.ts';
 import { createAppService, deleteService, findService } from '../../db/repo/services.ts';
@@ -128,4 +134,23 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
     },
     201,
   );
+});
+
+/**
+ * A template from a link.
+ *
+ * Twenty ready-made apps is a feature; two hundred is a moat, and it is the one part
+ * of this anybody else can build. Fetched, validated hard, and shown before anything
+ * is created, because the person should see what they are about to run.
+ */
+templateRoutes.post('/from-url', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { url?: string };
+  if (!body.url?.trim()) throw badRequest('Paste the address of a template file.');
+
+  try {
+    return c.json({ template: await fetchTemplate(body.url.trim()) });
+  } catch (err) {
+    if (err instanceof TemplateError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
 });

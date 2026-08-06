@@ -160,6 +160,12 @@ Creating a service:
 | `GET /system/swap` | Whether this server has swap, and whether it should |
 | `POST /system/swap` | Create a swap file and turn it on. `{ bytes }`, or the suggested size |
 
+## Templates
+
+| | |
+| --- | --- |
+| `POST /templates/from-url` | `{ url }`. Fetches and validates a template, and shows it before anything is created |
+
 ## The trash
 
 Deleting is undoable for seven days. See [trash](trash.md).

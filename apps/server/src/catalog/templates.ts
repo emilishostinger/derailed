@@ -448,3 +448,143 @@ const KNOWN_STATEFUL: [string, { paths: string[]; what: string }][] = [
 export function findTemplate(slug: string): AppTemplate | undefined {
   return APP_TEMPLATES.find((template) => template.slug === slug);
 }
+
+/**
+ * A template from somewhere else.
+ *
+ * Twenty ready-made apps is a feature; two hundred is a moat, and it is the one part
+ * of Derailed other people can build. This is the smallest thing that makes that
+ * possible: paste a URL to a template file, get an app.
+ *
+ * Validated hard, because the file comes from the internet and turns into a container
+ * running on somebody's server. Everything is checked by shape, and anything not
+ * recognised is dropped rather than passed through: a template that could set
+ * arbitrary Docker options would be a way to hand somebody a root shell politely.
+ */
+export class TemplateError extends Error {
+  readonly hint?: string;
+  constructor(message: string, hint?: string) {
+    super(message);
+    this.name = 'TemplateError';
+    this.hint = hint;
+  }
+}
+
+/** A container image, as `name`, `name:tag` or `host/name:tag`. Nothing else. */
+function isImageName(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length < 200 &&
+    /^[a-z0-9][a-z0-9._\-/]*(:[a-zA-Z0-9._-]+)?(@sha256:[a-f0-9]{64})?$/.test(value)
+  );
+}
+
+function isAbsolutePath(value: unknown): value is string {
+  return typeof value === 'string' && value.startsWith('/') && !value.includes('..');
+}
+
+/**
+ * Turns whatever was fetched into a template, or refuses.
+ *
+ * Only the fields Derailed itself defines survive. A field it does not know is not
+ * passed through to Docker on the chance it might be useful; it is dropped, because
+ * the difference between those two positions is whether this is a feature or a
+ * vulnerability.
+ */
+export function parseTemplate(input: unknown): AppTemplate {
+  if (!input || typeof input !== 'object') {
+    throw new TemplateError('That file is not a template.');
+  }
+  const raw = input as Record<string, unknown>;
+
+  if (typeof raw.name !== 'string' || !raw.name.trim()) {
+    throw new TemplateError('That template has no name.');
+  }
+  if (!isImageName(raw.image)) {
+    throw new TemplateError(
+      'That template does not name a container image Derailed recognises.',
+      'It should look like `ghost:5-alpine` or `ghcr.io/someone/thing:1.2`.',
+    );
+  }
+  const port = Number(raw.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new TemplateError('That template does not say which port the app listens on.');
+  }
+
+  const volumes = Array.isArray(raw.volumes) ? raw.volumes.filter(isAbsolutePath) : [];
+  const env: Record<string, string> = {};
+  if (raw.env && typeof raw.env === 'object') {
+    for (const [key, value] of Object.entries(raw.env as Record<string, unknown>)) {
+      // Names only in the shape an environment variable actually has, and values as
+      // text. Anything else is somebody trying something.
+      if (/^[A-Za-z_][A-Za-z0-9_]{0,100}$/.test(key) && typeof value === 'string') {
+        env[key] = value.slice(0, 4000);
+      }
+    }
+  }
+
+  return {
+    slug: String(raw.slug ?? raw.name)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60),
+    name: raw.name.trim().slice(0, 60),
+    blurb: typeof raw.blurb === 'string' ? raw.blurb.slice(0, 200) : 'Added from a link.',
+    // Always this one. A template does not get to invent a category and rearrange
+    // somebody's catalogue.
+    category: 'Tools',
+    image: raw.image,
+    port,
+    volumes,
+    env: Object.keys(env).length ? env : undefined,
+    generatedEnv: Array.isArray(raw.generatedEnv)
+      ? raw.generatedEnv.filter(
+          (key): key is string => typeof key === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(key),
+        )
+      : undefined,
+    afterDeploy:
+      typeof raw.afterDeploy === 'string'
+        ? raw.afterDeploy.slice(0, 300)
+        : 'Open your site to finish setting it up.',
+  };
+}
+
+/** Fetches and validates one. Everything that can go wrong is said in words. */
+export async function fetchTemplate(url: string): Promise<AppTemplate> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new TemplateError(`"${url}" is not a web address.`);
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new TemplateError(
+      'Templates are only fetched over https.',
+      'Anything else could be changed on its way here.',
+    );
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(parsed, { redirect: 'follow', signal: AbortSignal.timeout(15_000) });
+  } catch {
+    throw new TemplateError('That address could not be reached.');
+  }
+  if (!response.ok) {
+    throw new TemplateError(`That address answered ${response.status}.`);
+  }
+
+  const text = await response.text();
+  // Bounded before parsing: a multi-megabyte JSON document is not a template, and
+  // parsing one to find that out is the wrong order.
+  if (text.length > 64_000) throw new TemplateError('That file is far too large to be a template.');
+
+  try {
+    return parseTemplate(JSON.parse(text));
+  } catch (err) {
+    if (err instanceof TemplateError) throw err;
+    throw new TemplateError('That file is not readable as a template.');
+  }
+}
