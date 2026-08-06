@@ -55,7 +55,7 @@ Creating a service:
 | --- | --- |
 | `GET /services/:id` | One service |
 | `PATCH /services/:id` | Branch, folder, port, health path, memory limit, image, and `deployOnPush` / `deployOnRelease` |
-| `DELETE /services/:id` | Removes it, its containers and its volumes |
+| `DELETE /services/:id` | Stops it and frees its addresses. Everything stored is kept for a week; see the trash below |
 | `POST /services/:id/start` · `/stop` · `/restart` | Control it |
 | `POST /services/:id/upload` | `multipart/form-data` with `file`, a zip, up to 200 MB |
 | `PUT /services/:id/repo-token` | `{ token }` for a private repository, or `null` to clear |
@@ -65,6 +65,16 @@ Creating a service:
 | `GET /services/:id/links` | What this app is connected to |
 | `GET /services/:id/volumes` · `POST` | Storage |
 | `GET /services/:id/domains` · `POST` | Its addresses |
+
+## The trash
+
+Deleting is undoable for seven days. See [trash](trash.md).
+
+| | |
+| --- | --- |
+| `GET /trash` | What is still recoverable, and what each item still holds |
+| `POST /trash/:kind/:id/restore` | Put it back. `kind` is `project` or `service` |
+| `DELETE /trash/:kind/:id` | Empty this one now. Irreversible |
 
 ## Deploys
 

@@ -358,4 +358,22 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_deployments_service ON deployments(service_id, created_at DESC);
     `,
   },
+  {
+    id: 12,
+    name: 'deleting something is not the end of it',
+    sql: `
+      -- Deleting an app used to destroy its stored folders along with it, which is
+      -- the one action here that could lose work nobody could get back. Now a delete
+      -- sets a time, the containers stop, and everything that holds data stays where
+      -- it is until the trash is emptied a week later.
+      --
+      -- Null means "not deleted", which keeps every existing row correct and lets the
+      -- unique indexes below ignore deleted rows for free.
+      ALTER TABLE projects ADD COLUMN deleted_at INTEGER;
+      ALTER TABLE services ADD COLUMN deleted_at INTEGER;
+
+      CREATE INDEX idx_projects_deleted ON projects(deleted_at);
+      CREATE INDEX idx_services_deleted ON services(deleted_at);
+    `,
+  },
 ];

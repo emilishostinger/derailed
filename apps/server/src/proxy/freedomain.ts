@@ -170,8 +170,8 @@ export function releaseFreeDomain(): void {
  * Keeps the certificate alive, and the address pointed at this server.
  *
  * Both matter: a certificate that expires takes every app offline behind a browser
- * warning, and a server whose public address changed — a rebuild, a new provider, a
- * dynamic IP — is one whose apps all resolve to somebody else's machine.
+ * warning, and a server whose public address changed (a rebuild, a new provider, a
+ * dynamic IP) is one whose apps all resolve to somebody else's machine.
  *
  * Returns whether Caddy needs reloading.
  */

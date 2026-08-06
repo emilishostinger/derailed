@@ -12,6 +12,7 @@ import { Onboarding } from './pages/Onboarding.tsx';
 import { ProjectPage } from './pages/Project.tsx';
 import { Server } from './pages/Server.tsx';
 import { Settings } from './pages/Settings.tsx';
+import { Trash } from './pages/Trash.tsx';
 import { Updates } from './pages/Updates.tsx';
 import { useSession } from './stores/session.ts';
 
@@ -37,6 +38,7 @@ export function App() {
           <Route path="/server" element={<Server />} />
           <Route path="/updates" element={<Updates />} />
           <Route path="/backups" element={<Backups />} />
+          <Route path="/trash" element={<Trash />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/help" element={<Help />} />
           <Route path="/help/:slug" element={<Help />} />

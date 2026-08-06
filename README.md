@@ -65,6 +65,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | 🆓 **A padlock without buying a domain** | Claim a free name in about a minute and every app gets real HTTPS on it, now and in future, from a single wildcard certificate. No tunnel, no third party between you and your visitors. |
 | 🗄️ **Databases in one click** | PostgreSQL, MySQL, MariaDB, MongoDB, Redis and Valkey. Private by default. Connect one to an app and the credentials are wired in for you. |
 | 📈 **Visitor figures, no tracker** | Counted by the proxy that already serves every request. No script in your pages, nothing leaves the machine, nothing to consent to. |
+| 🗑️ **Nothing you press is final** | Deleting stops an app and frees its addresses, but keeps everything it stored for a week. There is an Undo on the way out, and a trash you can fish it back from. |
 | 💾 **Backups you can restore** | Scheduled per project, and an ordinary `.tar.gz` you can download and open with `tar`. Restoring stops the app first, because emptying a folder underneath a running app is how people lose data. |
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
@@ -139,6 +140,7 @@ safe.
 [Databases](docs/databases.md) ·
 [Storage](docs/storage.md) ·
 [Backups](docs/backups.md) ·
+[Trash](docs/trash.md) ·
 [Visitor figures](docs/analytics.md) ·
 [Coding agents](docs/mcp.md) ·
 [API](docs/api.md) ·

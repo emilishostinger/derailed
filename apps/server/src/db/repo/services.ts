@@ -36,6 +36,7 @@ interface ServiceRow {
   exposed_port: number | null;
   created_at: number;
   updated_at: number;
+  deleted_at?: number | null;
 }
 
 function toService(row: ServiceRow): Service {
@@ -70,10 +71,32 @@ function toService(row: ServiceRow): Service {
     exposedPort: row.exposed_port,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    deletedAt: row.deleted_at ?? null,
   };
 }
 
+/**
+ * Everything still in use. Deleted services keep their rows for a week so they can be
+ * put back, and every ordinary read has to leave those out: an app in the trash must
+ * not be deployed, routed, backed up, monitored or counted.
+ */
 export function listServices(projectId?: string): Service[] {
+  const query = projectId
+    ? db()
+        .query<ServiceRow, [string]>(
+          'SELECT * FROM services WHERE project_id = ? AND deleted_at IS NULL ORDER BY created_at',
+        )
+        .all(projectId)
+    : db()
+        .query<ServiceRow, []>(
+          'SELECT * FROM services WHERE deleted_at IS NULL ORDER BY created_at',
+        )
+        .all();
+  return query.map(toService);
+}
+
+/** Including deleted ones. For the trash, restoring, and emptying it. */
+export function listServicesEvenIfDeleted(projectId?: string): Service[] {
   const query = projectId
     ? db()
         .query<ServiceRow, [string]>(
@@ -84,14 +107,32 @@ export function listServices(projectId?: string): Service[] {
   return query.map(toService);
 }
 
+export function listDeletedServices(): Service[] {
+  return db()
+    .query<ServiceRow, []>(
+      'SELECT * FROM services WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC',
+    )
+    .all()
+    .map(toService);
+}
+
 export function findService(id: string): Service | null {
+  const row = db()
+    .query<ServiceRow, [string]>('SELECT * FROM services WHERE id = ? AND deleted_at IS NULL')
+    .get(id);
+  return row ? toService(row) : null;
+}
+
+export function findServiceEvenIfDeleted(id: string): Service | null {
   const row = db().query<ServiceRow, [string]>('SELECT * FROM services WHERE id = ?').get(id);
   return row ? toService(row) : null;
 }
 
 export function findServiceBySlug(projectId: string, slug: string): Service | null {
   const row = db()
-    .query<ServiceRow, [string, string]>('SELECT * FROM services WHERE project_id = ? AND slug = ?')
+    .query<ServiceRow, [string, string]>(
+      'SELECT * FROM services WHERE project_id = ? AND slug = ? AND deleted_at IS NULL',
+    )
     .get(projectId, slug);
   return row ? toService(row) : null;
 }
@@ -126,9 +167,17 @@ export interface NewDatabaseService {
 }
 
 function nextSlug(projectId: string, name: string, fallback: string): string {
+  // Taken must include deleted services: their rows are still there, `(project_id,
+  // slug)` is still UNIQUE, and reusing the name of something in the trash would
+  // otherwise fail on a constraint with nothing on screen to explain it.
   return uniqueSlug(
     slugify(name, fallback),
-    (candidate) => !!findServiceBySlug(projectId, candidate),
+    (candidate) =>
+      !!db()
+        .query<{ id: string }, [string, string]>(
+          'SELECT id FROM services WHERE project_id = ? AND slug = ?',
+        )
+        .get(projectId, candidate),
   );
 }
 
@@ -264,6 +313,23 @@ export function updateService(
   return findService(id);
 }
 
+/**
+ * Marks a service deleted, keeping everything that holds data.
+ *
+ * Its domains are released now rather than at purge: the app stops answering the
+ * moment it is deleted, and a name left attached to something silent is worse than a
+ * name free to be pointed somewhere useful.
+ */
+export function softDeleteService(id: string, at = Date.now()): void {
+  releaseDomainsFor(id);
+  db().query('UPDATE services SET deleted_at = ? WHERE id = ?').run(at, id);
+}
+
+export function restoreService(id: string): void {
+  db().query('UPDATE services SET deleted_at = NULL WHERE id = ?').run(id);
+}
+
+/** For real, and for ever. Only the trash sweep and "delete now" call this. */
 export function deleteService(id: string): void {
   releaseDomainsFor(id);
   db().query('DELETE FROM services WHERE id = ?').run(id);

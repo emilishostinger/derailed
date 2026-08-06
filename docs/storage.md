@@ -56,8 +56,11 @@ docker cp CONTAINER:/app/data/thing ./
 ## Removing storage
 
 Detaching a volume on the Storage tab stops it being mounted; the data stays on the
-server until you delete it, and Derailed says which it is doing. Deleting the app
-deletes its volumes, after asking you to type the app's name.
+server until you delete it, and Derailed says which it is doing.
+
+Deleting the app does **not** delete its volumes. The app goes to the [trash](trash.md)
+for a week with its storage intact, and only then is any of it removed. Emptying the
+trash by hand does it sooner, and says so first.
 
 ## Backups
 

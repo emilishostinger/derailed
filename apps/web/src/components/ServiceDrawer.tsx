@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { live } from '../api/ws.ts';
 import { useProjects } from '../stores/projects.ts';
+import { toastUndo } from '../stores/toasts.ts';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
@@ -494,7 +495,7 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
   const [healthPath, setHealthPath] = useState(service.healthPath);
   const [memory, setMemory] = useState(service.memoryLimitMb ? String(service.memoryLimitMb) : '');
   const [autoDeploy, setAutoDeploy] = useState<AutoDeploy>(autoDeployOf(service));
-  const [confirm, setConfirm] = useState('');
+  const [_confirm, _setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -604,35 +605,39 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
         <ErrorNote error={error} />
       </div>
 
+      {/* No type-the-name any more. That friction was protecting against destroying
+          the data on the spot, which is no longer what this does: everything stored
+          waits a week in the trash, and there is an Undo on the way out. */}
       <div className="rounded-lg border border-danger/30 p-4">
         <p className="text-sm font-semibold text-ink">Delete {service.name}</p>
         <p className="mt-1 text-sm text-ink-muted">
-          This stops it, removes its container
-          {service.kind === 'database' ? ', and destroys all of its data' : ''}, and can't be
-          undone.
+          This stops it and frees its web addresses.{' '}
+          {service.kind === 'database'
+            ? 'The database and everything in it is kept'
+            : 'Anything it has stored is kept'}{' '}
+          for a week, in the trash, in case you want it back.
         </p>
-        <input
-          className="input mt-3"
-          placeholder={`Type ${service.name} to confirm`}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-        />
         <button
           type="button"
           className="btn-danger mt-3"
-          disabled={confirm !== service.name || busy}
+          disabled={busy}
           onClick={async () => {
             setBusy(true);
             try {
               await endpoints.deleteService(service.id);
               await load();
               onClose();
+              toastUndo(`${service.name} deleted.`, async () => {
+                await endpoints.restoreFromTrash('service', service.id);
+                await load();
+              });
             } catch (err) {
               setError(err);
               setBusy(false);
             }
           }}
         >
+          {busy && <Spinner />}
           Delete it
         </button>
       </div>

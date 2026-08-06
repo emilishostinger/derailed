@@ -14,6 +14,7 @@ import { projectServiceRoutes, serviceRoutes } from './routes/services.ts';
 import { systemRoutes } from './routes/system.ts';
 import { projectTemplateRoutes, templateRoutes } from './routes/templates.ts';
 import { tokenRoutes } from './routes/tokens.ts';
+import { trashRoutes } from './routes/trash.ts';
 import { updateRoutes } from './routes/updates.ts';
 import { serviceVolumeRoutes, volumeRoutes } from './routes/volumes.ts';
 import { serveApp } from './static.ts';
@@ -91,6 +92,7 @@ export function createApp() {
   api.route('/tokens', tokenRoutes);
   api.route('/updates', updateRoutes);
   api.route('/backups', backupRoutes);
+  api.route('/trash', trashRoutes);
 
   api.all('*', () => {
     throw notFound('That endpoint');

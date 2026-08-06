@@ -18,6 +18,7 @@ import {
   Settings2,
   ShieldAlert,
   Sun,
+  Trash2,
   UserCog,
   X,
 } from 'lucide-react';
@@ -27,11 +28,13 @@ import { endpoints } from '../api/endpoints.ts';
 import { CommandPalette } from '../components/CommandPalette.tsx';
 import { Wordmark } from '../components/Logo.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
+import { Toasts } from '../components/Toasts.tsx';
 import { cx, ErrorNote, Modal, Spinner, StatusDot } from '../components/ui.tsx';
 import { usePalette } from '../stores/palette.ts';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
 import { useTheme } from '../stores/theme.ts';
+import { toastUndo } from '../stores/toasts.ts';
 
 export function Layout() {
   const paletteOpen = usePalette((s) => s.open);
@@ -68,6 +71,7 @@ export function Layout() {
         <InsecureNotice />
         <Outlet />
       </main>
+      <Toasts />
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   );
@@ -129,6 +133,9 @@ function MobileNav() {
             </MobileLink>
             <MobileLink to="/backups" onGo={() => setOpen(false)}>
               Backups
+            </MobileLink>
+            <MobileLink to="/trash" onGo={() => setOpen(false)}>
+              Trash
             </MobileLink>
             <MobileLink to="/updates" onGo={() => setOpen(false)}>
               Updates
@@ -354,6 +361,9 @@ function Sidebar() {
           </NavItem>
           <NavItem to="/backups" icon={<Archive className="h-4 w-4" />}>
             Backups
+          </NavItem>
+          <NavItem to="/trash" icon={<Trash2 className="h-4 w-4" />}>
+            Trash
           </NavItem>
           <UpdatesNavItem />
         </NavGroup>
@@ -626,29 +636,24 @@ export function DeleteProject({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
+  // No "type the name to confirm" any more. That was the right friction when this
+  // destroyed the data on the spot; now that the project waits a week in the trash
+  // with everything it stored, making people copy out a name is friction protecting
+  // against something that no longer happens.
   return (
     <Modal title={`Delete ${name}`} onClose={onClose}>
       <div className="space-y-4">
         <p className="text-[13px] text-ink">
-          This removes{' '}
-          {services === 0 ? 'the project' : `all ${services} of its apps and databases`}, along with
-          everything stored in them. It cannot be undone.
+          This stops {services === 0 ? 'the project' : `all ${services} of its apps and databases`}{' '}
+          and frees its web addresses.
         </p>
         <p className="hint">
-          If you might want any of it back, close this and back the project up first.
+          Nothing stored is deleted yet. It waits in the trash for a week, so you can put it back if
+          you change your mind.
         </p>
-        <label className="block">
-          <span className="label">Type {name} to confirm</span>
-          <input
-            className="input"
-            value={confirm}
-            onChange={(event) => setConfirm(event.target.value)}
-          />
-        </label>
         <ErrorNote error={error} />
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>
@@ -657,12 +662,19 @@ export function DeleteProject({
           <button
             type="button"
             className="btn-danger"
-            disabled={busy || confirm !== name}
+            disabled={busy}
             onClick={async () => {
               setBusy(true);
               try {
                 await endpoints.deleteProject(id);
                 onDone();
+                // The offer to take it back, for the ten seconds in which anyone
+                // realises they did not mean it. The trash keeps it for a week either
+                // way; this is just the version that needs no navigating to.
+                toastUndo(`${name} deleted.`, async () => {
+                  await endpoints.restoreFromTrash('project', id);
+                  await useProjects.getState().load();
+                });
               } catch (err) {
                 setError(err);
                 setBusy(false);

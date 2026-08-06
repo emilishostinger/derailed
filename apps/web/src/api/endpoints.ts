@@ -7,6 +7,7 @@ import type {
   LogLine,
   Project,
   Service,
+  TrashItem,
   Volume,
 } from '@derailed/shared';
 import { api } from './client.ts';
@@ -69,7 +70,7 @@ export const endpoints = {
     api.post<{ project: Project }>('/projects', { name }).then((r) => r.project),
   renameProject: (id: string, name: string) =>
     api.patch<{ project: Project }>(`/projects/${id}`, { name }).then((r) => r.project),
-  deleteProject: (id: string) => api.delete<{ ok: true }>(`/projects/${id}`),
+  deleteProject: (id: string) => api.delete<{ ok: true; undoable?: boolean }>(`/projects/${id}`),
 
   detect: (repoUrl: string, branch?: string, rootDir?: string) =>
     api.post<DetectResponse>('/detect', { repoUrl, branch, rootDir }),
@@ -97,7 +98,7 @@ export const endpoints = {
 
   patchService: (id: string, patch: Record<string, unknown>) =>
     api.patch<{ service: Service }>(`/services/${id}`, patch).then((r) => r.service),
-  deleteService: (id: string) => api.delete<{ ok: true }>(`/services/${id}`),
+  deleteService: (id: string) => api.delete<{ ok: true; undoable?: boolean }>(`/services/${id}`),
   startService: (id: string) => api.post<{ service: Service }>(`/services/${id}/start`),
   stopService: (id: string) => api.post<{ service: Service }>(`/services/${id}/stop`),
   restartService: (id: string) => api.post<{ service: Service }>(`/services/${id}/restart`),
@@ -294,6 +295,12 @@ export const endpoints = {
     api.get<{ appDomain: string | null }>('/system/app-domain').then((r) => r.appDomain),
   setAppDomain: (domain: string | null) =>
     api.put<{ appDomain: string | null; added?: number }>('/system/app-domain', { domain }),
+
+  trash: () => api.get<{ items: TrashItem[] }>('/trash').then((r) => r.items),
+  restoreFromTrash: (kind: 'project' | 'service', id: string) =>
+    api.post<{ items: TrashItem[] }>(`/trash/${kind}/${id}/restore`).then((r) => r.items),
+  purgeFromTrash: (kind: 'project' | 'service', id: string) =>
+    api.delete<{ items: TrashItem[] }>(`/trash/${kind}/${id}`).then((r) => r.items),
 
   freeDomain: () =>
     api.get<{ freeDomain: FreeDomain }>('/system/free-domain').then((r) => r.freeDomain),

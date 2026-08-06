@@ -18,6 +18,7 @@ import { syncRoutes } from './proxy/sync.ts';
 import { checkDiskSpace, pruneOldDeployments } from './runtime/housekeeping.ts';
 import { startMonitor, stopMonitor } from './runtime/monitor.ts';
 import { reconcile } from './runtime/reconcile.ts';
+import { startTrashSweep, stopTrashSweep } from './runtime/trash.ts';
 import { detectServerIp, setCaddyHealthy, systemInfo } from './system/status.ts';
 import { loadSecretKey } from './util/crypto.ts';
 
@@ -127,6 +128,7 @@ export async function serve(): Promise<void> {
     stopDomainWatcher();
     stopFreeDomainRenewal();
     stopBackupSchedule();
+    stopTrashSweep();
     stopReleaseWatcher();
     stopPushWatcher();
     stopUpdateNotifier();
@@ -181,6 +183,7 @@ async function bootRuntime(): Promise<void> {
     // up, hence its place here rather than beside the other timers.
     startFreeDomainRenewal(() => syncRoutes());
     startBackupSchedule();
+    startTrashSweep((line) => console.log(`  trash      →  ${line}`));
     startReleaseWatcher();
     startPushWatcher();
     startUpdateNotifier();

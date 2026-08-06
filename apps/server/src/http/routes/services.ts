@@ -1,25 +1,23 @@
 import { schemas, topics } from '@derailed/shared';
 import { Hono } from 'hono';
 import { trafficFor } from '../../analytics/store.ts';
-import { deleteDeploymentLog } from '../../build/deploylog.ts';
 import { normalizeRepoUrl, resolveDefaultBranch } from '../../build/git.ts';
 import { queueDeployment } from '../../build/pipeline.ts';
 import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
-import { MAX_UPLOAD_BYTES, removeUpload, storeUpload } from '../../build/upload.ts';
+import { MAX_UPLOAD_BYTES, storeUpload } from '../../build/upload.ts';
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
-import { listDeployments } from '../../db/repo/deployments.ts';
 import { listDomains } from '../../db/repo/domains.ts';
 import { listEnv, replaceUserEnv } from '../../db/repo/env.ts';
 import { findProject } from '../../db/repo/projects.ts';
 import {
   createAppService,
-  deleteService,
   findService,
   setRepoToken,
+  softDeleteService,
   updateService,
 } from '../../db/repo/services.ts';
-import { createVolume, listVolumesFor } from '../../db/repo/volumes.ts';
+import { createVolume } from '../../db/repo/volumes.ts';
 import {
   destroyContainer,
   listContainers,
@@ -28,7 +26,6 @@ import {
   stopContainer,
 } from '../../docker/containers.ts';
 import { LABELS, labelFilter } from '../../docker/labels.ts';
-import { removeVolume } from '../../docker/volumes.ts';
 import { publish } from '../../events/bus.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { emitProject, emitService, presentService } from '../../runtime/present.ts';
@@ -126,6 +123,11 @@ serviceRoutes.patch('/:id', async (c) => {
   return c.json({ service: presentService(after) });
 });
 
+/**
+ * Deleting stops the app and frees its addresses. It does not destroy anything that
+ * holds data: the stored folders, the database contents and the settings stay put for
+ * a week, so this is undoable. See `runtime/trash.ts`.
+ */
 serviceRoutes.delete('/:id', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
@@ -133,22 +135,14 @@ serviceRoutes.delete('/:id', async (c) => {
   const containers = await listContainers(labelFilter({ [LABELS.service]: service.id })).catch(
     () => [],
   );
+  // Removed rather than stopped: a stopped container still holds its name, its ports
+  // and its place on the network, and restoring redeploys from the image anyway.
   for (const container of containers) {
     await destroyContainer(container.Id, 5).catch(() => undefined);
   }
-  for (const deployment of listDeployments(service.id, 1000)) {
-    await deleteDeploymentLog(deployment.id);
-  }
-
-  // The rows cascade away with the service, so read them before it's gone or the
-  // Docker volumes are orphaned on the host forever.
-  for (const volume of listVolumesFor(service.id)) {
-    await removeVolume(volume.name).catch(() => undefined);
-  }
-  await removeUpload(service.id);
 
   const projectId = service.projectId;
-  deleteService(service.id);
+  softDeleteService(service.id);
   await syncRoutes();
   publish(topics.project(projectId), {
     type: 'service.deleted',
@@ -156,7 +150,7 @@ serviceRoutes.delete('/:id', async (c) => {
     projectId,
   });
   emitProject(projectId);
-  return c.json({ ok: true });
+  return c.json({ ok: true, undoable: true, kind: 'service', id: service.id });
 });
 
 serviceRoutes.post('/:id/start', async (c) => {

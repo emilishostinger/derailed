@@ -64,6 +64,8 @@ export interface Project {
   createdAt: number;
   /** How often this project is backed up on its own. */
   backupSchedule: BackupSchedule;
+  /** When it was deleted, if it was. Deleted things are kept for a week. */
+  deletedAt?: number | null;
   services?: Service[];
   /** Attached by the API. The app→database edges the topology view draws. */
   links?: Link[];
@@ -112,6 +114,8 @@ export interface Service {
 
   createdAt: number;
   updatedAt: number;
+  /** When it was deleted, if it was. Deleted things are kept for a week. */
+  deletedAt?: number | null;
 
   /** Derived, attached by the API for convenience. */
   status?: ServiceStatus;
@@ -219,6 +223,25 @@ export interface FreeDomain {
   expiresAt: number | null;
   /** Set when the last attempt failed, phrased for a person. */
   error: string | null;
+}
+
+/**
+ * Something deleted, and still recoverable.
+ *
+ * Deleting stops an app and frees its addresses, but keeps everything that holds
+ * data, for a week. `whatIsKept` says what is actually still there, in plain words,
+ * because "restore" is only worth pressing if you know what comes back.
+ */
+export interface TrashItem {
+  kind: 'project' | 'service';
+  id: string;
+  name: string;
+  /** For a service, the project it was in, so the list reads sensibly. */
+  parentName: string | null;
+  deletedAt: number;
+  /** When it will be thrown away for good. */
+  purgeAt: number;
+  whatIsKept: string[];
 }
 
 /** Detection result for a repo, phrased for humans, not machines. */

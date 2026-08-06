@@ -15,6 +15,7 @@ about five minutes.
 - **[Databases](databases.md)**: engines, credentials, connecting an app
 - **[Storage](storage.md)**: what survives a redeploy, and what does not
 - **[Backups](backups.md)**: schedules, retention, restoring, taking a copy away
+- **[Trash](trash.md)**: deleting is undoable for a week, and what that does and does not cover
 - **[Visitor figures](analytics.md)**: how visits are counted, and what is never kept
 - **[Coding agents (MCP)](mcp.md)**: driving Derailed from Claude Code, Cursor or Codex
 - **[The API](api.md)**: tokens and every endpoint

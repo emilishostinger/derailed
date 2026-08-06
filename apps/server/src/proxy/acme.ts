@@ -16,7 +16,7 @@ import { hostnameFor, normalizeName } from './duckdns.ts';
  *
  * Proving a name over DNS needs a client that speaks to the DNS provider, and the
  * stock `caddy:2-alpine` image ships no DNS modules. Rather than build and publish a
- * bespoke Caddy image — a supply chain of our own for everyone to trust — Derailed
+ * bespoke Caddy image (a supply chain of our own for everyone to trust), Derailed
  * fetches `lego`, a single static binary, exactly the way it already fetches its
  * builder. Caddy is then handed the finished certificate to serve.
  *
