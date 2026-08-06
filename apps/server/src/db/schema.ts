@@ -451,4 +451,49 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    id: 16,
+    name: 'one domain, several apps',
+    sql: `
+      -- A domain pointed at one app, which is right until you want example.com/blog
+      -- to be a different thing from example.com. Nobody thinks in "reverse proxy
+      -- rules"; everybody thinks "I want my blog at /blog".
+      --
+      -- The hostname was UNIQUE, which is exactly what makes that impossible, so the
+      -- table is rebuilt: uniqueness now belongs to the pair. SQLite cannot change a
+      -- column constraint in place.
+      --
+      -- Null path means the whole domain, which is every row that already exists.
+      -- COALESCE in the index because SQLite treats every NULL as distinct, so two
+      -- whole-domain rows for one hostname would otherwise both be allowed.
+      CREATE TABLE domains_paths (
+        id              TEXT PRIMARY KEY,
+        service_id      TEXT REFERENCES services(id) ON DELETE SET NULL,
+        hostname        TEXT NOT NULL,
+        path_prefix     TEXT,
+        kind            TEXT NOT NULL CHECK (kind IN ('generated','custom')),
+        dns_status      TEXT NOT NULL DEFAULT 'unchecked'
+                          CHECK (dns_status IN ('unchecked','ok','wrong_ip','no_record')),
+        tls_status      TEXT NOT NULL DEFAULT 'pending'
+                          CHECK (tls_status IN ('pending','active','error','disabled')),
+        last_checked_at INTEGER,
+        created_at      INTEGER NOT NULL,
+        redirect_to     TEXT REFERENCES domains_paths(id) ON DELETE SET NULL
+      );
+
+      INSERT INTO domains_paths
+        (id, service_id, hostname, path_prefix, kind, dns_status, tls_status,
+         last_checked_at, created_at, redirect_to)
+      SELECT id, service_id, hostname, NULL, kind, dns_status, tls_status,
+             last_checked_at, created_at, redirect_to
+      FROM domains;
+
+      DROP TABLE domains;
+      ALTER TABLE domains_paths RENAME TO domains;
+
+      CREATE INDEX idx_domains_service ON domains(service_id);
+      CREATE UNIQUE INDEX idx_domains_host_path
+        ON domains(hostname, COALESCE(path_prefix, ''));
+    `,
+  },
 ];

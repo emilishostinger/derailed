@@ -161,6 +161,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `POST /domains` | `{ hostname, alsoAddWww, primary: "apex" \| "www" }` |
 | `PUT /domains/:id/service` | `{ serviceId }` or `{ serviceId: null }` |
 | `PUT /domains/:id/primary` | Swap which half of a pair people see |
+| `PUT /domains/:id/path` | `{ pathPrefix }`. Null is the whole domain |
 | `POST /domains/:id/check` | Check DNS now |
 | `DELETE /domains/:id` | Remove it |
 

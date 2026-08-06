@@ -29,6 +29,11 @@ export interface RouteSpec {
   providedCert?: boolean;
   /** Who is allowed to see this, and whether it is showing a holding page instead. */
   access?: AccessSpec;
+  /**
+   * When several apps share one domain, the path this one answers on: `/blog`.
+   * Absent means the whole domain, which is what almost every route is.
+   */
+  pathPrefix?: string | null;
 }
 
 /**
@@ -87,6 +92,7 @@ interface CaddyServer {
 
 interface CaddyMatcher {
   host?: string[];
+  path?: string[];
   /** "http" or "https", lets one server treat the two ports differently. */
   protocol?: string;
   not?: ({ path: string[] } | { remote_ip: { ranges: string[] } })[];
@@ -128,19 +134,30 @@ export function synthesizeCaddyConfig(
   routes: RouteSpec[],
   options: SynthesizeOptions,
 ): CaddyConfig {
-  // Deterministic ordering keeps snapshots stable and pushes idempotent.
-  const sorted = [...routes].sort((a, b) => a.hostname.localeCompare(b.hostname));
+  // Deterministic ordering keeps snapshots stable and pushes idempotent. Within one
+  // hostname the longest path comes first, because Caddy takes the first route that
+  // matches and `/` would otherwise swallow `/blog` before it was ever reached.
+  const sorted = [...routes].sort(
+    (a, b) =>
+      a.hostname.localeCompare(b.hostname) ||
+      (b.pathPrefix ?? '').length - (a.pathPrefix ?? '').length,
+  );
+
+  // One entry per hostname *and* path: several apps may share a domain now.
   const seen = new Set<string>();
   const unique = sorted.filter((route) => {
-    if (seen.has(route.hostname)) return false;
-    seen.add(route.hostname);
+    const key = `${route.hostname}${route.pathPrefix ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 
-  const skip = unique.filter((route) => !route.https).map((route) => route.hostname);
-  const skipCertificates = unique
-    .filter((route) => route.https && route.providedCert)
-    .map((route) => route.hostname);
+  // These are properties of a *name*, not of a route, so they are deduplicated even
+  // though several routes may now share one hostname.
+  const skip = [...new Set(unique.filter((r) => !r.https).map((r) => r.hostname))];
+  const skipCertificates = [
+    ...new Set(unique.filter((r) => r.https && r.providedCert).map((r) => r.hostname)),
+  ];
   const certificates = options.certificates ?? [];
 
   return {
@@ -176,7 +193,9 @@ export function synthesizeCaddyConfig(
             // http:// request to a secured host would be proxied straight through and
             // the visitor's password would cross the wire in the clear.
             routes: [
-              ...unique.filter((route) => route.https).map(redirectToHttps),
+              // One redirect per secured name, not per route: two apps on one domain
+              // would otherwise emit two identical redirects.
+              ...dedupeByHost(unique.filter((route) => route.https)).map(redirectToHttps),
               ...unique.map(routeFor),
               FALLBACK_ROUTE,
             ],
@@ -307,6 +326,28 @@ function accessHandlers(access: AccessSpec | undefined): unknown[] {
   return handlers;
 }
 
+/**
+ * What a request has to look like to reach this route.
+ *
+ * A path prefix matches the prefix itself and everything under it, so `/blog` catches
+ * `/blog` and `/blog/anything` but not `/blogging`.
+ */
+function matcherFor(route: RouteSpec): CaddyMatcher {
+  if (!route.pathPrefix) return { host: [route.hostname] };
+  const prefix = route.pathPrefix.replace(/\/+$/, '');
+  return { host: [route.hostname], path: [prefix, `${prefix}/*`] };
+}
+
+/** One entry per hostname, keeping the first. */
+function dedupeByHost(routes: RouteSpec[]): RouteSpec[] {
+  const seen = new Set<string>();
+  return routes.filter((route) => {
+    if (seen.has(route.hostname)) return false;
+    seen.add(route.hostname);
+    return true;
+  });
+}
+
 function routeFor(route: RouteSpec): CaddyRoute {
   if (route.redirectTo) {
     return {
@@ -330,14 +371,14 @@ function routeFor(route: RouteSpec): CaddyRoute {
   // property of how the proxy chains handlers.
   if (route.access?.maintenance) {
     return {
-      match: [{ host: [route.hostname] }],
+      match: [matcherFor(route)],
       handle: accessHandlers(route.access),
       terminal: true,
     };
   }
 
   return {
-    match: [{ host: [route.hostname] }],
+    match: [matcherFor(route)],
     handle: [
       {
         handler: 'subroute',

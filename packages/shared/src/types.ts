@@ -192,6 +192,11 @@ export interface Domain {
   /** Set when this name redirects to the other half of a pair, e.g. www to apex. */
   redirectTo?: string | null;
   hostname: string;
+  /**
+   * When several apps share this domain, the path this one answers on: `/blog`.
+   * Null means the whole domain.
+   */
+  pathPrefix?: string | null;
   kind: DomainKind;
   dnsStatus: DnsStatus;
   tlsStatus: TlsStatus;

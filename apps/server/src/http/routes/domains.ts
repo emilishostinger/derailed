@@ -10,6 +10,7 @@ import {
   findDomain,
   findDomainByHostname,
   listDomains,
+  setDomainPath,
   setRedirect,
 } from '../../db/repo/domains.ts';
 import { listProjects } from '../../db/repo/projects.ts';
@@ -210,6 +211,41 @@ domainRoutes.delete('/:id', async (c) => {
   await syncRoutes();
   if (domain.serviceId) emitService(domain.serviceId);
   return c.json({ ok: true });
+});
+
+/**
+ * Which path on this domain this app answers on.
+ *
+ * Nobody thinks in reverse proxy rules; everybody thinks "I want my blog at /blog".
+ */
+domainRoutes.put('/:id/path', async (c) => {
+  const domain = findDomain(c.req.param('id'));
+  if (!domain) throw notFound('That domain');
+
+  const body = (await c.req.json().catch(() => ({}))) as { pathPrefix?: string | null };
+  const raw = body.pathPrefix?.trim() ?? '';
+  const pathPrefix = raw === '' || raw === '/' ? null : raw.startsWith('/') ? raw : `/${raw}`;
+
+  if (pathPrefix && !/^\/[A-Za-z0-9\-._~/]{0,120}$/.test(pathPrefix)) {
+    throw badRequest(
+      `"${raw}" is not a path.`,
+      'Use something like /blog or /api. Letters, numbers, dashes and slashes.',
+    );
+  }
+  // The pair is what has to be unique now, and the constraint would otherwise fail
+  // with a message about an index.
+  const clash = findDomainByHostname(domain.hostname, pathPrefix);
+  if (clash && clash.id !== domain.id) {
+    throw conflict(
+      pathPrefix
+        ? `Something else already answers on ${domain.hostname}${pathPrefix}.`
+        : `Something else already answers on the whole of ${domain.hostname}.`,
+    );
+  }
+
+  const updated = setDomainPath(domain.id, pathPrefix);
+  await syncRoutes();
+  return c.json({ domain: updated });
 });
 
 domainRoutes.post('/:id/check', async (c) => {

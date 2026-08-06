@@ -157,3 +157,30 @@ Statuses you will see:
 Settings → Dashboard address puts the panel itself behind a domain with HTTPS. Until
 then, signing in sends your password in the clear. The IP and port keep working as a
 way back in if the domain ever breaks.
+
+
+## Several apps on one domain
+
+A domain normally points at one app. It can instead be split by path, so different
+parts of one address are different apps:
+
+```
+example.com/          →  your marketing site
+example.com/blog      →  WordPress
+example.com/api       →  your backend
+```
+
+On each app's **Domains** tab, add the same domain, then choose **Put it on a path
+instead** and type `/blog`.
+
+The longest path wins, so `/api/v2` is reached even though `/api` also matches, and the
+whole-domain app only gets what nothing else claimed. A prefix matches itself and
+everything under it: `/blog` catches `/blog` and `/blog/anything`, but not `/blogging`.
+
+**One honest caveat.** Derailed delivers the request to the right app. Whether that app
+can *serve* from a sub-path is the app's own business, and many cannot without being
+told. WordPress has a site address setting, Ghost has `url`, Next.js has `basePath`.
+An app that does not know it lives at `/blog` will generate links to `/` and appear
+half-broken. Set the app's own base path to match and it works.
+
+Apps that serve static files, and APIs, usually need nothing.

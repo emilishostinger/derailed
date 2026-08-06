@@ -12,6 +12,7 @@ interface DomainRow {
   last_checked_at: number | null;
   created_at: number;
   redirect_to?: string | null;
+  path_prefix?: string | null;
 }
 
 const toDomain = (row: DomainRow): Domain => ({
@@ -24,6 +25,7 @@ const toDomain = (row: DomainRow): Domain => ({
   lastCheckedAt: row.last_checked_at,
   createdAt: row.created_at,
   redirectTo: row.redirect_to ?? null,
+  pathPrefix: row.path_prefix ?? null,
 });
 
 /**
@@ -54,11 +56,31 @@ export function findDomain(id: string): Domain | null {
   return row ? toDomain(row) : null;
 }
 
-export function findDomainByHostname(hostname: string): Domain | null {
+/**
+ * A hostname can now belong to several apps at different paths, so this answers about
+ * the one serving the whole domain. Callers asking "is this name taken?" mean that
+ * one: an app at `/blog` does not stop somebody adding the domain itself.
+ */
+export function findDomainByHostname(
+  hostname: string,
+  pathPrefix: string | null = null,
+): Domain | null {
   const row = db()
-    .query<DomainRow, [string]>('SELECT * FROM domains WHERE hostname = ?')
-    .get(hostname.toLowerCase());
+    .query<DomainRow, [string, string]>(
+      "SELECT * FROM domains WHERE hostname = ? AND COALESCE(path_prefix, '') = ?",
+    )
+    .get(hostname.toLowerCase(), pathPrefix ?? '');
   return row ? toDomain(row) : null;
+}
+
+/** Every app sharing one hostname, longest path first. */
+export function domainsForHostname(hostname: string): Domain[] {
+  return db()
+    .query<DomainRow, [string]>(
+      "SELECT * FROM domains WHERE hostname = ? ORDER BY LENGTH(COALESCE(path_prefix, '')) DESC",
+    )
+    .all(hostname.toLowerCase())
+    .map(toDomain);
 }
 
 export function createDomain(
@@ -67,14 +89,17 @@ export function createDomain(
   kind: DomainKind,
   dnsStatus: DnsStatus = 'unchecked',
   tlsStatus: TlsStatus = 'pending',
+  /** Null is the whole domain, which is what almost every row is. */
+  pathPrefix: string | null = null,
 ): Domain {
   const id = newId();
   db()
     .query(
-      `INSERT INTO domains (id, service_id, hostname, kind, dns_status, tls_status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO domains
+         (id, service_id, hostname, path_prefix, kind, dns_status, tls_status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, serviceId, hostname.toLowerCase(), kind, dnsStatus, tlsStatus, Date.now());
+    .run(id, serviceId, hostname.toLowerCase(), pathPrefix, kind, dnsStatus, tlsStatus, Date.now());
   return findDomain(id)!;
 }
 
@@ -129,4 +154,15 @@ export function releaseDomainsFor(serviceId: string): void {
 
 export function deleteDomain(id: string): void {
   db().query('DELETE FROM domains WHERE id = ?').run(id);
+}
+
+/**
+ * Which path on this domain the app answers on.
+ *
+ * Null means the whole domain, which is what every domain was before several apps
+ * could share one.
+ */
+export function setDomainPath(id: string, pathPrefix: string | null): Domain | null {
+  db().query('UPDATE domains SET path_prefix = ? WHERE id = ?').run(pathPrefix, id);
+  return findDomain(id);
 }

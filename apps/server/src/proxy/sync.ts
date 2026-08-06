@@ -67,6 +67,7 @@ export function currentRoutes(): RouteSpec[] {
       port: resolvePort(service.port, null),
       https: !ipBased,
       providedCert: free,
+      pathPrefix: domain.pathPrefix ?? null,
       // Enforced by the proxy rather than the app, which is what makes it work for
       // WordPress, a folder of HTML and anything else without touching any of them.
       access: {

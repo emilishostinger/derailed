@@ -325,6 +325,9 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  setDomainPath: (domainId: string, pathPrefix: string | null) =>
+    api.put<{ domain: Domain }>(`/domains/${domainId}/path`, { pathPrefix }),
+
   tables: (serviceId: string) =>
     api.get<{ tables: TableSummary[] }>(`/services/${serviceId}/tables`).then((r) => r.tables),
   readTable: (serviceId: string, table: string) =>

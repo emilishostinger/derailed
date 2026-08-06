@@ -172,8 +172,10 @@ function DomainCard({
 }) {
   const [checking, setChecking] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [editingPath, setEditingPath] = useState(false);
+  const [path, setPath] = useState(domain.pathPrefix ?? '');
   const secure = domain.tlsStatus === 'active';
-  const url = `${secure ? 'https' : 'http'}://${domain.hostname}`;
+  const url = `${secure ? 'https' : 'http'}://${domain.hostname}${domain.pathPrefix ?? ''}`;
 
   return (
     <div className="card p-4">
@@ -186,6 +188,7 @@ function DomainCard({
           className="truncate text-sm font-medium text-ink hover:text-accent"
         >
           {domain.hostname}
+          {domain.pathPrefix && <span className="text-ink-muted">{domain.pathPrefix}</span>}
         </a>
         <button
           type="button"
@@ -211,6 +214,56 @@ function DomainCard({
           </button>
         )}
       </div>
+
+      {/* Several apps can share one domain, each answering on its own path. Nobody
+          thinks in reverse proxy rules; everybody thinks "my blog at /blog". */}
+      {domain.kind === 'custom' && (
+        <div className="mt-2 text-xs">
+          {editingPath ? (
+            <div className="flex items-center gap-2">
+              <input
+                className="input h-7 max-w-[12rem] text-xs"
+                value={path}
+                placeholder="/blog"
+                onChange={(event) => setPath(event.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-secondary px-2 py-1"
+                onClick={async () => {
+                  await endpoints
+                    .setDomainPath(domain.id, path.trim() || null)
+                    .catch(() => undefined);
+                  setEditingPath(false);
+                  onChange();
+                }}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                className="btn-ghost px-2 py-1"
+                onClick={() => {
+                  setPath(domain.pathPrefix ?? '');
+                  setEditingPath(false);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="text-ink-faint hover:text-ink"
+              onClick={() => setEditingPath(true)}
+            >
+              {domain.pathPrefix
+                ? `Answers on ${domain.pathPrefix} only. Change`
+                : 'Answers on the whole domain. Put it on a path instead'}
+            </button>
+          )}
+        </div>
+      )}
 
       {domain.kind === 'generated' ? (
         <p className="mt-2 text-xs text-ink-muted">

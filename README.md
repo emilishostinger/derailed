@@ -72,6 +72,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |
 | 🖼️ **Your apps, not a process list** | Every tile carries the site's own icon and title, read from the thing that is actually running. Turn on screenshots and it carries a picture too. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
+| 🔀 **One domain, several apps** | `example.com` your site, `example.com/blog` WordPress, `example.com/api` your backend. Longest path wins, and it is a text field rather than a proxy rule. |
 | 🔎 **Look inside your database** | Tables, row counts, and the rows themselves, plus a box for asking questions. Runs the engine's own client inside its own container, so nothing is bundled and no port is opened. Reads only. |
 | 📉 **Load, with a memory** | Processor and memory kept by the hour for a month, with every deploy drawn on the chart. "Memory started climbing on Tuesday" is an observation; "right after that deploy" is a diagnosis. |
 | ⏰ **Things that run on a schedule** | WordPress cron, a nightly cleanup, a weekly report. Two questions: what to run and how often, with the how-often as a list of choices rather than five asterisks. Every run keeps what it printed, and a failure tells you. |
