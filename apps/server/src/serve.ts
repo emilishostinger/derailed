@@ -13,6 +13,8 @@ import { socketHandlers } from './http/sockets.ts';
 import { startUpdateNotifier, stopUpdateNotifier } from './mail/notify.ts';
 import { ensureCaddyRunning, pingCaddy } from './proxy/caddy.ts';
 import { startDomainWatcher, stopDomainWatcher } from './proxy/domainwatch.ts';
+import { startFreeDomainRenewal, stopFreeDomainRenewal } from './proxy/freedomain.ts';
+import { syncRoutes } from './proxy/sync.ts';
 import { checkDiskSpace, pruneOldDeployments } from './runtime/housekeeping.ts';
 import { startMonitor, stopMonitor } from './runtime/monitor.ts';
 import { reconcile } from './runtime/reconcile.ts';
@@ -123,6 +125,7 @@ export async function serve(): Promise<void> {
   const shutdown = () => {
     console.log('\nShutting down.');
     stopDomainWatcher();
+    stopFreeDomainRenewal();
     stopBackupSchedule();
     stopReleaseWatcher();
     stopPushWatcher();
@@ -174,6 +177,9 @@ async function bootRuntime(): Promise<void> {
     for (const problem of report.problems) console.warn(`  problem    →  ${problem}`);
 
     startDomainWatcher();
+    // Renewing pushes a fresh certificate to Caddy, which only matters once Caddy is
+    // up, hence its place here rather than beside the other timers.
+    startFreeDomainRenewal(() => syncRoutes());
     startBackupSchedule();
     startReleaseWatcher();
     startPushWatcher();

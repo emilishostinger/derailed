@@ -8,6 +8,7 @@ import { containerName, findService } from '../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
 import { buildCaddyConfig, HOST_GATEWAY, pushCaddyConfig } from './caddy.ts';
+import { isCoveredByFreeDomain, loadedCertificates } from './freedomain.ts';
 import { isIpBasedHostname, type RouteSpec } from './routes.ts';
 
 /**
@@ -50,14 +51,21 @@ export function currentRoutes(): RouteSpec[] {
 
     // Anything that will be given a certificate is only routed once DNS actually
     // points here, or Caddy asks Let's Encrypt for one it can never get.
+    //
+    // Names under the free address are the exception: they are already covered by a
+    // wildcard Derailed holds, so there is nothing to ask for and nothing to wait on.
+    // DuckDNS answers every name under the claimed one from the moment it is claimed,
+    // so holding these back for a DNS check would delay a padlock that already works.
     const ipBased = isIpBasedHostname(domain.hostname);
-    if (!ipBased && domain.dnsStatus !== 'ok') continue;
+    const free = isCoveredByFreeDomain(domain.hostname);
+    if (!ipBased && !free && domain.dnsStatus !== 'ok') continue;
 
     routes.push({
       hostname: domain.hostname,
       upstream: containerName(project.slug, service.slug, deployment.id),
       port: resolvePort(service.port, null),
       https: !ipBased,
+      providedCert: free,
     });
   }
 
@@ -72,6 +80,7 @@ export function currentRoutes(): RouteSpec[] {
       upstream: HOST_GATEWAY,
       port: panelPort,
       https: true,
+      providedCert: isCoveredByFreeDomain(panel),
     });
   }
 
@@ -89,7 +98,7 @@ export async function syncRoutes(): Promise<void> {
 
   pending = (async () => {
     try {
-      await pushCaddyConfig(buildCaddyConfig(currentRoutes()));
+      await pushCaddyConfig(buildCaddyConfig(currentRoutes(), await loadedCertificates()));
     } catch (err) {
       publish(topics.system, {
         type: 'notice',

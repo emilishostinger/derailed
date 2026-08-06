@@ -6,6 +6,7 @@ Three kinds of address, and they behave differently on purpose.
 | --- | --- | --- | --- |
 | **Your domain** | `example.com` | Yes | You |
 | **Automatic address** | `shop.apps.example.com` | Yes | Given to each app, on your domain |
+| **Free secure address** | `shop.my-server.duckdns.org` | Yes | Given to each app, free |
 | **Temporary address** | `shop.203-0-113-7.sslip.io` | No, and never will be | Given to each app, free |
 
 ## Your domains
@@ -62,6 +63,43 @@ under it, worldwide, against a single allowance of fifty certificates a week. As
 for one would usually fail, and when it worked it would take that allowance from
 someone else.
 
+### Without a domain, but with a padlock
+
+You do not have to buy a domain to get HTTPS. In **Settings → A secure address, free**:
+
+1. Open [duckdns.org](https://www.duckdns.org) and sign in with any of the buttons.
+2. Type a name you like and press **add domain**.
+3. Paste that name and the token from the top of the page into Derailed.
+
+Every app then gets `shop.my-server.duckdns.org` with a real Let's Encrypt certificate,
+and so does every app you deploy afterwards.
+
+**Why this works when sslip.io cannot.** `duckdns.org` *is* on the public suffix list.
+That one fact means Let's Encrypt treats `my-server.duckdns.org` as a registered domain
+in its own right, with its own certificate allowance, rather than as one more name
+sharing the single global allowance that every sslip.io user is already competing for.
+
+Derailed asks for **one wildcard certificate**, `*.my-server.duckdns.org`, and proves it
+by writing a DNS record rather than by serving a file over HTTP. So:
+
+- One certificate covers every app you will ever deploy. Adding an app asks for nothing.
+- Names are secured before they resolve anywhere, so there is no wait and no checklist.
+- Nothing sits between your visitors and your server. Unlike a tunnel, traffic still
+  arrives directly.
+
+It renews itself, starting a month before expiry, so a failure has weeks of retries in
+it rather than hours. Derailed also re-points the name at this server on every check, so
+a machine that changes address does not quietly start sending visitors elsewhere.
+
+The certificate is obtained by [lego](https://github.com/go-acme/lego), a single static
+binary downloaded once into `/var/lib/derailed/bin` and checked against a digest
+recorded in Derailed's source before it is run. The stock Caddy image ships no DNS
+modules, and publishing a custom Caddy image would mean asking everyone to trust a
+supply chain of our own.
+
+If you later set a domain of your own, that wins: you went to the trouble of pointing it
+here, and your name is nicer than a borrowed one.
+
 ### With a domain of your own
 
 In **Settings → Addresses for your apps**, set a base domain such as
@@ -83,6 +121,11 @@ DNS again.
 
 Caddy gets and renews them from Let's Encrypt over HTTP-01. There is nothing to
 configure and nothing to renew by hand.
+
+The one exception is the free secure address above, whose wildcard Derailed obtains
+itself over DNS-01 and hands to Caddy. Caddy is explicitly told not to manage those
+names: it would try over HTTP, fail on a wildcard, and retry until the allowance was
+gone.
 
 A name is only given to Caddy once DNS actually points at this server. Otherwise Caddy
 would ask for a certificate it can never be issued, and repeated failures count against

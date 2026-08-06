@@ -202,6 +202,25 @@ export interface SystemInfo {
   dev: boolean;
 }
 
+/**
+ * The free secured address, if one has been claimed.
+ *
+ * Derailed hands out `myapp.<name>.duckdns.org` and holds one wildcard certificate
+ * covering all of them. It works where the ready-made sslip.io addresses cannot be
+ * secured at all, because duckdns.org is on the public suffix list and so a name
+ * under it has a certificate allowance of its own.
+ */
+export interface FreeDomain {
+  /** The bare label, e.g. `emilis-box`. Null when nothing has been claimed. */
+  name: string | null;
+  hostname: string | null;
+  /** Whether a usable certificate is on disk right now. */
+  secured: boolean;
+  expiresAt: number | null;
+  /** Set when the last attempt failed, phrased for a person. */
+  error: string | null;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

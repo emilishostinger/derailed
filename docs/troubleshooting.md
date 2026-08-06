@@ -112,7 +112,43 @@ Proxied records prevent the challenge from reaching your server.
 
 That's deliberate. Every generated `*.sslip.io` address is served over plain HTTP, because asking
 Let's Encrypt for a certificate per throwaway hostname burns through rate limits quickly and would
-eventually break certificate issuance for everyone on the box. Add your own domain to get HTTPS.
+eventually break certificate issuance for everyone on the box.
+
+You don't have to buy a domain to fix this. **Settings → A secure address, free** gets you a free
+DuckDNS name and a real certificate covering every app in about a minute. See
+[domains](domains.md#without-a-domain-but-with-a-padlock).
+
+## Every app times out, and the router looks fine
+
+A proxy that is running, has its ports mapped and answers nothing is nearly always one of two
+things.
+
+**Something else owns the port.** Another web server on the machine, usually Apache or nginx,
+already listening on 80. Derailed says so by name when it happens. Stop the other one:
+
+```sh
+systemctl stop apache2   # or nginx
+```
+
+**The router resumed an old configuration.** Caddy saves its own configuration and reloads it on
+start, and that saved copy names the address its control API listens on. A container rebuilt with a
+different address would resume the old one, come up, and be unreachable for the rest of its life.
+Derailed now discards that saved copy whenever it builds a new container, so this should not
+happen; if you are on an older version and see it, remove the container and let Derailed rebuild:
+
+```sh
+docker rm -f derailed-caddy
+docker volume rm derailed-caddy-data-config
+systemctl restart derailed
+```
+
+Your certificates live in a different volume and are not affected.
+
+To check what the router is actually serving:
+
+```sh
+curl --unix-socket /var/lib/derailed/caddy-admin/admin.sock http://x/config/ | head -c 400
+```
 
 ## I'm locked out of the dashboard
 

@@ -20,6 +20,19 @@ export interface RouteSpec {
    * Let's Encrypt for a cert per throwaway hostname burns rate limits fast.
    */
   https: boolean;
+  /**
+   * Set when Derailed already holds the certificate for this name, which today means
+   * it falls under the free address's wildcard. Caddy is told not to go looking for
+   * one of its own: it would ask over HTTP, fail on a name it cannot prove that way,
+   * and retry until the allowance for the whole domain was gone.
+   */
+  providedCert?: boolean;
+}
+
+/** A certificate Derailed obtained, by the paths Caddy will see inside its container. */
+export interface LoadedCertificate {
+  certificate: string;
+  key: string;
 }
 
 interface CaddyLog {
@@ -36,13 +49,20 @@ export interface CaddyConfig {
     http: {
       servers: Record<string, CaddyServer>;
     };
+    /** Only present when Derailed is supplying a certificate of its own. */
+    tls?: { certificates: { load_files: LoadedCertificate[] } };
   };
 }
 
 interface CaddyServer {
   listen: string[];
   routes: CaddyRoute[];
-  automatic_https: { skip?: string[]; disable?: boolean };
+  /**
+   * `skip` opts a name out of HTTPS altogether. `skip_certificates` keeps the HTTPS
+   * listener and the redirect but stops Caddy trying to obtain anything, which is what
+   * a name covered by a certificate we already hold needs.
+   */
+  automatic_https: { skip?: string[]; skip_certificates?: string[]; disable?: boolean };
   /** Turns on the access log for this server, under the logger name below. */
   logs?: Record<string, never>;
 }
@@ -81,6 +101,8 @@ export interface SynthesizeOptions {
   httpPort: number;
   httpsPort: number;
   adminListen?: string;
+  /** Certificates Derailed obtained itself, by their path inside Caddy's container. */
+  certificates?: LoadedCertificate[];
 }
 
 export function synthesizeCaddyConfig(
@@ -97,6 +119,10 @@ export function synthesizeCaddyConfig(
   });
 
   const skip = unique.filter((route) => !route.https).map((route) => route.hostname);
+  const skipCertificates = unique
+    .filter((route) => route.https && route.providedCert)
+    .map((route) => route.hostname);
+  const certificates = options.certificates ?? [];
 
   return {
     admin: { listen: options.adminListen ?? '0.0.0.0:2019' },
@@ -122,6 +148,7 @@ export function synthesizeCaddyConfig(
       },
     },
     apps: {
+      ...(certificates.length ? { tls: { certificates: { load_files: certificates } } } : {}),
       http: {
         servers: {
           derailed: {
@@ -134,7 +161,10 @@ export function synthesizeCaddyConfig(
               ...unique.map(routeFor),
               FALLBACK_ROUTE,
             ],
-            automatic_https: skip.length ? { skip } : {},
+            automatic_https: {
+              ...(skip.length ? { skip } : {}),
+              ...(skipCertificates.length ? { skip_certificates: skipCertificates } : {}),
+            },
             logs: {},
           },
         },

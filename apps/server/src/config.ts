@@ -18,6 +18,12 @@ export const paths = {
   accessLogs: join(dataDir, 'access-logs'),
   /** Holds the socket Caddy's admin API listens on. See `caddyAdminSocket`. */
   caddyAdmin: join(dataDir, 'caddy-admin'),
+  /**
+   * Certificates Derailed obtained itself rather than leaving to Caddy, which today
+   * means the one wildcard covering every app's free address. Bind-mounted read-only
+   * into Caddy's container, which is why it is a host folder and not a volume.
+   */
+  certs: join(dataDir, 'certs'),
   builds: join(dataDir, 'builds'),
   // Overridable so tests can share one download of the Nixpacks binary rather than
   // fetching 20 MB into a throwaway folder on every run.
@@ -51,6 +57,13 @@ export const caddyAdminOverSocket = process.platform === 'linux';
 export const CADDY_ADMIN_DIR_IN_CONTAINER = '/run/caddy-admin';
 export const caddyAdminSocket = join(paths.caddyAdmin, 'admin.sock');
 
+/**
+ * Where `paths.certs` appears inside Caddy's container. Caddy's config names files by
+ * the path *it* will open, not the one Derailed wrote to, and getting that wrong is a
+ * proxy that refuses every config it is handed with no clue as to why.
+ */
+export const CERTS_DIR_IN_CONTAINER = '/certs';
+
 export const caddy = {
   containerName: caddyName,
   image: process.env.DERAILED_CADDY_IMAGE ?? 'caddy:2-alpine',
@@ -67,6 +80,7 @@ export function ensureDirs(): void {
     paths.logs,
     paths.accessLogs,
     paths.caddyAdmin,
+    paths.certs,
     paths.builds,
     paths.bin,
   ]) {

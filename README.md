@@ -62,6 +62,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | 📦 **Or just drag in a zip** | A folder of HTML is served as it is. A folder of PHP gets PHP and Apache. No repository, no account, no build step. |
 | ⚡ **Twenty apps in one click** | WordPress, Nextcloud, Gitea, Jellyfin, Vaultwarden, Grafana and more, each with its database and storage already right. |
 | 🔒 **HTTPS that just happens** | Type your domain, follow the on-screen checklist, get a padlock. Point a wildcard at the server and every app gets a secured name automatically. |
+| 🆓 **A padlock without buying a domain** | Claim a free name in about a minute and every app gets real HTTPS on it, now and in future, from a single wildcard certificate. No tunnel, no third party between you and your visitors. |
 | 🗄️ **Databases in one click** | PostgreSQL, MySQL, MariaDB, MongoDB, Redis and Valkey. Private by default. Connect one to an app and the credentials are wired in for you. |
 | 📈 **Visitor figures, no tracker** | Counted by the proxy that already serves every request. No script in your pages, nothing leaves the machine, nothing to consent to. |
 | 💾 **Backups you can restore** | Scheduled per project, and an ordinary `.tar.gz` you can download and open with `tar`. Restoring stops the app first, because emptying a folder underneath a running app is how people lose data. |

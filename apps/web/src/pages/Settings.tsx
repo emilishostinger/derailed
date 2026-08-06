@@ -1,3 +1,4 @@
+import type { FreeDomain } from '@derailed/shared';
 import { ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
@@ -51,6 +52,10 @@ export function Settings() {
 
           <Section title="Dashboard address">
             <PanelDomain />
+          </Section>
+
+          <Section title="A secure address, free">
+            <FreeAddress />
           </Section>
 
           <Section title="Addresses for your apps">
@@ -111,6 +116,178 @@ export function Settings() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * A padlock without owning a domain.
+ *
+ * The ready-made sslip.io addresses can never be secured, and buying a domain is a
+ * real barrier for someone putting their first thing on the internet. DuckDNS is the
+ * way through: it is free, it takes a minute, and (the part that actually matters) it
+ * is on the public suffix list, so a name under it has a certificate allowance of its
+ * own instead of sharing one with every sslip.io user on earth.
+ *
+ * The screen deliberately does not explain any of that. It asks for two things that
+ * are visible on one page of another website, and says what will happen.
+ */
+function FreeAddress() {
+  const [state, setState] = useState<FreeDomain | null>(null);
+  const [name, setName] = useState('');
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+
+  useEffect(() => {
+    endpoints
+      .freeDomain()
+      .then(setState)
+      .catch(() => setState(null));
+  }, []);
+
+  async function claim() {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    try {
+      const result = await endpoints.claimFreeDomain(name.trim(), token.trim());
+      setState(result.freeDomain);
+      setToken('');
+      setNote(
+        result.added
+          ? `Done. ${result.added} app${result.added === 1 ? '' : 's'} picked up a secured address just now.`
+          : 'Done. Every app you deploy from now on gets a secured address here.',
+      );
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function release() {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    try {
+      setState(await endpoints.releaseFreeDomain());
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!state) return null;
+
+  if (state.hostname) {
+    return (
+      <div>
+        <div className="mb-4 flex items-start gap-2 rounded-[var(--radius-card)] border border-ok/30 bg-ok-soft px-3.5 py-3">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ok" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] text-ink">
+              Your apps are at <span className="text-ink-muted">shop.{state.hostname}</span>, with a
+              real padlock.
+            </p>
+            <p className="mt-1 text-[12px] text-ink-faint">
+              {state.secured && state.expiresAt
+                ? `One certificate covers every app, now and in future. It renews by itself, next time around ${new Date(
+                    state.expiresAt,
+                  ).toLocaleDateString()}.`
+                : 'The certificate is being sorted out. This usually takes under a minute.'}
+            </p>
+          </div>
+        </div>
+
+        {state.error && (
+          <p className="mb-3 text-[12px] text-danger">
+            Last renewal attempt: {state.error} Derailed keeps trying.
+          </p>
+        )}
+
+        {note && <p className="mt-3 text-[12px] text-ok">{note}</p>}
+        <ErrorNote error={error} />
+
+        <button type="button" className="btn-ghost" disabled={busy} onClick={() => void release()}>
+          {busy && <Spinner />}
+          Stop using this address
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="mb-4 text-[13px] text-ink-muted">
+        Don't own a domain? Get a free one from DuckDNS and every app here gets a proper padlock:
+        not a warning page, a real certificate. It takes about a minute and costs nothing, ever.
+      </p>
+
+      <ol className="mb-4 space-y-2 text-[13px] text-ink">
+        <li className="flex gap-2">
+          <span className="text-ink-faint">1.</span>
+          <span>
+            Open{' '}
+            <a
+              className="link inline-flex items-center gap-1"
+              href="https://www.duckdns.org"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              duckdns.org
+              <ExternalLink className="h-3 w-3" />
+            </a>{' '}
+            and sign in. Any of the sign-in buttons will do.
+          </span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-ink-faint">2.</span>
+          <span>Type a name you like and press add domain.</span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-ink-faint">3.</span>
+          <span>Copy the name, and the token shown at the top of the page, into here.</span>
+        </li>
+      </ol>
+
+      <div className="max-w-sm space-y-3">
+        <Field label="The name you chose" hint="Just the first part, without .duckdns.org.">
+          <input
+            className="input"
+            value={name}
+            placeholder="my-server"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </Field>
+        <Field label="Your token" hint="The long code at the top of your DuckDNS page.">
+          <input
+            className="input"
+            type="password"
+            value={token}
+            autoComplete="off"
+            placeholder="a1b2c3d4-…"
+            onChange={(event) => setToken(event.target.value)}
+          />
+        </Field>
+      </div>
+
+      {note && <p className="mt-3 text-[12px] text-ok">{note}</p>}
+      <ErrorNote error={error} />
+
+      <div className="mt-3">
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={busy || !name.trim() || !token.trim()}
+          onClick={() => void claim()}
+        >
+          {busy && <Spinner />}
+          {busy ? 'Getting your certificate…' : 'Use this address'}
+        </button>
+      </div>
+    </div>
   );
 }
 

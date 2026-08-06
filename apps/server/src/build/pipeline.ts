@@ -30,6 +30,7 @@ import { ensureProjectNetwork } from '../docker/networks.ts';
 import { ensureVolume } from '../docker/volumes.ts';
 import { publishAll } from '../events/bus.ts';
 import { attachCaddyToNetwork } from '../proxy/caddy.ts';
+import { appBaseDomain, isCoveredByFreeDomain } from '../proxy/freedomain.ts';
 import { generatedHostname } from '../proxy/routes.ts';
 import { syncRoutes } from '../proxy/sync.ts';
 import { checkDiskSpace } from '../runtime/housekeeping.ts';
@@ -459,14 +460,19 @@ async function cleanupFailedContainer(deploymentId: string): Promise<void> {
 function ensureGeneratedDomain(service: Service): void {
   const serverIp = getSetting(SETTINGS.serverIp);
   if (!serverIp) return;
-  const base = getSetting(SETTINGS.appBaseDomain);
+  const base = appBaseDomain();
   const hostname = generatedHostname(service.slug, serverIp, base);
   const existing = listDomains(service.id);
   if (existing.some((domain) => domain.hostname === hostname)) return;
 
   if (base) {
-    // On a real domain the certificate is worth waiting for, so this starts unchecked
-    // and the domain watcher promotes it as soon as DNS and the certificate are up.
+    // Under the free address the certificate already exists and DuckDNS already
+    // answers for the name, so this is live the moment it is written. Anything else
+    // starts unchecked and the domain watcher promotes it once DNS and TLS are up.
+    if (isCoveredByFreeDomain(hostname)) {
+      createDomain(service.id, hostname, 'generated', 'ok', 'active');
+      return;
+    }
     createDomain(service.id, hostname, 'generated', 'unchecked', 'pending');
     return;
   }

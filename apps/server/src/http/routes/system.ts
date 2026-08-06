@@ -6,6 +6,13 @@ import { listServices } from '../../db/repo/services.ts';
 import { deleteSetting, getSetting, SETTINGS, setSetting } from '../../db/repo/settings.ts';
 import { checkDns } from '../../proxy/dns.ts';
 import { checkDomain } from '../../proxy/domainwatch.ts';
+import {
+  claimFreeDomain,
+  FreeDomainError,
+  freeDomainState,
+  isCoveredByFreeDomain,
+  releaseFreeDomain,
+} from '../../proxy/freedomain.ts';
 import { generatedHostname, isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { otherSoftware } from '../../system/others.ts';
@@ -85,6 +92,66 @@ systemRoutes.get('/app-domain', (c) =>
   c.json({ appDomain: getSetting(SETTINGS.appBaseDomain) ?? null }),
 );
 
+systemRoutes.get('/free-domain', async (c) => c.json({ freeDomain: await freeDomainState() }));
+
+/**
+ * Claims the free secured address.
+ *
+ * This is the one place a person can get a padlock without owning a domain. It works
+ * because duckdns.org is on the public suffix list, so a name under it has a
+ * certificate allowance of its own rather than sharing the one that every sslip.io
+ * address in the world is already fighting over.
+ */
+systemRoutes.put('/free-domain', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    name?: string;
+    token?: string;
+    email?: string;
+  };
+
+  const serverIp = getSetting(SETTINGS.serverIp);
+  if (!serverIp) {
+    throw badRequest(
+      "Derailed doesn't know this server's public address yet.",
+      'Set it in Settings first, then claim an address.',
+    );
+  }
+
+  // Defaults to the account's own address, because it is already known and is where
+  // an expiry warning should go anyway.
+  const email = body.email?.trim() || c.get('user').email;
+
+  let state: Awaited<ReturnType<typeof freeDomainState>>;
+  try {
+    state = await claimFreeDomain({
+      name: body.name ?? '',
+      token: body.token ?? '',
+      email,
+      serverIp,
+    });
+  } catch (err) {
+    if (err instanceof FreeDomainError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+
+  // The free address becomes where apps live, unless a domain of the person's own is
+  // already doing that job. Theirs wins: they went to the trouble of pointing it here.
+  if (!getSetting(SETTINGS.appBaseDomain) && state.hostname) {
+    const added = await giveEveryAppAnAddress(state.hostname, serverIp);
+    await syncRoutes();
+    return c.json({ freeDomain: state, added });
+  }
+
+  await syncRoutes();
+  return c.json({ freeDomain: state, added: 0 });
+});
+
+systemRoutes.delete('/free-domain', async (c) => {
+  releaseFreeDomain();
+  await syncRoutes();
+  return c.json({ freeDomain: await freeDomainState() });
+});
+
 /**
  * Puts the addresses Derailed hands out on a domain of your own.
  *
@@ -147,7 +214,10 @@ systemRoutes.put('/app-domain', async (c) => {
  * a working link away from them to tidy up a list is not a trade worth making.
  */
 async function giveEveryAppAnAddress(domain: string, serverIp: string): Promise<number> {
-  const fresh: string[] = [];
+  /** Names that still have to be checked before they can be routed. */
+  const toCheck: string[] = [];
+  let added = 0;
+
   for (const service of listServices()) {
     if (service.kind !== 'app') continue;
     // Only apps that have been live at least once: an address for something that has
@@ -156,19 +226,26 @@ async function giveEveryAppAnAddress(domain: string, serverIp: string): Promise<
 
     const hostname = generatedHostname(service.slug, serverIp, domain);
     if (findDomainByHostname(hostname)) continue;
+    added++;
 
-    fresh.push(createDomain(service.id, hostname, 'generated', 'unchecked', 'pending').id);
+    // A name under the free address needs no checking: the certificate covering it
+    // already exists and DuckDNS already answers for it.
+    if (isCoveredByFreeDomain(hostname)) {
+      createDomain(service.id, hostname, 'generated', 'ok', 'active');
+      continue;
+    }
+    toCheck.push(createDomain(service.id, hostname, 'generated', 'unchecked', 'pending').id);
   }
 
   // Check them now rather than waiting for the next sweep, so the padlock appears
   // while someone is still looking at the page they turned this on from.
-  if (fresh.length) {
+  if (toCheck.length) {
     void (async () => {
-      for (const id of fresh) await checkDomain(id).catch(() => undefined);
+      for (const id of toCheck) await checkDomain(id).catch(() => undefined);
       await syncRoutes().catch(() => undefined);
     })();
   }
-  return fresh.length;
+  return added;
 }
 
 systemRoutes.patch('/', async (c) => {

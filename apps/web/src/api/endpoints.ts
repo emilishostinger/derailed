@@ -3,6 +3,7 @@ import type {
   DetectResult,
   Domain,
   EnvVar,
+  FreeDomain,
   LogLine,
   Project,
   Service,
@@ -293,6 +294,13 @@ export const endpoints = {
     api.get<{ appDomain: string | null }>('/system/app-domain').then((r) => r.appDomain),
   setAppDomain: (domain: string | null) =>
     api.put<{ appDomain: string | null; added?: number }>('/system/app-domain', { domain }),
+
+  freeDomain: () =>
+    api.get<{ freeDomain: FreeDomain }>('/system/free-domain').then((r) => r.freeDomain),
+  claimFreeDomain: (name: string, token: string) =>
+    api.put<{ freeDomain: FreeDomain; added: number }>('/system/free-domain', { name, token }),
+  releaseFreeDomain: () =>
+    api.delete<{ freeDomain: FreeDomain }>('/system/free-domain').then((r) => r.freeDomain),
 
   setPanelDomain: (hostname: string | null) =>
     api

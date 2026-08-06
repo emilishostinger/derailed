@@ -65,6 +65,19 @@ export const SETTINGS = {
   serverIpSource: 'server_ip_source',
   panelDomain: 'panel_domain',
   appBaseDomain: 'app_base_domain',
+  /**
+   * The free secured address, if one has been claimed. The name is the bare DuckDNS
+   * label; the token is encrypted, like every other secret, and never sent back to
+   * the browser. `freeDomainEmail` is only ever given to Let's Encrypt, so that an
+   * expiry warning has somewhere to go.
+   */
+  freeDomainName: 'free_domain_name',
+  freeDomainToken: 'free_domain_token_enc',
+  freeDomainEmail: 'free_domain_email',
+  /** When the certificate on disk stops being valid, cached for the dashboard. */
+  freeDomainExpiresAt: 'free_domain_expires_at',
+  /** Why the last attempt failed, so the settings page can say so rather than sulk. */
+  freeDomainError: 'free_domain_error',
   backupSchedule: 'backup_schedule',
   backupKeep: 'backup_keep',
   backupKeepDays: 'backup_keep_days',

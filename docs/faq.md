@@ -79,12 +79,33 @@ Apache, and anything else is built as a repository would be. Or give a Docker im
 Anything with a Dockerfile. Without one, Nixpacks handles Node, Python, Go, Rust, PHP, Ruby, Deno,
 Java, Elixir and static sites. Derailed tells you what it detected before it builds anything.
 
+### Can I get HTTPS without buying a domain?
+
+Yes. **Settings → A secure address, free** walks you through claiming a free name from
+[DuckDNS](https://www.duckdns.org), which takes about a minute, and every app then gets
+an address like `shop.my-server.duckdns.org` with a real certificate.
+
+The reason this works when the ready-made sslip.io addresses cannot be secured is that
+`duckdns.org` is on the [public suffix list](https://publicsuffix.org) and `sslip.io` is
+not. Let's Encrypt therefore gives your DuckDNS name its own certificate allowance,
+instead of counting it against the single global one that every sslip.io address in the
+world shares and routinely exhausts.
+
+Derailed asks for one wildcard certificate covering every app at once, proved over DNS,
+so adding an app later needs no certificate and no waiting. See
+[domains](domains.md#without-a-domain-but-with-a-padlock).
+
 ### Where does my data live?
 
-On your server, and nowhere else. Derailed makes exactly two kinds of outbound request: it asks
-`api.ipify.org` for your public address at boot, and it resolves DNS over Cloudflare and Google
-when checking a domain you added. There is no telemetry, and the update check only runs when you
-press the button.
+On your server, and nowhere else. Derailed makes exactly two kinds of outbound request on its
+own: it asks `api.ipify.org` for your public address at boot, and it resolves DNS over Cloudflare
+and Google when checking a domain you added. There is no telemetry, and the update check only
+runs when you press the button.
+
+Two more happen only if you ask for them. Claiming a [free secure address](domains.md) tells
+DuckDNS which address to point your name at, and asks Let's Encrypt for the certificate; after
+that both are contacted again only to renew, twice a day at most. Nothing about your apps, your
+visitors or their contents is included in either.
 
 The visitor figures are counted by the proxy on your own machine, so there is no third party in
 your pages and nothing to consent to. See [visitor figures](analytics.md).
