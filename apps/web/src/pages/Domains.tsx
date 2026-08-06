@@ -37,6 +37,10 @@ export interface DomainRow {
   projectSlug: string | null;
 }
 
+/** Said in both states, so it is written once and only placed differently. */
+const AUTO_ADDRESS_NOTE =
+  "Every app also gets an address from Derailed automatically. Those live on the app's own page, under Domains.";
+
 /**
  * Domains.
  *
@@ -110,6 +114,7 @@ export function Domains() {
                       Add a domain
                     </button>
                   }
+                  note={AUTO_ADDRESS_NOTE}
                 />
               ) : (
                 <div className="space-y-2">
@@ -126,10 +131,10 @@ export function Domains() {
               )}
             </section>
 
-            <p className="text-[12px] text-ink-faint">
-              Every app also gets an address from Derailed automatically. Those live on the app's
-              own page, under Domains.
-            </p>
+            {/* Under a list this is a footnote and reads left, with the rows. With no
+                domains there is no list to sit under, so it goes inside the empty state
+                instead and shares its centring. */}
+            {own.length > 0 && <p className="text-[12px] text-ink-faint">{AUTO_ADDRESS_NOTE}</p>}
           </div>
         )}
       </div>

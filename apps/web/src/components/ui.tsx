@@ -160,11 +160,19 @@ export function EmptyState({
   title,
   body,
   action,
+  note,
 }: {
   icon: ReactNode;
   title: string;
   body: string;
   action?: ReactNode;
+  /**
+   * A quieter aside, below the action. It belongs in here rather than after the empty
+   * state: left outside, it kept the page's own alignment and full width while
+   * everything above it was centred and held to a narrower measure, so it read as a
+   * stray sentence sitting off to one side rather than the last line of this column.
+   */
+  note?: string;
 }) {
   return (
     <div className="relative flex h-full min-h-[420px] flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
@@ -176,6 +184,7 @@ export function EmptyState({
         <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
         <p className="mt-1.5 max-w-sm text-[13px] text-ink-muted">{body}</p>
         {action && <div className="mt-5">{action}</div>}
+        {note && <p className="mt-6 max-w-sm text-[12px] text-ink-faint">{note}</p>}
       </div>
     </div>
   );
