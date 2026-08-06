@@ -114,7 +114,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         id: 'go-agents',
         label: 'Go to coding agents',
         group: 'Navigate',
-        keywords: 'mcp agent claude cursor codex token editor',
+        keywords: 'mcp agent claude cursor codex token key editor',
         icon: <Bot className="h-4 w-4" />,
         run: () => navigate('/agents'),
       },

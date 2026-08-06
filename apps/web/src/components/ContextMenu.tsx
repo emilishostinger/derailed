@@ -93,14 +93,24 @@ export function ContextMenu({
               onClose();
             }}
             className={cx(
-              'flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[13px] transition-colors',
+              'group flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[13px] transition-colors',
               'disabled:pointer-events-none disabled:opacity-40',
               item.danger
-                ? 'text-danger hover:bg-danger-soft'
+                ? // Reads as an ordinary item until you are actually on it. A row that
+                  // is red from the moment the menu opens shouts before it has been
+                  // asked a question, and this menu is mostly ordinary items.
+                  'text-ink-muted hover:bg-danger-soft hover:text-danger'
                 : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
             )}
           >
-            <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-ink-faint">
+            {/* The icon travels with the label, or half the row turns red and the
+                other half does not. */}
+            <span
+              className={cx(
+                'flex h-3.5 w-3.5 shrink-0 items-center justify-center text-ink-faint transition-colors',
+                item.danger ? 'group-hover:text-danger' : 'group-hover:text-ink',
+              )}
+            >
               {item.icon}
             </span>
             {item.label}

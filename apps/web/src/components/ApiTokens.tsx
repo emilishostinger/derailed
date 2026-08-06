@@ -14,8 +14,13 @@ interface Token {
 }
 
 /**
- * Tokens let a coding agent drive this server. Shown once on creation and stored only
- * as a hash, so there is no way to recover one later.
+ * Access keys let a coding agent drive this server. Shown once on creation and stored
+ * only as a hash, so there is no way to recover one later.
+ *
+ * Called keys and not tokens on screen, deliberately. Everyone arriving at this page
+ * arrives from a world where a token is a unit of inference you are billed for, and
+ * "you have used 4 tokens" would be a sentence about the wrong thing entirely. The
+ * API, the `drl_` prefix and `DERAILED_TOKEN` keep their names: those are contracts.
  */
 export function ApiTokens() {
   const panelUrl = usePanelUrl();
@@ -66,7 +71,7 @@ export function ApiTokens() {
 
   // Nothing made yet. An empty page whose only content is a text box reads as a form
   // you have to fill in before anything will happen, and this one never did: the name
-  // is optional and always was. So the first token is one button and no decisions.
+  // is optional and always was. So the first key is one button and no decisions.
   if (tokens.length === 0 && !fresh) {
     return (
       <>
@@ -80,8 +85,8 @@ export function ApiTokens() {
           // them; their marks are recognised on sight by everyone who has.
           icon={<AgentMarks />}
           unframedIcon
-          title="No tokens yet"
-          body="A token lets a coding agent such as Claude Code, Cursor or Codex deploy apps, read logs and add domains for you, from the editor you are already in."
+          title="No access keys yet"
+          body="An access key lets a coding agent such as Claude Code, Cursor or Codex deploy apps, read logs and add domains for you, from the editor you are already in."
           action={
             <button
               type="button"
@@ -90,10 +95,10 @@ export function ApiTokens() {
               onClick={() => void create()}
             >
               {busy ? <Spinner /> : <KeyRound className="h-3.5 w-3.5" />}
-              Create a token
+              Create an access key
             </button>
           }
-          note="You get the token and the settings to paste into your agent. It is shown once."
+          note="You get the key and the settings to paste into your agent. It is shown once."
         />
       </>
     );
@@ -103,7 +108,7 @@ export function ApiTokens() {
     <div className="mx-auto max-w-3xl space-y-5 p-5">
       <p className="text-[13px] text-ink-muted">
         Derailed comes with an MCP server, so a coding agent such as Claude Code, Cursor or Codex
-        can deploy apps, read logs and add domains for you while you work. Create a token, paste the
+        can deploy apps, read logs and add domains for you while you work. Create a key, paste the
         block below into the agent, and it is connected.
       </p>
 
@@ -193,16 +198,33 @@ export function ApiTokens() {
   );
 }
 
-/** The three this is for, said in the one way that needs no explaining. */
+/**
+ * The three this is for, said in the one way that needs no explaining.
+ *
+ * Overlapped rather than laid out in a row, so they read as one group, one answer to
+ * "what is this page for", instead of three separate things you are being asked to
+ * choose between. Each carries a ring in the page's own colour, which is what keeps
+ * two dark marks from merging into a single blob where they meet.
+ */
 function AgentMarks() {
   const marks = ['claude', 'cursor', 'openai']
     .map((key) => BRANDS[key])
     .filter((brand): brand is NonNullable<typeof brand> => !!brand);
 
   return (
-    <span className="flex items-center gap-2">
-      {marks.map((brand) => (
-        <BrandTile key={brand.title} brand={brand} className="h-9 w-9" />
+    <span className="flex items-center">
+      {marks.map((brand, index) => (
+        <span
+          key={brand.title}
+          className={cx('relative', index > 0 && '-ml-2.5')}
+          // The first one sits on top, so the group reads left to right.
+          style={{ zIndex: marks.length - index }}
+        >
+          <BrandTile
+            brand={brand}
+            className="h-11 w-11 shadow-[var(--d-shadow-pop)] ring-2 ring-surface"
+          />
+        </span>
       ))}
     </span>
   );

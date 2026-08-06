@@ -6,7 +6,7 @@ apps, read logs and add domains for you while you work.
 
 ## Setting it up
 
-1. **Settings → Coding agents (MCP) → Create a token.** It is shown once and stored
+1. **Coding agents → Create an access key.** It is shown once and stored
    only as a hash, so there is no way to recover it later.
 2. Copy the configuration block shown next to it into your agent. It looks like this:
 
@@ -61,7 +61,7 @@ confirmation matters, so they stay in the dashboard where a person is looking at
 - Prefixed `drl_`, 32 random bytes, stored as a SHA-256 hash.
 - Full access to the API. Treat one like the password.
 - Listed in Settings with when each was last used, and revocable individually.
-- A revoked token stops working immediately.
+- A revoked key stops working immediately.
 
 ## Without an agent
 

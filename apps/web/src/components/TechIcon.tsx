@@ -158,8 +158,14 @@ export function BrandTile({
   return (
     <span
       title={brand.title}
-      className={cx('flex shrink-0 items-center justify-center rounded-[6px]', className)}
-      style={{ backgroundColor: brand.hex }}
+      className={cx(
+        'flex shrink-0 items-center justify-center rounded-[6px]',
+        // A picture keeps its own colours, so its backing has to follow the theme
+        // instead: a dark tile stamped into a light page is a hole in it.
+        brand.art && 'bg-surface-2',
+        className,
+      )}
+      style={brand.art ? undefined : { backgroundColor: brand.hex }}
     >
       {brand.art ? (
         // A picture, not a silhouette: framed rather than recoloured, and given a
