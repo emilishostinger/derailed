@@ -23,6 +23,23 @@ No YAML. No `docker-compose` to babysit. No Kubernetes. No monthly bill.
 
 <br>
 
+## Install it
+
+On a fresh Debian or Ubuntu server, as root:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/emilishostinger/derailed/main/install.sh | sh
+```
+
+That is the whole setup. It installs Docker if it is missing, drops a single binary at
+`/usr/local/bin/derailed`, starts it under systemd, and prints a URL. Open the URL, make
+an account, paste a repository link.
+
+<sub>64-bit Intel or ARM · nothing else to install · takes about a minute ·
+[other ways to install](docs/install.md) · [what it does to your server](docs/security.md)</sub>
+
+<br>
+
 ## The problem
 
 You have a $5 VPS and something you want to put on the internet.
@@ -32,14 +49,6 @@ weekend. Then a month later you cannot remember how any of it fits together, and
 certificate has quietly expired.
 
 Derailed makes it five minutes in a browser, and keeps making sense afterwards.
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/emilishostinger/derailed/main/install.sh | sh
-```
-
-That installs Docker if it is missing, drops a single binary at
-`/usr/local/bin/derailed`, starts it under systemd, and prints a URL. Open it, make an
-account, paste a repository link. That is the whole setup.
 
 <br>
 
