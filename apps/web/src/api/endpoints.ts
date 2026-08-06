@@ -2,6 +2,8 @@ import type {
   Deployment,
   DetectResult,
   DiskReport,
+  DoctorFix,
+  DoctorReport,
   Domain,
   EnvVar,
   FreeDomain,
@@ -297,6 +299,10 @@ export const endpoints = {
     api.get<{ appDomain: string | null }>('/system/app-domain').then((r) => r.appDomain),
   setAppDomain: (domain: string | null) =>
     api.put<{ appDomain: string | null; added?: number }>('/system/app-domain', { domain }),
+
+  doctor: () => api.get<{ report: DoctorReport }>('/system/doctor').then((r) => r.report),
+  doctorFix: (action: DoctorFix) =>
+    api.post<{ report: DoctorReport }>(`/system/doctor/fix/${action}`).then((r) => r.report),
 
   disk: () => api.get<{ disk: DiskReport }>('/system/disk').then((r) => r.disk),
   reclaimDisk: () =>

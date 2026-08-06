@@ -4,6 +4,7 @@ import { paths } from '../../config.ts';
 import { createDomain, findDomainByHostname, listDomains } from '../../db/repo/domains.ts';
 import { listServices } from '../../db/repo/services.ts';
 import { deleteSetting, getSetting, SETTINGS, setSetting } from '../../db/repo/settings.ts';
+import { ensureCaddyRunning } from '../../proxy/caddy.ts';
 import { checkDns } from '../../proxy/dns.ts';
 import { checkDomain } from '../../proxy/domainwatch.ts';
 import {
@@ -16,6 +17,7 @@ import {
 import { generatedHostname, isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { diskReport, freeUpSpace } from '../../system/disk.ts';
+import { runDoctor } from '../../system/doctor.ts';
 import { otherSoftware } from '../../system/others.ts';
 import { serverStats } from '../../system/stats.ts';
 import { detectServerIp, systemInfo } from '../../system/status.ts';
@@ -32,6 +34,39 @@ systemRoutes.get('/', async (c) => c.json({ system: await systemInfo() }));
 systemRoutes.get('/update', async (c) => c.json({ update: await checkForUpdate() }));
 
 systemRoutes.get('/stats', async (c) => c.json({ stats: await serverStats() }));
+
+systemRoutes.get('/doctor', async (c) => c.json({ report: await runDoctor() }));
+
+/**
+ * Puts right whatever the doctor offered to. Deliberately a fixed set of named
+ * actions rather than anything the client can describe: this endpoint restarts the
+ * proxy and deletes images, and "do what this string says" is not a shape that should
+ * ever exist for either of those.
+ */
+systemRoutes.post('/doctor/fix/:action', async (c) => {
+  const action = c.req.param('action');
+
+  if (action === 'restart-proxy') {
+    await ensureCaddyRunning();
+    await syncRoutes();
+    return c.json({ report: await runDoctor() });
+  }
+  if (action === 'reclaim-disk') {
+    await freeUpSpace();
+    return c.json({ report: await runDoctor() });
+  }
+  if (action === 'add-swap') {
+    try {
+      await addSwap((await swapState()).suggestedBytes);
+    } catch (err) {
+      if (err instanceof SwapError) throw badRequest(err.message, err.hint);
+      throw err;
+    }
+    return c.json({ report: await runDoctor() });
+  }
+
+  throw badRequest('Derailed does not know how to fix that.');
+});
 
 systemRoutes.get('/disk', async (c) => c.json({ disk: await diskReport() }));
 

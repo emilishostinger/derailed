@@ -66,6 +66,13 @@ Creating a service:
 | `GET /services/:id/volumes` · `POST` | Storage |
 | `GET /services/:id/domains` · `POST` | Its addresses |
 
+## Health
+
+| | |
+| --- | --- |
+| `GET /system/doctor` | Run every check and report |
+| `POST /system/doctor/fix/:action` | Put one thing right. `restart-proxy`, `reclaim-disk` or `add-swap` |
+
 ## The machine's disk
 
 | | |

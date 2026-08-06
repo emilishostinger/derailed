@@ -1,6 +1,19 @@
 # When something goes wrong
 
 Derailed tries to say what's wrong and what to do about it, in the dashboard, in plain language.
+
+## Start here
+
+```sh
+derailed doctor
+```
+
+Checks Docker, the router, disk, memory, swap, the clock, your domains, certificates and backups,
+and says what to do about anything it finds. It exits non-zero when something needs attention, so
+it works in a cron job or a monitoring check too.
+
+The same list is on the **Server** page in the dashboard, where anything Derailed can put right has
+a button next to it. Use the command when it is the dashboard itself that is not working.
 This page is for the cases where that isn't enough.
 
 The first thing to try, always:

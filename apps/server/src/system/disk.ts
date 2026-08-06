@@ -28,12 +28,34 @@ interface DockerDf {
   BuildCache?: { Size?: number; InUse?: boolean }[];
 }
 
+/**
+ * Docker's own accounting, cached for a moment.
+ *
+ * `/system/df` walks every image, container and volume adding up sizes, and on a
+ * machine with a few dozen images that takes five seconds or more. It is called by
+ * the disk panel, by the health check and by the hourly warning, so without this a
+ * page load could sit on it three times over. Disk usage does not change meaningfully
+ * inside half a minute, and anything that *does* change it goes through `freeUpSpace`,
+ * which clears this on its way out.
+ */
+const DF_CACHE_MS = 30_000;
+let dfCache: { at: number; value: DockerDf | null } | null = null;
+
 async function dockerUsage(): Promise<DockerDf | null> {
+  if (dfCache && Date.now() - dfCache.at < DF_CACHE_MS) return dfCache.value;
   try {
-    return await dockerJson<DockerDf>('/system/df');
+    const value = await dockerJson<DockerDf>('/system/df');
+    dfCache = { at: Date.now(), value };
+    return value;
   } catch {
+    dfCache = { at: Date.now(), value: null };
     return null;
   }
+}
+
+/** Called after anything that frees space, so the next report tells the truth. */
+export function forgetDiskCache(): void {
+  dfCache = null;
 }
 
 /** Bytes under a folder. Cheap enough for the few folders Derailed owns. */
@@ -223,6 +245,7 @@ export interface ReclaimResult {
  * button anyone should press twice.
  */
 export async function freeUpSpace(): Promise<ReclaimResult> {
+  forgetDiskCache();
   const before = await diskReport();
   const what: string[] = [];
 
@@ -248,6 +271,9 @@ export async function freeUpSpace(): Promise<ReclaimResult> {
   ).catch(() => null);
   if (containers?.SpaceReclaimed) what.push('Removed stopped containers');
 
+  // Or the "after" figures would be the same cached numbers as the "before" ones,
+  // and the toast would cheerfully report that nothing had been freed.
+  forgetDiskCache();
   const after = await diskReport();
   const freedBytes = Math.max(0, after.freeBytes - before.freeBytes);
   if (!what.length) what.push('There was nothing to tidy up');

@@ -7,6 +7,7 @@ derailed serve                    Run the server (this is what systemd does)
 derailed mcp                      Run as an MCP server for coding agents
 derailed setup                    Create the admin account from the command line
 derailed update                   Download and install the latest version
+derailed doctor                   Check everything and say what is wrong
 derailed reset-password [email]   Set a new password for the admin account
 derailed version                  Print the version
 derailed help                     Show this
@@ -19,6 +20,23 @@ a broken Docker install shows up in the dashboard instead of preventing boot.
 
 On start it also reconciles: containers that should be running are started, ones that
 have vanished are marked stopped, and orphans it created are cleaned up.
+
+## doctor
+
+Runs the same checks as the **Server** page: Docker, the router, disk, memory, swap,
+the clock, your domains, certificates and backups. Every line either says it is fine or
+says what to do.
+
+```
+derailed doctor
+```
+
+Exits `1` when something needs attention and `0` otherwise, so it works as a cron job
+or a monitoring check without anything having to parse the output.
+
+This exists for the case where the dashboard is the thing that is broken, which is
+exactly when a health check is worth having and exactly when a web page cannot give you
+one.
 
 ## reset-password
 

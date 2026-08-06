@@ -281,6 +281,30 @@ export interface SwapState {
   canAdd: boolean;
 }
 
+/**
+ * One check the doctor ran.
+ *
+ * Everything either says "fine" or says what to do about it, and where Derailed can
+ * do that itself there is a `fix` naming the button.
+ */
+export interface DoctorCheck {
+  id: string;
+  title: string;
+  status: 'ok' | 'warn' | 'bad';
+  detail: string;
+  fix?: { action: DoctorFix; label: string };
+}
+
+/** The things the doctor can put right without leaving the page. */
+export type DoctorFix = 'restart-proxy' | 'reclaim-disk' | 'add-swap';
+
+export interface DoctorReport {
+  at: number;
+  checks: DoctorCheck[];
+  summary: string;
+  level: 'ok' | 'warn' | 'bad';
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

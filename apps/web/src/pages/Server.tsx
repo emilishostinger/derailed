@@ -1,5 +1,6 @@
 import { Boxes, Container, HardDrive, Network } from 'lucide-react';
 import { DiskPanel } from '../components/DiskPanel.tsx';
+import { Doctor } from '../components/Doctor.tsx';
 import { ServerStats } from '../components/ServerStats.tsx';
 import { cx } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
@@ -55,6 +56,11 @@ export function Server() {
                 value={String(volumes)}
               />
             </div>
+          </section>
+
+          <section>
+            <p className="eyebrow mb-2.5">Health</p>
+            <Doctor />
           </section>
 
           <section>

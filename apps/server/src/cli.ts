@@ -6,8 +6,36 @@ import { SETTINGS, setSetting } from './db/repo/settings.ts';
 import { createUser, findUserByEmail, firstUser, updatePassword } from './db/repo/users.ts';
 import { runMcpServer } from './mcp/server.ts';
 import { serve } from './serve.ts';
+import { runDoctor } from './system/doctor.ts';
 import { selfUpdate } from './update.ts';
 import { loadSecretKey } from './util/crypto.ts';
+
+/**
+ * The same checks the dashboard runs, on the command line.
+ *
+ * This exists for the case where the dashboard is the thing that is broken, which is
+ * exactly when a health check is worth having and exactly when a web page cannot
+ * deliver one. Exits non-zero when something needs attention, so it can be used in a
+ * cron job or a monitoring check without parsing anything.
+ */
+async function doctor(): Promise<void> {
+  ensureDirs();
+  initDb();
+  loadSecretKey();
+
+  const report = await runDoctor();
+  const mark = { ok: '  ok  ', warn: ' warn ', bad: ' FAIL ' };
+
+  console.log(`\n  Derailed ${VERSION}\n`);
+  for (const check of report.checks) {
+    console.log(`  [${mark[check.status]}] ${check.title}`);
+    console.log(`            ${check.detail}`);
+    if (check.fix) console.log(`            Fix: ${check.fix.label} (in the dashboard)`);
+  }
+  console.log(`\n  ${report.summary}\n`);
+
+  if (report.level === 'bad') process.exit(1);
+}
 
 /**
  * Non-interactive first-run setup, used by the installer so someone can be handed a
@@ -68,6 +96,7 @@ const HELP = `
                                    (pass the password in DERAILED_SETUP_PASSWORD, so
                                     it is not visible in ps)
     derailed update                Download and install the latest version
+    derailed doctor                Check everything and say what is wrong
     derailed reset-password [email]  Set a new password for the admin account
     derailed version               Print the version
     derailed help                  Show this message
@@ -106,6 +135,10 @@ export async function runCli(argv: string[]): Promise<void> {
 
     case 'setup':
       await firstRunSetup(argv.slice(1));
+      return;
+
+    case 'doctor':
+      await doctor();
       return;
 
     case 'reset-password':

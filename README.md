@@ -69,6 +69,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | 💾 **Backups you can restore** | Scheduled per project, and an ordinary `.tar.gz` you can download and open with `tar`. Restoring stops the app first, because emptying a folder underneath a running app is how people lose data. |
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
+| 🩺 **One button that checks everything** | Docker, the router, disk, memory, swap, the clock, domains, certificates and backups, each either fine or telling you what to do. `derailed doctor` on the command line, for when the dashboard is the broken thing. |
 | 💬 **Plain language everywhere** | Never "ingress", never "SIGTERM". When something breaks, the error says what to do next. |
 
 <br>
