@@ -777,10 +777,7 @@ function AccountMenu() {
             Sign out
           </button>
           <div className="mt-1 border-t border-line px-2 pt-2 pb-1">
-            <p className="text-[11px] text-ink-faint tabular">
-              Derailed v{system?.version ?? '-'}
-              {system?.serverIp ? ` · ${system.serverIp}` : ''}
-            </p>
+            <p className="text-[11px] text-ink-faint tabular">Derailed v{system?.version ?? '-'}</p>
             <a
               href="https://opensource.org/license/mit"
               target="_blank"
