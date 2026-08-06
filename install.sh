@@ -71,64 +71,59 @@ die()  { printf '\n  %s✗%s %s\n\n' "$RED" "$RESET" "$*" >&2; exit 1; }
 
 # -------------------------------------------------------------------- the splash
 #
-# The wordmark, in the violet the dashboard and the favicon already use, running left
-# to right from #8b93e8 to #5b64c4: the same gradient as the logo tile, turned on its
-# side so it sweeps across the word rather than down it.
+# The wordmark, in two tones of the violet the dashboard and the favicon already use:
+# #8b93e8 across DERA, #5b64c4 across ILED. They are the two ends of the logo tile's
+# gradient, so nothing new was invented for the terminal.
+#
+# Two rather than a ramp. Eight interpolated steps read as a smudge at this size, and
+# every step past the second is a colour the brand does not otherwise have. Two is the
+# palette; the split is just where the word happens to halve.
 #
 # Written out rather than generated. There are lovely tools for this (oh-my-logo and
 # friends), but every one of them is an npm package, and the promise this installer
 # makes is that it needs nothing on the machine before it runs. Six lines of text
 # cost nothing and keep that true.
 #
-# `~1` to `~8` mark where one letter ends and the next begins, and are swapped for
-# colour escapes at run time. The colour has to change *inside* each line for a
-# left-to-right gradient, and cutting a line into pieces is the one thing that cannot
-# be done safely here: these glyphs are three bytes each, mawk is what `awk` means on
-# Debian and has no idea about multibyte characters, and most `cut` and `fold` builds
-# count bytes too. Any of them would slice a █ down the middle and spray the terminal
-# with replacement characters. Plain ASCII markers substituted by `sed` cannot.
+# `~1` and `~2` mark where each tone starts and are swapped for colour escapes at run
+# time. The colour has to change *inside* each line, and cutting a line into pieces is
+# the one thing that cannot be done safely here: these glyphs are three bytes each,
+# mawk is what `awk` means on Debian and has no idea about multibyte characters, and
+# most `cut` and `fold` builds count bytes too. Any of them would slice a █ down the
+# middle and spray the terminal with replacement characters. Plain ASCII markers
+# substituted by `sed` cannot.
 #
 # Sixty-one columns wide including the indent, so it is shown only on a real terminal
 # with room for it. Piped to a file or a CI log it would be six lines of noise, and in
 # a narrow phone SSH client it would wrap into confetti. Both fall back to one line.
 
-WORDMARK='~1██████╗ ~2███████╗~3██████╗ ~4 █████╗ ~5██╗~6██╗     ~7███████╗~8██████╗
-~1██╔══██╗~2██╔════╝~3██╔══██╗~4██╔══██╗~5██║~6██║     ~7██╔════╝~8██╔══██╗
-~1██║  ██║~2█████╗  ~3██████╔╝~4███████║~5██║~6██║     ~7█████╗  ~8██║  ██║
-~1██║  ██║~2██╔══╝  ~3██╔══██╗~4██╔══██║~5██║~6██║     ~7██╔══╝  ~8██║  ██║
-~1██████╔╝~2███████╗~3██║  ██║~4██║  ██║~5██║~6███████╗~7███████╗~8██████╔╝
-~1╚═════╝ ~2╚══════╝~3╚═╝  ╚═╝~4╚═╝  ╚═╝~5╚═╝~6╚══════╝~7╚══════╝~8╚═════╝'
+WORDMARK='~1██████╗ ███████╗██████╗  █████╗ ~2██╗██╗     ███████╗██████╗
+~1██╔══██╗██╔════╝██╔══██╗██╔══██╗~2██║██║     ██╔════╝██╔══██╗
+~1██║  ██║█████╗  ██████╔╝███████║~2██║██║     █████╗  ██║  ██║
+~1██║  ██║██╔══╝  ██╔══██╗██╔══██║~2██║██║     ██╔══╝  ██║  ██║
+~1██████╔╝███████╗██║  ██║██║  ██║~2██║███████╗███████╗██████╔╝
+~1╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝~2╚═╝╚══════╝╚══════╝╚═════╝'
 
 WORDMARK_WIDTH=61
-WORDMARK_BANDS=8
+WORDMARK_BANDS=2
 
-# One escape per band of the gradient, in whatever the terminal understands.
+# The two tones, in whatever the terminal understands.
 band_colour() {
   case "$COLOR_DEPTH" in
     full)
       case "$1" in
         1) printf '\033[38;2;139;147;232m' ;;
-        2) printf '\033[38;2;132;140;227m' ;;
-        3) printf '\033[38;2;125;134;222m' ;;
-        4) printf '\033[38;2;118;127;217m' ;;
-        5) printf '\033[38;2;112;120;211m' ;;
-        6) printf '\033[38;2;105;113;206m' ;;
-        7) printf '\033[38;2;98;107;201m'  ;;
         *) printf '\033[38;2;91;100;196m'  ;;
       esac
       ;;
     256)
-      # The xterm cube has nothing between some of these, so a couple of bands repeat.
-      # A ramp that steps where it can beats one that wanders off into magenta to
-      # avoid ever repeating itself.
+      # 147 is #afafff and 62 is #5f5fd7: the closest the xterm cube comes to each.
       case "$1" in
-        1|2) printf '\033[38;5;147m' ;;
-        3|4) printf '\033[38;5;105m' ;;
-        5)   printf '\033[38;5;104m' ;;
-        6)   printf '\033[38;5;98m'  ;;
-        *)   printf '\033[38;5;62m'  ;;
+        1) printf '\033[38;5;147m' ;;
+        *) printf '\033[38;5;62m'  ;;
       esac
       ;;
+    # Sixteen colours has one blue and one bright blue, and the plain one is unreadably
+    # dark on half the themes people use. One tone is better than an invisible half.
     basic) printf '\033[1;34m' ;;
     *)     printf '' ;;
   esac
