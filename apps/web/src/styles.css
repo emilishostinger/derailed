@@ -85,6 +85,26 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* The accent is a deep orange, and where it sits was decided with the palette
+ * validator rather than by eye. Two things fell out of that.
+ *
+ * Orange lives in the same warm band as the colours that mean "careful" and
+ * "broken", so the first candidate was 10.3 apart from the danger red: below the
+ * floor at which two colours are reliably told apart *with full colour vision*.
+ * A primary button and a delete button should never be that close. Walking the
+ * accent deeper, and the amber a little further round, clears it.
+ *
+ * And white on the dark theme's orange is 2.6:1, which is unreadable. Bright warm
+ * colours take dark labels, so `accent-ink` is near-black there and white on the
+ * light theme's deeper orange, where it is 6.6:1.
+ *
+ * The one thing left inside the floor is the light theme's amber against the green
+ * and the orange. That is forced: on a white surface a warning has to be dark to be
+ * legible as text, and dark yellow is ochre, which lives between the two. Legibility
+ * is the hard requirement, and no status colour here is ever shown without its icon
+ * and its word, so hue is never carrying the meaning alone.
+ */
+
 /* Dark. The default, and what the README screenshots show. */
 :root {
   --d-canvas: #0b0c11;
@@ -96,16 +116,16 @@
   --d-ink: #f4f6fa;
   --d-ink-muted: #8b90a0;
   --d-ink-faint: #61667a;
-  --d-accent: #6e79d6;
-  --d-accent-hover: #828cdf;
-  --d-accent-soft: #1c1f38;
-  --d-accent-ink: #ffffff;
+  --d-accent: #ff8c1a;
+  --d-accent-hover: #ffa040;
+  --d-accent-soft: #2a1a0a;
+  --d-accent-ink: #1a1005;
   --d-ok: #4cb782;
   --d-ok-soft: #10231b;
   --d-busy: #4ea7fc;
   --d-busy-soft: #0e1e2e;
-  --d-warn: #f2c94c;
-  --d-warn-soft: #251f10;
+  --d-warn: #ecd451;
+  --d-warn-soft: #26210f;
   --d-danger: #eb5757;
   --d-danger-soft: #2a1416;
 
@@ -128,16 +148,16 @@
   --d-ink: #13151c;
   --d-ink-muted: #656a7a;
   --d-ink-faint: #929aab;
-  --d-accent: #5b64c4;
-  --d-accent-hover: #4b54b4;
-  --d-accent-soft: #eeeffb;
+  --d-accent: #a33b06;
+  --d-accent-hover: #8a3105;
+  --d-accent-soft: #fbeee4;
   --d-accent-ink: #ffffff;
   --d-ok: #227d51;
   --d-ok-soft: #e8f5ee;
   --d-busy: #1f6fd0;
   --d-busy-soft: #e8f1fc;
-  --d-warn: #96690a;
-  --d-warn-soft: #fbf3e0;
+  --d-warn: #8f6f06;
+  --d-warn-soft: #f8f1de;
   --d-danger: #c8393c;
   --d-danger-soft: #fdecec;
 

@@ -10,10 +10,10 @@
 
 No YAML. No `docker-compose` to babysit. No Kubernetes. No monthly bill.
 
-[![MIT licence](https://img.shields.io/badge/licence-MIT-6b74d6)](LICENSE)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-c4490c)](LICENSE)
 [![Built with Bun](https://img.shields.io/badge/built%20with-Bun-fbf0df)](https://bun.sh)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-your%20server-3ecf8e)](docs/install.md)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-6b74d6)](docs/contributing.md)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-c4490c)](docs/contributing.md)
 
 <br>
 
