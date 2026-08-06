@@ -39,7 +39,7 @@ export const ACTIVE_DEPLOYMENT_STATUSES: readonly DeploymentStatus[] = [
 /** What the UI shows on a service node, derived, never stored. */
 export type ServiceStatus = 'running' | 'deploying' | 'stopped' | 'failed' | 'crashed' | 'creating';
 
-export type DeploymentTrigger = 'manual' | 'redeploy' | 'rollback' | 'webhook';
+export type DeploymentTrigger = 'manual' | 'redeploy' | 'rollback' | 'webhook' | 'release';
 
 export type EnvSource = 'user' | 'link' | 'system';
 
@@ -95,6 +95,10 @@ export interface Service {
   healthPath: string;
   instancesDesired: 0 | 1;
   memoryLimitMb: number | null;
+  /** Deploy by itself when a new release is published on GitHub. */
+  deployOnRelease: boolean;
+  /** The newest release tag Derailed has seen, deployed or merely noted. */
+  lastReleaseTag: string | null;
 
   // database fields
   dbEngine: string | null;

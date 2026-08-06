@@ -23,6 +23,8 @@ interface ServiceRow {
   health_path: string;
   instances_desired: 0 | 1;
   memory_limit_mb: number | null;
+  deploy_on_release: 0 | 1;
+  last_release_tag: string | null;
   db_engine: string | null;
   db_version: string | null;
   db_name: string | null;
@@ -55,6 +57,8 @@ function toService(row: ServiceRow): Service {
     healthPath: row.health_path,
     instancesDesired: row.instances_desired,
     memoryLimitMb: row.memory_limit_mb,
+    deployOnRelease: row.deploy_on_release === 1,
+    lastReleaseTag: row.last_release_tag,
     dbEngine: row.db_engine,
     dbVersion: row.db_version,
     dbName: row.db_name,
@@ -213,6 +217,8 @@ export function databasePassword(serviceId: string): string | null {
 }
 
 const UPDATABLE: Record<string, string> = {
+  deployOnRelease: 'deploy_on_release',
+  lastReleaseTag: 'last_release_tag',
   name: 'name',
   branch: 'branch',
   rootDir: 'root_dir',
@@ -230,14 +236,17 @@ const UPDATABLE: Record<string, string> = {
 
 export function updateService(
   id: string,
-  patch: Record<string, string | number | null | undefined>,
+  patch: Record<string, string | number | boolean | null | undefined>,
 ): Service | null {
   const assignments: string[] = [];
   const values: (string | number | null)[] = [];
   for (const [key, column] of Object.entries(UPDATABLE)) {
-    if (patch[key] === undefined) continue;
+    const value = patch[key];
+    if (value === undefined) continue;
     assignments.push(`${column} = ?`);
-    values.push(patch[key] as string | number | null);
+    // SQLite has no boolean. Converting here rather than at each call site means a
+    // flag cannot reach a column as the string "true" and read back as truthy.
+    values.push(typeof value === 'boolean' ? (value ? 1 : 0) : value);
   }
   if (assignments.length) {
     assignments.push('updated_at = ?');

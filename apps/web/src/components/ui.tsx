@@ -71,6 +71,56 @@ export function Field({
   );
 }
 
+/**
+ * An on/off setting, with its explanation attached.
+ *
+ * A checkbox and a sentence beside it would do the same job, but a setting that
+ * changes what the server does on its own deserves to look like a switch rather than
+ * like one more field in a form.
+ */
+export function Switch({
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  hint?: ReactNode;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={cx('flex gap-3', disabled && 'opacity-50')}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cx(
+          'mt-0.5 h-[18px] w-8 shrink-0 rounded-full border transition-colors',
+          'disabled:pointer-events-none',
+          checked ? 'border-accent bg-accent' : 'border-line-strong bg-on-canvas',
+        )}
+      >
+        <span
+          className={cx(
+            'block h-3.5 w-3.5 rounded-full transition-transform',
+            checked ? 'translate-x-[15px] bg-accent-ink' : 'translate-x-[1px] bg-ink-faint',
+          )}
+        />
+      </button>
+      <div className="min-w-0">
+        <p className="text-[13px] text-ink">{label}</p>
+        {hint && <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">{hint}</p>}
+      </div>
+    </div>
+  );
+}
+
 const STATUS_STYLES: Record<
   string,
   { dot: string; text: string; label: string; active?: boolean }

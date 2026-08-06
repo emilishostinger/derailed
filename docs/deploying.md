@@ -38,6 +38,29 @@ On an app's **Settings** tab:
   Anything that answers, even a 404, counts as alive; only a refused connection or a
   timeout is a failure.
 - **Memory limit**: a ceiling, so one runaway app cannot take the machine down.
+- **Deploy new releases**: for GitHub repositories. See below.
+
+### Deploying when you publish a release
+
+Switch on **Deploy new releases** on an app's Settings tab and Derailed builds and
+deploys the tag whenever a new release is published on GitHub. It checks every ten
+minutes; there is no webhook to set up, no public URL and no shared secret, which also
+means it keeps working on a server GitHub cannot reach.
+
+Releases, not pushes. A push is a work in progress. Publishing a release is somebody
+saying this one is meant to be out there.
+
+Two things worth knowing:
+
+- **Switching it on changes nothing today.** Derailed notes whichever release is
+  current and waits for the next one, so turning it on never redeploys an app that is
+  already running.
+- **Drafts and prereleases are ignored.** The tag has to be published, and marked as a
+  full release.
+
+The deploy builds the release's tag rather than the branch, so what runs is what was
+tagged even if the branch has moved on since. Those deploys are marked *a new release*
+in the app's history, so it is clear nobody pressed anything.
 
 ### Private repositories
 

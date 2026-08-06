@@ -27,7 +27,13 @@ rest and never sent back to the browser.
 
 ### Does it auto-deploy when I push?
 
-Not yet. For now, hit Deploy (or `⌘K` → "Deploy …"), or have a coding agent do it through
+No, and deliberately. A push to a branch is a work in progress; it is not a statement
+that the world should see it.
+
+It does deploy when you publish a **release** on GitHub, if you switch that on for the
+app. See [deploying](deploying.md).
+
+Otherwise, hit Deploy (or `⌘K` → "Deploy …"), or have a coding agent do it through
 [MCP](mcp.md).
 
 ### Can I deploy without GitHub at all?

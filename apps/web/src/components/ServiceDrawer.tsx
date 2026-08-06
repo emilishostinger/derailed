@@ -24,7 +24,7 @@ import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
 import { TechIcon } from './TechIcon.tsx';
 import { TerminalTab } from './TerminalTab.tsx';
 import { TrafficTab } from './TrafficTab.tsx';
-import { cx, ErrorNote, Spinner, StatusPill } from './ui.tsx';
+import { cx, ErrorNote, Spinner, StatusPill, Switch } from './ui.tsx';
 
 type Tab =
   | 'overview'
@@ -384,6 +384,10 @@ function Deployments({ service }: { service: Service }) {
                 <p className="text-xs text-ink-muted">
                   {new Date(deployment.createdAt).toLocaleString()}
                   {deployment.commitSha ? ` · ${deployment.commitSha.slice(0, 7)}` : ''}
+                  {/* Only worth saying when nobody pressed anything. A deploy that
+                      appeared on its own is otherwise indistinguishable from one
+                      somebody else started. */}
+                  {deployment.trigger === 'release' && ' · a new release'}
                 </p>
               </div>
               {active ? (
@@ -447,6 +451,7 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
   const [port, setPort] = useState(service.port ? String(service.port) : '');
   const [healthPath, setHealthPath] = useState(service.healthPath);
   const [memory, setMemory] = useState(service.memoryLimitMb ? String(service.memoryLimitMb) : '');
+  const [onRelease, setOnRelease] = useState(service.deployOnRelease);
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -465,6 +470,7 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
               rootDir: rootDir || null,
               port: port ? Number(port) : null,
               healthPath: healthPath || '/',
+              deployOnRelease: onRelease,
             }
           : {}),
         memoryLimitMb: memory ? Number(memory) : null,
@@ -529,6 +535,10 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
               </label>
             </div>
           </>
+        )}
+
+        {service.kind === 'app' && service.source === 'repo' && (
+          <ReleaseDeploys service={service} checked={onRelease} onChange={setOnRelease} />
         )}
 
         <label className="block">
@@ -675,6 +685,49 @@ function RepoToken({ service }: { service: Service }) {
       <div className="mt-2">
         <ErrorNote error={error} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Deploy when a new release is published.
+ *
+ * Only for repositories, and only GitHub ones, because that is where the releases
+ * are being read from. Offering the switch anywhere else would be offering something
+ * that quietly never fires.
+ */
+function ReleaseDeploys({
+  service,
+  checked,
+  onChange,
+}: {
+  service: Service;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  const isGithub = /(^|\/\/|@)github\.com[/:]/i.test(service.repoUrl ?? '');
+
+  return (
+    <div className="rounded-[var(--radius-card)] border border-line p-3.5">
+      <Switch
+        label="Deploy new releases"
+        checked={checked}
+        disabled={!isGithub}
+        onChange={onChange}
+        hint={
+          !isGithub ? (
+            'Releases are read from GitHub, and this app is not from a GitHub repository.'
+          ) : service.lastReleaseTag ? (
+            <>
+              Following on from <span className="text-ink">{service.lastReleaseTag}</span>. The next
+              release published on GitHub is built and deployed on its own, within about ten
+              minutes.
+            </>
+          ) : (
+            'Whatever is released next on GitHub gets built and deployed on its own. Whatever is out today is left alone, so switching this on does not redeploy anything.'
+          )
+        }
+      />
     </div>
   );
 }

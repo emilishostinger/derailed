@@ -51,6 +51,12 @@ interface Job {
   cancel: AbortController;
   /** Set for a rollback: reuse this image instead of cloning and building. */
   reuseImage?: string;
+  /**
+   * A branch, tag or commit to build instead of the service's usual branch. Used by
+   * the release watcher, which must build the tag it saw rather than whatever the
+   * branch happens to point at by the time the build starts.
+   */
+  ref?: string;
 }
 
 const queue: Job[] = [];
@@ -82,6 +88,7 @@ export function queueDeployment(
   serviceId: string,
   trigger: DeploymentTrigger = 'manual',
   reuseImage?: string,
+  ref?: string,
 ): Deployment {
   for (let i = queue.length - 1; i >= 0; i--) {
     const job = queue[i]!;
@@ -97,7 +104,13 @@ export function queueDeployment(
   const deployment = createDeployment(serviceId, trigger);
   emitDeployment(deployment);
 
-  queue.push({ deploymentId: deployment.id, serviceId, cancel: new AbortController(), reuseImage });
+  queue.push({
+    deploymentId: deployment.id,
+    serviceId,
+    cancel: new AbortController(),
+    reuseImage,
+    ref,
+  });
   void pump();
   return deployment;
 }
@@ -191,7 +204,7 @@ async function run(job: Job): Promise<void> {
     } else {
       const clone = await cloneRepo(
         service.repoUrl!,
-        service.branch,
+        job.ref ?? service.branch,
         workdir,
         (line) => log.write(line),
         repoToken(service.id),

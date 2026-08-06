@@ -273,4 +273,46 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN command TEXT;
     `,
   },
+  {
+    id: 10,
+    name: 'deploy when a new release is published',
+    sql: `
+      ALTER TABLE services ADD COLUMN deploy_on_release INTEGER NOT NULL DEFAULT 0;
+      -- The tag last seen on GitHub, whether or not it was deployed. Set when the
+      -- setting is switched on, so turning it on adopts today's release as the
+      -- starting point rather than immediately shipping whatever is already out.
+      ALTER TABLE services ADD COLUMN last_release_tag TEXT;
+
+      -- 'release' is a new kind of trigger and the column checks its own values, so
+      -- the table has to be rebuilt to widen it. Copied rather than renamed, because
+      -- a rename would leave the old CHECK attached to the new name.
+      CREATE TABLE deployments_new (
+        id             TEXT PRIMARY KEY,
+        service_id     TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        status         TEXT NOT NULL CHECK (status IN (
+                         'queued','cloning','detecting','building','starting','checking',
+                         'routing','running','failed','canceled','superseded')),
+        commit_sha     TEXT,
+        commit_message TEXT,
+        trigger        TEXT NOT NULL DEFAULT 'manual'
+                         CHECK (trigger IN ('manual','redeploy','rollback','webhook','release')),
+        image_tag      TEXT,
+        container_id   TEXT,
+        error_summary  TEXT,
+        error_hint     TEXT,
+        log_path       TEXT,
+        created_at     INTEGER NOT NULL,
+        started_at     INTEGER,
+        finished_at    INTEGER
+      );
+      INSERT INTO deployments_new SELECT
+        id, service_id, status, commit_sha, commit_message, trigger, image_tag,
+        container_id, error_summary, error_hint, log_path, created_at, started_at,
+        finished_at
+      FROM deployments;
+      DROP TABLE deployments;
+      ALTER TABLE deployments_new RENAME TO deployments;
+      CREATE INDEX idx_deployments_service ON deployments(service_id, created_at DESC);
+    `,
+  },
 ];
