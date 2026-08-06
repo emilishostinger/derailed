@@ -80,11 +80,13 @@ export async function checkDiskSpace(min = MIN_FREE_BYTES): Promise<DiskCheck> {
   const freeBytes = info.disk.freeBytes;
   if (freeBytes >= min) return { ok: true, freeBytes };
 
+  // The hint used to be a `docker system prune -a` to run over SSH, which is both the
+  // wrong altitude for this audience and more destructive than what the button does.
   return {
     ok: false,
     freeBytes,
     message: `This server has only ${formatBytes(freeBytes)} of disk space left, which isn't enough to build an app.`,
-    hint: 'Delete a project you no longer need, or run `docker system prune -a` on the server to clear out old images.',
+    hint: 'Open the Server page and press "Free up space". It shows what it will remove before it removes it.',
   };
 }
 

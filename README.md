@@ -141,6 +141,7 @@ safe.
 [Storage](docs/storage.md) ·
 [Backups](docs/backups.md) ·
 [Trash](docs/trash.md) ·
+[Disk space](docs/disk.md) ·
 [Visitor figures](docs/analytics.md) ·
 [Coding agents](docs/mcp.md) ·
 [API](docs/api.md) ·

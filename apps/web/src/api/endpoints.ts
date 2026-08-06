@@ -1,12 +1,14 @@
 import type {
   Deployment,
   DetectResult,
+  DiskReport,
   Domain,
   EnvVar,
   FreeDomain,
   LogLine,
   Project,
   Service,
+  SwapState,
   TrashItem,
   Volume,
 } from '@derailed/shared';
@@ -295,6 +297,14 @@ export const endpoints = {
     api.get<{ appDomain: string | null }>('/system/app-domain').then((r) => r.appDomain),
   setAppDomain: (domain: string | null) =>
     api.put<{ appDomain: string | null; added?: number }>('/system/app-domain', { domain }),
+
+  disk: () => api.get<{ disk: DiskReport }>('/system/disk').then((r) => r.disk),
+  reclaimDisk: () =>
+    api
+      .post<{ result: { freedBytes: number; what: string[] } }>('/system/disk/reclaim')
+      .then((r) => r.result),
+  swap: () => api.get<{ swap: SwapState }>('/system/swap').then((r) => r.swap),
+  addSwap: () => api.post<{ swap: SwapState; added: number }>('/system/swap'),
 
   trash: () => api.get<{ items: TrashItem[] }>('/trash').then((r) => r.items),
   restoreFromTrash: (kind: 'project' | 'service', id: string) =>

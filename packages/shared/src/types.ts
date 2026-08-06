@@ -244,6 +244,43 @@ export interface TrashItem {
   whatIsKept: string[];
 }
 
+/**
+ * What is using the disk, and what could go.
+ *
+ * A full disk breaks everything at once and silently, and Docker is almost always the
+ * reason. Every figure here is paired with words, because "12.4 GB of images" means
+ * nothing without "these are old copies of your apps and nothing is running them".
+ */
+export interface DiskCategory {
+  kind: 'images' | 'build-cache' | 'containers' | 'backups' | 'logs' | 'data';
+  label: string;
+  bytes: number;
+  /** How much could be freed without losing anything you would miss. */
+  reclaimableBytes: number;
+  detail: string;
+}
+
+export interface DiskReport {
+  totalBytes: number;
+  freeBytes: number;
+  usedBytes: number;
+  percentUsed: number;
+  level: 'ok' | 'filling' | 'full';
+  summary: string;
+  categories: DiskCategory[];
+  reclaimableBytes: number;
+}
+
+/** Swap, which most cheap servers ship without and most cheap servers need. */
+export interface SwapState {
+  bytes: number;
+  totalMemoryBytes: number;
+  recommended: boolean;
+  suggestedBytes: number;
+  reason: string | null;
+  canAdd: boolean;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

@@ -15,9 +15,11 @@ import {
 } from '../../proxy/freedomain.ts';
 import { generatedHostname, isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
+import { diskReport, freeUpSpace } from '../../system/disk.ts';
 import { otherSoftware } from '../../system/others.ts';
 import { serverStats } from '../../system/stats.ts';
 import { detectServerIp, systemInfo } from '../../system/status.ts';
+import { addSwap, SwapError, swapState } from '../../system/swap.ts';
 import { checkForUpdate } from '../../update.ts';
 import type { AppEnv } from '../auth.ts';
 import { badRequest, conflict, parseBody } from '../errors.ts';
@@ -30,6 +32,28 @@ systemRoutes.get('/', async (c) => c.json({ system: await systemInfo() }));
 systemRoutes.get('/update', async (c) => c.json({ update: await checkForUpdate() }));
 
 systemRoutes.get('/stats', async (c) => c.json({ stats: await serverStats() }));
+
+systemRoutes.get('/disk', async (c) => c.json({ disk: await diskReport() }));
+
+/**
+ * Tidies up. Narrow on purpose: unused images, build scraps and stopped containers
+ * Derailed made. Never volumes, never backups, never anything unlabelled.
+ */
+systemRoutes.post('/disk/reclaim', async (c) => c.json({ result: await freeUpSpace() }));
+
+systemRoutes.get('/swap', async (c) => c.json({ swap: await swapState() }));
+
+systemRoutes.post('/swap', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { bytes?: number };
+  const state = await swapState();
+  try {
+    const made = await addSwap(body.bytes ?? state.suggestedBytes);
+    return c.json({ swap: await swapState(), added: made.bytes });
+  } catch (err) {
+    if (err instanceof SwapError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
 
 /** Derailed itself, and whatever else someone put on this machine. */
 systemRoutes.get('/others', async (c) => c.json({ others: await otherSoftware(paths.dataDir) }));

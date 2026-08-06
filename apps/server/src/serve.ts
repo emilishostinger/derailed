@@ -19,6 +19,7 @@ import { checkDiskSpace, pruneOldDeployments } from './runtime/housekeeping.ts';
 import { startMonitor, stopMonitor } from './runtime/monitor.ts';
 import { reconcile } from './runtime/reconcile.ts';
 import { startTrashSweep, stopTrashSweep } from './runtime/trash.ts';
+import { diskReport } from './system/disk.ts';
 import { detectServerIp, setCaddyHealthy, systemInfo } from './system/status.ts';
 import { loadSecretKey } from './util/crypto.ts';
 
@@ -85,12 +86,26 @@ export async function serve(): Promise<void> {
   // deploy fails because of it.
   const diskTicker = setInterval(
     async () => {
+      // Two ways of being short of room, and both matter. An absolute floor catches
+      // the small disk with no space for a build; a percentage catches the large one
+      // filling steadily, which the floor would not notice until it was far too late.
       const disk = await checkDiskSpace().catch(() => null);
+      const report = await diskReport().catch(() => null);
+
       if (disk && !disk.ok) {
         publish('system', {
           type: 'notice',
           level: 'warn',
           message: `${disk.message} ${disk.hint ?? ''}`.trim(),
+        });
+      } else if (report && report.level !== 'ok') {
+        publish('system', {
+          type: 'notice',
+          level: report.level === 'full' ? 'error' : 'warn',
+          message:
+            report.reclaimableBytes > 0
+              ? `${report.summary} Open the Server page to tidy up.`
+              : report.summary,
         });
       }
     },

@@ -66,6 +66,15 @@ Creating a service:
 | `GET /services/:id/volumes` · `POST` | Storage |
 | `GET /services/:id/domains` · `POST` | Its addresses |
 
+## The machine's disk
+
+| | |
+| --- | --- |
+| `GET /system/disk` | What is using the disk, by category, with what could be freed |
+| `POST /system/disk/reclaim` | Remove unused images, build scraps and stopped containers |
+| `GET /system/swap` | Whether this server has swap, and whether it should |
+| `POST /system/swap` | Create a swap file and turn it on. `{ bytes }`, or the suggested size |
+
 ## The trash
 
 Deleting is undoable for seven days. See [trash](trash.md).
