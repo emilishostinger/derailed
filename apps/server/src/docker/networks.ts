@@ -16,6 +16,15 @@ export async function listNetworks(filters = MANAGED_FILTER): Promise<NetworkSum
   return dockerJson<NetworkSummary[]>('/networks', { query: { filters } });
 }
 
+/** Full detail for one network, including what is attached to it. */
+export async function inspectNetwork(
+  name: string,
+): Promise<{ Containers?: Record<string, unknown> } | null> {
+  return dockerJson<{ Containers?: Record<string, unknown> }>(
+    `/networks/${encodeURIComponent(name)}`,
+  );
+}
+
 export async function networkExists(name: string): Promise<boolean> {
   const networks = await dockerJson<NetworkSummary[]>('/networks', {
     query: { filters: JSON.stringify({ name: [name] }) },

@@ -21,6 +21,7 @@ import { removeImage } from '../docker/images.ts';
 import { LABELS, labelFilter } from '../docker/labels.ts';
 import { projectNetworkName, removeNetwork } from '../docker/networks.ts';
 import { removeVolume } from '../docker/volumes.ts';
+import { forgetPreview } from './preview.ts';
 
 /**
  * Deleting is not the end of it.
@@ -157,6 +158,7 @@ async function purgeServiceBelongings(serviceId: string): Promise<void> {
   }
 
   await removeUpload(serviceId).catch(() => undefined);
+  await forgetPreview(serviceId).catch(() => undefined);
 }
 
 /** Throws one item away for good. */

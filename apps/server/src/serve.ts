@@ -16,8 +16,13 @@ import { ensureCaddyRunning, pingCaddy } from './proxy/caddy.ts';
 import { startDomainWatcher, stopDomainWatcher } from './proxy/domainwatch.ts';
 import { startFreeDomainRenewal, stopFreeDomainRenewal } from './proxy/freedomain.ts';
 import { syncRoutes } from './proxy/sync.ts';
-import { checkDiskSpace, pruneOldDeployments } from './runtime/housekeeping.ts';
+import {
+  checkDiskSpace,
+  pruneOldDeployments,
+  pruneOrphanedNetworks,
+} from './runtime/housekeeping.ts';
 import { startMonitor, stopMonitor } from './runtime/monitor.ts';
+import { startPreviews, stopPreviews } from './runtime/preview.ts';
 import { reconcile } from './runtime/reconcile.ts';
 import { startTrashSweep, stopTrashSweep } from './runtime/trash.ts';
 import { diskReport } from './system/disk.ts';
@@ -146,6 +151,7 @@ export async function serve(): Promise<void> {
     stopBackupSchedule();
     stopDrills();
     stopTrashSweep();
+    stopPreviews();
     stopReleaseWatcher();
     stopPushWatcher();
     stopUpdateNotifier();
@@ -202,6 +208,7 @@ async function bootRuntime(): Promise<void> {
     startBackupSchedule();
     startDrills((line) => console.log(`  backups    →  ${line}`));
     startTrashSweep((line) => console.log(`  trash      →  ${line}`));
+    startPreviews();
     startReleaseWatcher();
     startPushWatcher();
     startUpdateNotifier();
@@ -209,6 +216,12 @@ async function bootRuntime(): Promise<void> {
     pruneTraffic();
 
     // Old build logs and images are the main way a small VPS fills up.
+    // Docker's address pool is small and project networks outlive their projects when
+    // something goes wrong. Exhausting it breaks every future deploy on a machine that
+    // otherwise looks fine, so this runs at every boot.
+    const orphaned = await pruneOrphanedNetworks().catch(() => []);
+    if (orphaned.length) console.log(`  cleaned up →  ${orphaned.length} unused project networks`);
+
     const pruned = await pruneOldDeployments();
     if (pruned.deploymentsRemoved > 0) {
       console.log(

@@ -56,6 +56,8 @@ export type ServerEvent =
     }
   | { type: 'deployment.logs'; deploymentId: string; lines: LogLine[] }
   | { type: 'service.logs'; serviceId: string; lines: LogLine[] }
-  | { type: 'domain.updated'; domain: Domain };
+  | { type: 'domain.updated'; domain: Domain }
+  /** A fresh title, icon or screenshot is available for this app. */
+  | { type: 'preview'; serviceId: string };
 
 export type ServerEventType = ServerEvent['type'];

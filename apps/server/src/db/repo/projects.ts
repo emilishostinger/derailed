@@ -45,6 +45,14 @@ export function listProjects(): Project[] {
     .map(toProject);
 }
 
+/** Every project, deleted or not. Used where "does this still belong to us" is asked. */
+export function listProjectsEvenIfDeleted(): Project[] {
+  return db()
+    .query<ProjectRow, []>('SELECT * FROM projects ORDER BY created_at')
+    .all()
+    .map(toProject);
+}
+
 /** Deleted, still recoverable, newest first: what the trash shows. */
 export function listDeletedProjects(): Project[] {
   return db()

@@ -314,6 +314,14 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  previewSettings: () =>
+    api.get<{ screenshots: boolean }>('/system/previews').then((r) => r.screenshots),
+  setPreviewSettings: (screenshots: boolean) =>
+    api
+      .put<{ screenshots: boolean }>('/system/previews', { screenshots })
+      .then((r) => r.screenshots),
+  refreshPreview: (serviceId: string) => api.post<unknown>(`/services/${serviceId}/preview`),
+
   doctor: () => api.get<{ report: DoctorReport }>('/system/doctor').then((r) => r.report),
   doctorFix: (action: DoctorFix) =>
     api.post<{ report: DoctorReport }>(`/system/doctor/fix/${action}`).then((r) => r.report),

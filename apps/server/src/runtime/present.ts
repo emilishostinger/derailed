@@ -9,6 +9,7 @@ import { findService, listServices, repoToken } from '../db/repo/services.ts';
 import { listVolumesFor } from '../db/repo/volumes.ts';
 import { publishAll } from '../events/bus.ts';
 import { liveStatus } from './livestatus.ts';
+import { readPreview } from './preview.ts';
 
 /**
  * Everything the API and the WebSocket hand to the browser goes through here, so a
@@ -55,6 +56,9 @@ export function presentService(service: Service): Service {
         ? storageAdviceFor(service.image, service.framework, service.name)
         : null,
     hasRepoToken: !!repoToken(service.id),
+    // What the site actually looks like: its own title, icon and, if screenshots are
+    // switched on, a picture. Absent until the first sweep has been past.
+    preview: readPreview(service.id) ?? undefined,
   };
 }
 

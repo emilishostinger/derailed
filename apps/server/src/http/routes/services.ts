@@ -29,6 +29,7 @@ import { LABELS, labelFilter } from '../../docker/labels.ts';
 import { publish } from '../../events/bus.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { emitProject, emitService, presentService } from '../../runtime/present.ts';
+import { previewFile, refreshPreview } from '../../runtime/preview.ts';
 import type { AppEnv } from '../auth.ts';
 import { badRequest, notFound, parseBody } from '../errors.ts';
 
@@ -89,6 +90,31 @@ projectServiceRoutes.post('/:id/services', async (c) => {
   if (body.deployNow !== false) queueDeployment(service.id, 'manual');
   emitProject(project.id);
   return c.json({ service: presentService(service) }, 201);
+});
+
+/**
+ * The title, icon or screenshot of a running site.
+ *
+ * Served from here rather than as a static file so it is behind the same session
+ * check as everything else: what your apps look like is nobody else's business.
+ */
+serviceRoutes.get('/previews/:name', async (c) => {
+  const file = await previewFile(c.req.param('name'));
+  if (!file) throw notFound('That preview');
+  return new Response(file.bytes, {
+    headers: {
+      'content-type': file.type,
+      // Short, because the point is that it changes. Long enough that a dashboard
+      // with a dozen tiles is not a dozen requests every time it is opened.
+      'cache-control': 'private, max-age=300',
+    },
+  });
+});
+
+serviceRoutes.post('/:id/preview', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  return c.json({ preview: await refreshPreview(service.id) });
 });
 
 serviceRoutes.get('/:id', (c) => {

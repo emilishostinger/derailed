@@ -163,6 +163,25 @@ To check what the router is actually serving:
 curl --unix-socket /var/lib/derailed/caddy-admin/admin.sock http://x/config/ | head -c 400
 ```
 
+## "all predefined address pools have been fully subnetted"
+
+Docker hands each project its own network, and it can only allocate about thirty of
+them before it runs out. When it does, nothing can create a network again: no new
+project, no new database, no deploy, on a machine that otherwise looks completely
+healthy.
+
+Derailed removes project networks belonging to projects that no longer exist at every
+boot, so this should not build up. If you are on an older version, or something else
+on the machine is using them:
+
+```sh
+docker network prune          # removes every unused network, not only Derailed's
+docker network ls | wc -l     # should be comfortably under thirty
+```
+
+Networks belonging to something in the trash are deliberately kept, so restoring a
+project finds its apps still able to reach their databases.
+
 ## I'm locked out of the dashboard
 
 From the server:

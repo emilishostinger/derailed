@@ -95,6 +95,11 @@ export const SETTINGS = {
   offsitePathStyle: 'offsite_path_style',
   offsiteLastCopyAt: 'offsite_last_copy_at',
   offsiteLastError: 'offsite_last_error',
+  /**
+   * Whether to take screenshots of the running sites. Off by default: it needs a
+   * 300 MB browser image, which is not something to download without being asked.
+   */
+  previewShots: 'preview_shots',
   /** The most recent restore drill, stored whole as JSON. */
   drillLast: 'drill_last',
 } as const;

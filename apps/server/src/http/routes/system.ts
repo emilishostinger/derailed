@@ -3,7 +3,14 @@ import { Hono } from 'hono';
 import { paths } from '../../config.ts';
 import { createDomain, findDomainByHostname, listDomains } from '../../db/repo/domains.ts';
 import { listServices } from '../../db/repo/services.ts';
-import { deleteSetting, getSetting, SETTINGS, setSetting } from '../../db/repo/settings.ts';
+import {
+  deleteSetting,
+  getBoolSetting,
+  getSetting,
+  SETTINGS,
+  setBoolSetting,
+  setSetting,
+} from '../../db/repo/settings.ts';
 import { ensureCaddyRunning } from '../../proxy/caddy.ts';
 import { checkDns } from '../../proxy/dns.ts';
 import { checkDomain } from '../../proxy/domainwatch.ts';
@@ -34,6 +41,21 @@ systemRoutes.get('/', async (c) => c.json({ system: await systemInfo() }));
 systemRoutes.get('/update', async (c) => c.json({ update: await checkForUpdate() }));
 
 systemRoutes.get('/stats', async (c) => c.json({ stats: await serverStats() }));
+
+systemRoutes.get('/previews', (c) =>
+  c.json({ screenshots: getBoolSetting(SETTINGS.previewShots) }),
+);
+
+/**
+ * Screenshots are off by default. Turning them on means downloading a browser image
+ * of a few hundred megabytes, which is not something to do to somebody's disk without
+ * being asked first.
+ */
+systemRoutes.put('/previews', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { screenshots?: boolean };
+  setBoolSetting(SETTINGS.previewShots, body.screenshots === true);
+  return c.json({ screenshots: getBoolSetting(SETTINGS.previewShots) });
+});
 
 systemRoutes.get('/doctor', async (c) => c.json({ report: await runDoctor() }));
 

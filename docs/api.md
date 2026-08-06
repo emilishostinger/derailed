@@ -77,6 +77,15 @@ Creating a service:
 | `GET /backups/drill` | The most recent proof that a backup can be read back |
 | `POST /backups/drill` | Check one now. `{ backupId }`, or the newest |
 
+## Previews
+
+| | |
+| --- | --- |
+| `GET /system/previews` | Whether screenshots are switched on |
+| `PUT /system/previews` | `{ screenshots }`. Off by default; on means downloading a browser |
+| `POST /services/:id/preview` | Refresh one app's title, icon and picture now |
+| `GET /services/previews/:name` | The image itself. Behind the session, like everything |
+
 ## Health
 
 | | |

@@ -34,6 +34,7 @@ import { appBaseDomain, isCoveredByFreeDomain } from '../proxy/freedomain.ts';
 import { generatedHostname } from '../proxy/routes.ts';
 import { syncRoutes } from '../proxy/sync.ts';
 import { checkDiskSpace } from '../runtime/housekeeping.ts';
+import { refreshPreview } from '../runtime/preview.ts';
 import { DeploymentLog, logPathFor } from './deploylog.ts';
 import { detectRepo, resolvePort, safeJoin } from './detect.ts';
 import { cloneRepo, FriendlyError } from './git.ts';
@@ -598,6 +599,10 @@ async function launch(input: LaunchInput): Promise<void> {
   // container is gone, so "finished" always means finished.
   updateDeployment(deployment.id, { status: 'running' });
   await syncRoutes();
+
+  // The site has just changed, so whatever is on its tile is now out of date. A short
+  // delay because the container has only this second started answering.
+  setTimeout(() => void refreshPreview(service.id).catch(() => undefined), 20_000).unref?.();
   for (const id of superseded) {
     const old = findDeployment(id);
     if (old) emitDeployment(old);

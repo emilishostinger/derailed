@@ -70,6 +70,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | ☁️ **And backups that leave the building** | Copied to Backblaze, R2, Wasabi, Storj, MinIO or anywhere else that speaks S3, so losing the server does not lose them too. The Test button writes a file, reads it back and deletes it, because keys that can write and not read are the usual nasty surprise. |
 | ✅ **Backups that prove they restore** | Once a month Derailed opens the newest one and checks every database dump and stored folder inside it is complete, then says so. Every other tool tells you a backup was made; this is the part anyone actually cares about. |
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |
+| 🖼️ **Your apps, not a process list** | Every tile carries the site's own icon and title, read from the thing that is actually running. Turn on screenshots and it carries a picture too. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
 | 🩺 **One button that checks everything** | Docker, the router, disk, memory, swap, the clock, domains, certificates and backups, each either fine or telling you what to do. `derailed doctor` on the command line, for when the dashboard is the broken thing. |
 | 💬 **Plain language everywhere** | Never "ingress", never "SIGTERM". When something breaks, the error says what to do next. |

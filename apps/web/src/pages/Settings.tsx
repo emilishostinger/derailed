@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
-import { ErrorNote, Field, Spinner } from '../components/ui.tsx';
+import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
 
@@ -62,6 +62,10 @@ export function Settings() {
             <AppDomain />
           </Section>
 
+          <Section title="How your apps look here">
+            <Screenshots />
+          </Section>
+
           <Section title="Keeping up to date">
             <UpdateCheck />
           </Section>
@@ -116,6 +120,55 @@ export function Settings() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Whether to photograph the running sites.
+ *
+ * Off by default, and it says why: turning it on downloads a browser image of a few
+ * hundred megabytes, which is a real cost on the servers this is aimed at and not
+ * something to spend on somebody's behalf.
+ */
+function Screenshots() {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  useEffect(() => {
+    endpoints
+      .previewSettings()
+      .then(setOn)
+      .catch(() => setOn(false));
+  }, []);
+
+  if (on === null) return null;
+
+  return (
+    <div>
+      <p className="mb-3 text-[13px] text-ink-muted">
+        Every app already shows its own icon and title on the dashboard, taken from the running
+        site. Derailed can also take a picture of each one every few hours.
+      </p>
+      <Switch
+        checked={on}
+        label="Take screenshots of my sites"
+        hint="Needs a browser on the server, about 300 MB, downloaded once the first time a picture is taken."
+        onChange={async (next) => {
+          setBusy(true);
+          setError(null);
+          try {
+            setOn(await endpoints.setPreviewSettings(next));
+          } catch (err) {
+            setError(err);
+          } finally {
+            setBusy(false);
+          }
+        }}
+        disabled={busy}
+      />
+      <ErrorNote error={error} />
+    </div>
   );
 }
 

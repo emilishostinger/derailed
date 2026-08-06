@@ -17,6 +17,7 @@ import type { OtherSoftware } from '../api/endpoints.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { DropToHost } from '../components/DropToHost.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
+import { ProjectPreview } from '../components/SitePreview.tsx';
 import { cx, EmptyState, ErrorNote, Field, Modal, Spinner, StatusDot } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
@@ -230,6 +231,8 @@ function ProjectCard({ project }: { project: Project }) {
             <MoreHorizontal className="h-3.5 w-3.5" />
           </button>
         </div>
+
+        <ProjectPreview services={apps} />
 
         {address ? (
           <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-accent">

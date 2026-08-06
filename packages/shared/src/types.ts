@@ -127,6 +127,17 @@ export interface Service {
    * and no storage is attached yet.
    */
   storageWarning?: { paths: string[]; what: string } | null;
+  /**
+   * What the running site looks like: its own title and icon, and a screenshot when
+   * those are switched on. Decoration, and always optional.
+   */
+  preview?: {
+    title: string | null;
+    /** Name to fetch from `/api/services/previews/`, or null. */
+    iconPath: string | null;
+    shotPath: string | null;
+    at: number;
+  };
 }
 
 export interface DeploymentSummary {

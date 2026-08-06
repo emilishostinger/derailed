@@ -1,7 +1,14 @@
 import { deleteDeploymentLog } from '../build/deploylog.ts';
 import { deleteDeployment, deploymentsToPrune, runningDeployment } from '../db/repo/deployments.ts';
+import { listProjectsEvenIfDeleted } from '../db/repo/projects.ts';
 import { listServices } from '../db/repo/services.ts';
 import { removeImage } from '../docker/images.ts';
+import {
+  inspectNetwork,
+  listNetworks,
+  projectNetworkName,
+  removeNetwork,
+} from '../docker/networks.ts';
 import { systemInfo } from '../system/status.ts';
 
 /** How many deployments keep their logs and their image, per service. */
@@ -63,6 +70,41 @@ export async function pruneOldDeployments(keep = KEEP_DEPLOYMENTS): Promise<Prun
   }
 
   return report;
+}
+
+/**
+ * Removes project networks nothing is using any more.
+ *
+ * Every project gets its own bridge network, and Docker allocates each one a subnet
+ * from a pool with a hard limit of about thirty. Left to accumulate, the failure is
+ * not a leak that wastes a little memory: it is `all predefined address pools have
+ * been fully subnetted`, at which point no project, no database and no deploy can
+ * create a network again, on a machine that looks completely healthy.
+ *
+ * Only networks named after a project that no longer exists, and only when nothing is
+ * attached. A network belonging to something in the trash is left alone: restoring a
+ * project should find its apps able to reach their databases without a redeploy.
+ */
+export async function pruneOrphanedNetworks(): Promise<string[]> {
+  const known = new Set(
+    listProjectsEvenIfDeleted().map((project) => projectNetworkName(project.id)),
+  );
+  const removed: string[] = [];
+
+  for (const network of await listNetworks().catch(() => [])) {
+    if (!network.Name.startsWith('derailed-p_')) continue;
+    if (known.has(network.Name)) continue;
+
+    // Attached to something, whatever the database thinks. Removing it would cut a
+    // running container off from whatever it is talking to.
+    const details = await inspectNetwork(network.Name).catch(() => null);
+    if (details && Object.keys(details.Containers ?? {}).length > 0) continue;
+
+    await removeNetwork(network.Name).catch(() => undefined);
+    removed.push(network.Name);
+  }
+
+  return removed;
 }
 
 export interface DiskCheck {

@@ -441,6 +441,11 @@ export function buildCaddyConfig(
   });
 }
 
+/** The host port the proxy is actually serving plain HTTP on, after `resolvePorts`. */
+export function caddyHttpPort(): number {
+  return httpPort;
+}
+
 /**
  * The port a visitor actually types (dev uses high ports to avoid needing root).
  *
