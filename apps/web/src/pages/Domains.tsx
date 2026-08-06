@@ -169,6 +169,7 @@ function AddDomain({
 }) {
   const [hostname, setHostname] = useState('');
   const [alsoWww, setAlsoWww] = useState(true);
+  const [shown, setShown] = useState<'typed' | 'other'>('typed');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [result, setResult] = useState<DomainRow[] | null>(null);
@@ -177,7 +178,14 @@ function AddDomain({
     setBusy(true);
     setError(null);
     try {
-      const { domains } = await endpoints.addOwnDomain(hostname.trim().toLowerCase(), alsoWww);
+      // The server always takes the apex as the name and works the pair out from it,
+      // so typing the www half is turned back into the same request with the other
+      // half marked as the one people see.
+      const { domains } = await endpoints.addOwnDomain(
+        pairable && alsoWww ? apexOf(typed) : typed,
+        pairable && alsoWww,
+        wantsWwwShown ? 'www' : 'apex',
+      );
       setResult(domains);
     } catch (err) {
       setError(err);
@@ -186,8 +194,13 @@ function AddDomain({
     }
   }
 
-  // Only an apex domain has a www version worth offering.
-  const apex = hostname.trim().split('.').filter(Boolean).length === 2;
+  const typed = hostname.trim().toLowerCase().replace(/\.$/, '');
+  const typedIsWww = typed.startsWith('www.');
+  const other = typedIsWww ? apexOf(typed) : `www.${typed}`;
+  // Offered both ways round: someone who types the www half wants the bare one too,
+  // and the old check only looked at label count, so it never asked them.
+  const pairable = apexOf(typed).split('.').filter(Boolean).length === 2;
+  const wantsWwwShown = pairable && alsoWww && (typedIsWww ? shown === 'typed' : shown === 'other');
 
   return (
     <Modal title="Add a domain" onClose={onClose}>
@@ -229,15 +242,47 @@ function AddDomain({
             />
           </label>
 
-          {apex && (
-            <label className="flex items-center gap-2 text-[12px] text-ink-muted">
-              <input
-                type="checkbox"
-                checked={alsoWww}
-                onChange={(event) => setAlsoWww(event.target.checked)}
-              />
-              Also add www.{hostname.trim()}
-            </label>
+          {pairable && (
+            <div className="rounded-[var(--radius-card)] border border-line p-3.5">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={alsoWww}
+                  onChange={(event) => setAlsoWww(event.target.checked)}
+                />
+                <span className="min-w-0">
+                  <span className="block text-[13px] text-ink">Set up {other} as well</span>
+                  <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-muted">
+                    {typedIsWww
+                      ? 'Plenty of people leave the www off. Without it they get an error rather than your site.'
+                      : 'Most people type it out of habit. Without it they get an error rather than your site.'}
+                  </span>
+                </span>
+              </label>
+
+              {/* Only once there are two of them is there anything to choose between. */}
+              {alsoWww && (
+                <div className="mt-3 border-t border-line pt-3">
+                  <p className="text-[12px] font-medium text-ink">Which one do people see?</p>
+                  <p className="mt-0.5 text-[11px] text-ink-faint">
+                    The other sends visitors to it, so a link shared anywhere ends up in the same
+                    place. This can be changed later.
+                  </p>
+                  <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                    {(['typed', 'other'] as const).map((which) => (
+                      <HostChoice
+                        key={which}
+                        group="add-domain-primary"
+                        hostname={which === 'typed' ? typed : other}
+                        chosen={shown === which}
+                        onChoose={() => setShown(which)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           <div className="rounded-[var(--radius-card)] border border-line bg-surface-2 p-3 text-[12px] text-ink-muted">
@@ -539,9 +584,73 @@ function statusLabel(domain: DomainRow): string {
   return 'Getting a certificate…';
 }
 
+/** `example.com` for both `example.com` and `www.example.com`. */
+function apexOf(hostname: string): string {
+  return hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+}
+
 /** `www.example.com` for `example.com`, and the other way round. */
 function otherHalf(hostname: string): string {
   return hostname.startsWith('www.') ? hostname.slice(4) : `www.${hostname}`;
+}
+
+/**
+ * One address in a pair, as something you pick rather than something you read.
+ *
+ * Shared by the add dialog and the domain card so the question looks the same in
+ * both places: it is the same question, asked before and after the fact.
+ */
+function HostChoice({
+  group,
+  hostname,
+  chosen,
+  onChoose,
+  disabled,
+  note,
+}: {
+  /** Ties the pair together, so the browser treats them as one choice. */
+  group: string;
+  hostname: string;
+  chosen: boolean;
+  onChoose: () => void;
+  disabled?: boolean;
+  note?: string;
+}) {
+  return (
+    <label
+      className={cx(
+        'flex cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-[12px] transition-colors',
+        'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent',
+        chosen
+          ? 'border-accent bg-accent-soft text-ink'
+          : 'border-line text-ink-muted hover:border-line-strong hover:text-ink',
+        disabled && 'pointer-events-none opacity-60',
+      )}
+    >
+      {/* A real radio rather than a button wearing the role. The browser then gives
+          arrow-key movement, grouping and "selected" to a screen reader for free,
+          none of which a div with aria-checked has unless it is written by hand. */}
+      <input
+        type="radio"
+        name={group}
+        className="sr-only"
+        checked={chosen}
+        disabled={disabled}
+        aria-label={hostname}
+        onChange={() => onChoose()}
+      />
+      <span
+        className={cx(
+          'flex h-3 w-3 shrink-0 items-center justify-center rounded-full border',
+          chosen ? 'border-accent bg-accent-solid' : 'border-line-strong',
+        )}
+      >
+        {chosen && <span className="h-1 w-1 rounded-full bg-white" />}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{hostname}</span>
+      {note && <span className="shrink-0 text-[11px] text-ink-faint">{note}</span>}
+    </label>
+  );
 }
 
 /**
@@ -620,34 +729,17 @@ function WwwHalf({
       </p>
 
       <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
-        {[domain, partner].map((option) => {
-          const chosen = option.id === domain.id;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              disabled={busy || chosen}
-              onClick={() => void run(() => endpoints.makePrimary(option.id))}
-              className={cx(
-                'flex items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-left text-[12px] transition-colors',
-                chosen
-                  ? 'border-accent bg-accent-soft text-ink'
-                  : 'border-line text-ink-muted hover:border-line-strong hover:text-ink',
-              )}
-            >
-              <span
-                className={cx(
-                  'flex h-3 w-3 shrink-0 items-center justify-center rounded-full border',
-                  chosen ? 'border-accent bg-accent-solid' : 'border-line-strong',
-                )}
-              >
-                {chosen && <span className="h-1 w-1 rounded-full bg-white" />}
-              </span>
-              <span className="min-w-0 flex-1 truncate">{option.hostname}</span>
-              {chosen && <span className="shrink-0 text-[11px] text-ink-faint">shown</span>}
-            </button>
-          );
-        })}
+        {[domain, partner].map((option) => (
+          <HostChoice
+            key={option.id}
+            group={`primary-${domain.id}`}
+            hostname={option.hostname}
+            chosen={option.id === domain.id}
+            disabled={busy}
+            note={option.id === domain.id ? 'shown' : undefined}
+            onChoose={() => void run(() => endpoints.makePrimary(option.id))}
+          />
+        ))}
       </div>
 
       {needsRecord && (

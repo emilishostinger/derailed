@@ -87,6 +87,12 @@
   --d-line-strong: var(--d-line-strong-base);
 }
 
+/* And a panel inside one is still a panel: this beats the rule above on specificity,
+   which is the point, or a menu opened from the sidebar would lose its dividers. */
+.deep-surface .panel {
+  --d-line: var(--d-line-elevated);
+}
+
 @theme inline {
   --color-canvas: var(--d-canvas);
   /* Recessed inside a panel: a log pane, the topology background. */
@@ -155,6 +161,10 @@
   --d-elevated: #26262a;
   --d-line-base: #28282c;
   --d-line-strong-base: #3f3f45;
+  /* A divider drawn on an elevated panel, which is lighter than the surface behind
+     it. The base line is tuned against that surface and vanishes on top of one:
+     #28282c on #26262a is 1.02, which is no line at all. */
+  --d-line-elevated: #35353c;
   --d-ink-base: #f4f4f5;
   --d-ink-muted-base: #9a9aa4;
   --d-ink-faint-base: #71717c;
@@ -206,6 +216,8 @@
   --d-elevated: #ffffff;
   --d-line-base: #e5e5e9;
   --d-line-strong-base: #c4c4cc;
+  /* Already right on white, and kept named so both themes say it the same way. */
+  --d-line-elevated: #e5e5e9;
   --d-ink-base: #151517;
   --d-ink-muted-base: #63636e;
   --d-ink-faint-base: #8b8b96;
@@ -400,6 +412,9 @@ h3 {
   .panel {
     border-radius: var(--radius-panel);
     box-shadow: var(--d-shadow-pop);
+    /* Everything inside a panel draws its lines against the panel, not against the
+       surface the panel is sitting on. */
+    --d-line: var(--d-line-elevated);
     @apply border border-line bg-elevated;
   }
 

@@ -194,6 +194,4 @@ MIT. See [LICENSE](LICENSE).
 
 **If this saves you a weekend, a ⭐ helps other people find it.**
 
-<sub>Yes, the name is a joke. No, nothing here is going off the rails.</sub>
-
 </div>

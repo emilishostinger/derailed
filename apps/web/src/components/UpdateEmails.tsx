@@ -267,7 +267,7 @@ export function UpdateEmails() {
                   onChange={(event) => {
                     const chosen = PRESETS.find((entry) => entry.id === event.target.value);
                     setPreset(event.target.value);
-                    if (chosen && chosen.host) {
+                    if (chosen?.host) {
                       set({ host: chosen.host, port: chosen.port, security: chosen.security });
                     }
                   }}
