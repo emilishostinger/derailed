@@ -2,6 +2,7 @@ import type { Deployment, LogLine, Project, Service } from '@derailed/shared';
 import { create } from 'zustand';
 import { endpoints } from '../api/endpoints.ts';
 import { live } from '../api/ws.ts';
+import { celebrateDeploy } from '../components/celebrateDeploy.ts';
 
 interface Stats {
   cpuPercent: number;
@@ -178,6 +179,11 @@ live.on((event) => {
       break;
     case 'deployment.updated':
       store.recordDeployment(event.deployment);
+      // The moment the whole product exists for, which until now ended with a status
+      // dot quietly turning green. Only on the edge into a finished state, or a
+      // deployment reporting progress would chime once per step.
+      if (event.deployment.status === 'running') celebrateDeploy('ok');
+      if (event.deployment.status === 'failed') celebrateDeploy('bad');
       break;
     case 'deployment.logs':
       store.appendLogs(event.deploymentId, event.lines);

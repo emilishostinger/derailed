@@ -81,6 +81,7 @@ Creating a service:
 
 | | |
 | --- | --- |
+| `GET /system/cost` | What everything running would cost on a platform that sends a bill |
 | `GET /system/previews` | Whether screenshots are switched on |
 | `PUT /system/previews` | `{ screenshots }`. Off by default; on means downloading a browser |
 | `POST /services/:id/preview` | Refresh one app's title, icon and picture now |

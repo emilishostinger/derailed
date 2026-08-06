@@ -73,6 +73,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | 🖼️ **Your apps, not a process list** | Every tile carries the site's own icon and title, read from the thing that is actually running. Turn on screenshots and it carries a picture too. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
 | 🩺 **One button that checks everything** | Docker, the router, disk, memory, swap, the clock, domains, certificates and backups, each either fine or telling you what to do. `derailed doctor` on the command line, for when the dashboard is the broken thing. |
+| 🐷 **What this would cost elsewhere** | Adds up what is actually running and prices it against Vercel, Railway, Render and Heroku, from published list prices, deliberately conservatively. The value of your own server is otherwise invisible. |
 | 💬 **Plain language everywhere** | Never "ingress", never "SIGTERM". When something breaks, the error says what to do next. |
 
 <br>

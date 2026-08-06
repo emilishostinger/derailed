@@ -359,6 +359,33 @@ export interface DrillResult {
   summary: string;
 }
 
+/**
+ * What everything running here would cost on a platform that sends a bill.
+ *
+ * The point is that the value of your own server is otherwise invisible: nothing
+ * arrives monthly to remind you it is worth having. Every figure is a published list
+ * price and the estimate is deliberately conservative, because a number that flatters
+ * itself is worth nothing.
+ */
+export interface CostElsewhere {
+  name: string;
+  monthly: number;
+  note: string | null;
+}
+
+export interface CostComparison {
+  apps: number;
+  databases: number;
+  projects: number;
+  storageGb: number;
+  elsewhere: CostElsewhere[];
+  cheapestMonthly: number;
+  dearestMonthly: number;
+  /** When the prices were last checked, so an old figure is obviously old. */
+  pricesCheckedAt: string;
+  summary: string;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

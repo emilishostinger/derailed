@@ -23,6 +23,7 @@ import {
 } from '../../proxy/freedomain.ts';
 import { generatedHostname, isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
+import { costComparison } from '../../system/cost.ts';
 import { diskReport, freeUpSpace } from '../../system/disk.ts';
 import { runDoctor } from '../../system/doctor.ts';
 import { otherSoftware } from '../../system/others.ts';
@@ -41,6 +42,8 @@ systemRoutes.get('/', async (c) => c.json({ system: await systemInfo() }));
 systemRoutes.get('/update', async (c) => c.json({ update: await checkForUpdate() }));
 
 systemRoutes.get('/stats', async (c) => c.json({ stats: await serverStats() }));
+
+systemRoutes.get('/cost', (c) => c.json({ cost: costComparison() }));
 
 systemRoutes.get('/previews', (c) =>
   c.json({ screenshots: getBoolSetting(SETTINGS.previewShots) }),

@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { OtherSoftware } from '../api/endpoints.ts';
 import { endpoints } from '../api/endpoints.ts';
+import { CostCounter } from '../components/CostCounter.tsx';
 import { DropToHost } from '../components/DropToHost.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { ProjectPreview } from '../components/SitePreview.tsx';
@@ -78,11 +79,18 @@ export function Dashboard() {
         )}
 
         {loaded && projects.length > 0 && (
-          <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
+              {projects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
+            {/* Below the projects rather than above: it is a nice thing to notice on
+                the way past, not the headline. */}
+            <div className="px-5 pb-5">
+              <CostCounter />
+            </div>
+          </>
         )}
 
         {loaded && <AlsoHere />}

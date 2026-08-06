@@ -1,4 +1,5 @@
 import type {
+  CostComparison,
   Deployment,
   DetectResult,
   DiskReport,
@@ -313,6 +314,8 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  cost: () => api.get<{ cost: CostComparison }>('/system/cost').then((r) => r.cost),
 
   previewSettings: () =>
     api.get<{ screenshots: boolean }>('/system/previews').then((r) => r.screenshots),

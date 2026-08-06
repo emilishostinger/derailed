@@ -25,11 +25,13 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
+import { Confetti } from '../components/Celebrate.tsx';
 import { CommandPalette } from '../components/CommandPalette.tsx';
 import { Wordmark } from '../components/Logo.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { Toasts } from '../components/Toasts.tsx';
 import { cx, ErrorNote, Modal, Spinner, StatusDot } from '../components/ui.tsx';
+import { useCelebration } from '../stores/celebration.ts';
 import { usePalette } from '../stores/palette.ts';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
@@ -37,6 +39,8 @@ import { useTheme } from '../stores/theme.ts';
 import { toastUndo } from '../stores/toasts.ts';
 
 export function Layout() {
+  const confetti = useCelebration((s) => s.confetti);
+  const stopConfetti = useCelebration((s) => s.stop);
   const paletteOpen = usePalette((s) => s.open);
   const setPaletteOpen = usePalette((s) => s.setOpen);
   const togglePalette = usePalette((s) => s.toggle);
@@ -72,6 +76,7 @@ export function Layout() {
         <Outlet />
       </main>
       <Toasts />
+      {confetti && <Confetti onDone={stopConfetti} />}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   );

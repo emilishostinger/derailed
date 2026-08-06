@@ -3,6 +3,7 @@ import { ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
+import { playChime, setSoundsEnabled, soundsEnabled } from '../components/Celebrate.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
 import { useSession } from '../stores/session.ts';
@@ -62,7 +63,7 @@ export function Settings() {
             <AppDomain />
           </Section>
 
-          <Section title="How your apps look here">
+          <Section title="How your apps look, and sound">
             <Screenshots />
           </Section>
 
@@ -132,6 +133,7 @@ export function Settings() {
  */
 function Screenshots() {
   const [on, setOn] = useState<boolean | null>(null);
+  const [sounds, setSounds] = useState(soundsEnabled);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -168,6 +170,19 @@ function Screenshots() {
         disabled={busy}
       />
       <ErrorNote error={error} />
+
+      <div className="mt-4 border-t border-line pt-4">
+        <Switch
+          checked={sounds}
+          label="Make a sound when a deploy finishes"
+          hint="Kept in this browser, not on the server: whether your laptop makes a noise is about the room you are in."
+          onChange={(next) => {
+            setSoundsEnabled(next);
+            setSounds(next);
+            if (next) playChime('ok');
+          }}
+        />
+      </div>
     </div>
   );
 }
