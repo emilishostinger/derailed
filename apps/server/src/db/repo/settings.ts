@@ -82,4 +82,19 @@ export const SETTINGS = {
   backupKeep: 'backup_keep',
   backupKeepDays: 'backup_keep_days',
   backupLastRun: 'backup_last_run',
+  /**
+   * Off-site backups, to any S3-compatible provider. The secret is encrypted like
+   * every other one and is never returned by the API.
+   */
+  offsiteEndpoint: 'offsite_endpoint',
+  offsiteBucket: 'offsite_bucket',
+  offsiteRegion: 'offsite_region',
+  offsiteAccessKey: 'offsite_access_key',
+  offsiteSecretKey: 'offsite_secret_key_enc',
+  offsitePrefix: 'offsite_prefix',
+  offsitePathStyle: 'offsite_path_style',
+  offsiteLastCopyAt: 'offsite_last_copy_at',
+  offsiteLastError: 'offsite_last_error',
+  /** The most recent restore drill, stored whole as JSON. */
+  drillLast: 'drill_last',
 } as const;

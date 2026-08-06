@@ -2,7 +2,8 @@ import type { BackupSchedule } from '@derailed/shared';
 import { listProjects, setProjectBackupSchedule } from '../db/repo/projects.ts';
 import { getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
-import { createBackup, pruneBackups } from './backup.ts';
+import { createBackup, pruneBackups, retention } from './backup.ts';
+import { copyOffsite, pruneOffsite } from './offsite.ts';
 
 /**
  * Scheduled backups.
@@ -71,7 +72,18 @@ async function maybeRun(): Promise<void> {
     if (now - last < INTERVALS[project.backupSchedule]) continue;
 
     try {
-      await createBackup(project.id);
+      const made = await createBackup(project.id);
+      // Off the machine as soon as it exists. A backup on the same disk as the thing
+      // it backs up does nothing about the failure that actually loses data.
+      await copyOffsite(made.id).catch((err) => {
+        publish('system', {
+          type: 'notice',
+          level: 'warn',
+          message: `${project.name} was backed up, but the copy off this server failed: ${
+            err instanceof Error ? err.message : err
+          }`,
+        });
+      });
     } catch (err) {
       publish('system', {
         type: 'notice',
@@ -82,5 +94,6 @@ async function maybeRun(): Promise<void> {
   }
 
   await pruneBackups().catch(() => undefined);
+  await pruneOffsite(retention().keep).catch(() => undefined);
   setSetting(SETTINGS.backupLastRun, String(Date.now()));
 }

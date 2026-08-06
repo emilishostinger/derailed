@@ -1,5 +1,6 @@
 import { startTrafficCollector, stopTrafficCollector } from './analytics/collect.ts';
 import { pruneTraffic } from './analytics/store.ts';
+import { startDrills, stopDrills } from './backup/drill.ts';
 import { startBackupSchedule, stopBackupSchedule } from './backup/schedule.ts';
 import { startPushWatcher, stopPushWatcher } from './build/pushes.ts';
 import { startReleaseWatcher, stopReleaseWatcher } from './build/releases.ts';
@@ -143,6 +144,7 @@ export async function serve(): Promise<void> {
     stopDomainWatcher();
     stopFreeDomainRenewal();
     stopBackupSchedule();
+    stopDrills();
     stopTrashSweep();
     stopReleaseWatcher();
     stopPushWatcher();
@@ -198,6 +200,7 @@ async function bootRuntime(): Promise<void> {
     // up, hence its place here rather than beside the other timers.
     startFreeDomainRenewal(() => syncRoutes());
     startBackupSchedule();
+    startDrills((line) => console.log(`  backups    →  ${line}`));
     startTrashSweep((line) => console.log(`  trash      →  ${line}`));
     startReleaseWatcher();
     startPushWatcher();

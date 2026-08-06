@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
+import { Drill, Offsite } from '../components/Offsite.tsx';
 import { cx, EmptyState, ErrorNote, Modal, Spinner } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { formatBytes, PageHeader } from './Layout.tsx';
@@ -107,6 +108,12 @@ export function Backups() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-2.5 p-5">
           <ErrorNote error={error} />
+
+          {/* Both of these come first, because they are the two things that decide
+              whether the copies below are worth anything: are they anywhere else,
+              and has anyone ever read one back. */}
+          <Offsite />
+          <Drill />
 
           {loading && (
             <div className="flex justify-center py-16 text-ink-faint">

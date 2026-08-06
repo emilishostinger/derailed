@@ -305,6 +305,49 @@ export interface DoctorReport {
   level: 'ok' | 'warn' | 'bad';
 }
 
+/**
+ * Where backups are copied to, so losing the server does not lose them too.
+ *
+ * S3-compatible only, on purpose: one implementation reaches Backblaze B2, Cloudflare
+ * R2, Wasabi, Storj, MinIO, Hetzner and AWS.
+ */
+export interface OffsiteSettings {
+  endpoint: string;
+  bucket: string;
+  region: string;
+  accessKeyId: string;
+  prefix: string;
+  /** `endpoint/bucket/key` rather than `bucket.endpoint/key`. Most providers want it. */
+  pathStyle: boolean;
+  /** Whether a secret is stored. The secret itself never leaves the server. */
+  hasSecret: boolean;
+}
+
+export interface OffsiteStatus {
+  configured: boolean;
+  copies: number;
+  newestAt: number | null;
+  totalBytes: number;
+  error: string | null;
+}
+
+/**
+ * The result of checking that a backup can actually be read back.
+ *
+ * Every backup tool says a backup was made. This is the claim people care about and
+ * almost nobody makes.
+ */
+export interface DrillResult {
+  backupId: string;
+  at: number;
+  tookMs: number;
+  ok: boolean;
+  /** How many databases and stored folders were inspected. */
+  checked: number;
+  problems: string[];
+  summary: string;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

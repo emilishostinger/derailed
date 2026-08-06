@@ -83,3 +83,72 @@ tar xzOf backup.tar.gz ./manifest.json | jq
 - **Images.** They are rebuilt from the repository or pulled again.
 - **Anything an app wrote outside its stored folders**, which is the same data a deploy
   would have destroyed anyway. See [storage](storage.md).
+
+
+## Getting them off this server
+
+A backup on the same disk as the thing it is backing up is a copy, not a backup. The
+failure that actually loses people's data is losing the whole machine: the disk fails,
+the provider closes the account, somebody rebuilds the wrong server. In every one of
+those the local `.tar.gz` files go at the same moment as the originals.
+
+**Backups → Send a copy somewhere else.** Any S3-compatible storage works, which in
+practice means almost everything cheap:
+
+| Provider | Roughly |
+| --- | --- |
+| Backblaze B2 | $6 per TB per month, 10 GB free |
+| Cloudflare R2 | $15 per TB per month, no charge to download |
+| Wasabi, Storj, Hetzner | Similar |
+| MinIO on another machine | Free, and yours |
+| Amazon S3 | Works, and is the most expensive of these |
+
+Fill in the address, bucket, region and keys. Leave **Put the bucket in the path**
+switched on unless you are using Amazon; every other provider expects it, and getting
+it wrong produces a "bucket not found" error that has nothing to do with the bucket.
+
+### The Test button
+
+It writes a small file, reads it back, checks it matches, and deletes it.
+
+All four are separate permissions, and a provider will happily accept keys that can
+write and not read. Testing only the write is how somebody finds out on the worst
+possible day that their backups were never readable. If any step fails, the message
+says which one and what it means.
+
+### What gets copied
+
+Every backup, as soon as it is made, scheduled or by hand. The number kept off-site
+matches the number kept locally, so setting "keep 7" keeps 7 in both places.
+
+The secret key is encrypted at rest like every other secret and is never sent back to
+the browser. Saving the form without retyping it keeps the stored one.
+
+## Proving a backup restores
+
+Every backup tool tells you a backup was made. Almost none tell you it can be read
+back, and the gap between those two is where people lose everything: a truncated
+archive, a database dump that failed half way and was kept anyway, a stored folder
+that was empty when it was copied.
+
+Once a month Derailed opens the newest backup and checks it, without touching anything
+that is running:
+
+- The archive unpacks
+- The manifest inside it is readable
+- Every file the manifest names is present and not empty
+- Every database dump ends with the marker its engine writes when a dump completes
+
+Then it deletes the unpacked copy. The result is on the Backups page: **"This backup
+restores. 4 items checked, all complete."** Or, if not, exactly what is wrong with it.
+
+**Check now** runs it on demand.
+
+### What it does not do
+
+It stops short of restoring into a live database, which would need a container per
+engine and several minutes. It catches every failure seen in practice and is cheap
+enough to run unattended, which a full restore would not be.
+
+Engines whose dumps have no end marker (Redis, MongoDB's archive format) are checked
+for being present and non-empty and no further. Claiming more than that would be a lie.

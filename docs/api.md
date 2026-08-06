@@ -66,6 +66,17 @@ Creating a service:
 | `GET /services/:id/volumes` · `POST` | Storage |
 | `GET /services/:id/domains` · `POST` | Its addresses |
 
+## Off-site backups and drills
+
+| | |
+| --- | --- |
+| `GET /backups/offsite` | Where copies are sent, and what is there. Never the secret |
+| `PUT /backups/offsite` | Set it. Omit `secretAccessKey` to keep the stored one |
+| `DELETE /backups/offsite` | Stop copying, and forget the credentials |
+| `POST /backups/offsite/test` | Write a file, read it back, compare, delete |
+| `GET /backups/drill` | The most recent proof that a backup can be read back |
+| `POST /backups/drill` | Check one now. `{ backupId }`, or the newest |
+
 ## Health
 
 | | |

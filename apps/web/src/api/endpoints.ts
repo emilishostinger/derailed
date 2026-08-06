@@ -5,9 +5,12 @@ import type {
   DoctorFix,
   DoctorReport,
   Domain,
+  DrillResult,
   EnvVar,
   FreeDomain,
   LogLine,
+  OffsiteSettings,
+  OffsiteStatus,
   Project,
   Service,
   SwapState,
@@ -299,6 +302,17 @@ export const endpoints = {
     api.get<{ appDomain: string | null }>('/system/app-domain').then((r) => r.appDomain),
   setAppDomain: (domain: string | null) =>
     api.put<{ appDomain: string | null; added?: number }>('/system/app-domain', { domain }),
+
+  offsite: () => api.get<{ settings: OffsiteSettings; status: OffsiteStatus }>('/backups/offsite'),
+  saveOffsite: (input: Record<string, unknown>) =>
+    api.put<{ settings: OffsiteSettings; status: OffsiteStatus }>('/backups/offsite', input),
+  forgetOffsite: () =>
+    api.delete<{ settings: OffsiteSettings; status: OffsiteStatus }>('/backups/offsite'),
+  testOffsite: () =>
+    api.post<{ result: { roundTripMs: number } }>('/backups/offsite/test').then((r) => r.result),
+
+  drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
+  runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
   doctor: () => api.get<{ report: DoctorReport }>('/system/doctor').then((r) => r.report),
   doctorFix: (action: DoctorFix) =>
