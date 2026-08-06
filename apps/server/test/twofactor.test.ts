@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { initDb } from '../src/db/index.ts';
 import { createApp } from '../src/http/app.ts';
-import { loginLimiter, peerLimiter } from '../src/http/routes/auth.ts';
 import { listAudit } from '../src/http/audit.ts';
+import { loginLimiter, peerLimiter } from '../src/http/routes/auth.ts';
 import { codeFor } from '../src/http/totp.ts';
 import { loadSecretKey } from '../src/util/crypto.ts';
 

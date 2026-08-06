@@ -1,5 +1,5 @@
 import { KeyRound, Monitor, ShieldCheck } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useToasts } from '../stores/toasts.ts';
 import { cx, ErrorNote, Field, Spinner } from './ui.tsx';
@@ -41,8 +41,11 @@ export function Security() {
       .catch(() => setEnabled(false));
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: loaded once on mount.
-  useEffect(load, []);
+  // Loaded once on mount. `load` is recreated every render, so it is deliberately
+  // not a dependency: including it would refetch on every keystroke in the form.
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (enabled === null) return null;
 
