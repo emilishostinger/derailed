@@ -65,49 +65,49 @@ export function Settings() {
             <UpdateEmails />
           </Section>
 
-          <details className="group">
-            <summary className="cursor-pointer text-[13px] text-ink-muted hover:text-ink">
-              Advanced
-            </summary>
-            <div className="card mt-2.5 p-5">
-              <div className="max-w-sm">
-                <Field
-                  label="Public address"
-                  hint="Derailed works this out by itself and almost nobody needs to change it. Set it only if your server sits behind a different address, such as a load balancer."
-                >
-                  <input
-                    className="input"
-                    value={ip}
-                    onChange={(e) => setIp(e.target.value)}
-                    placeholder="203.0.113.7"
-                  />
-                </Field>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={busy}
-                  onClick={() => void save(ip.trim())}
-                >
-                  {busy && <Spinner />}
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  disabled={busy}
-                  onClick={() => void save(null)}
-                >
-                  Work it out again
-                </button>
-                {saved && <span className="text-[12px] text-ok">Saved</span>}
-              </div>
-              <div className="mt-3">
-                <ErrorNote error={error} />
-              </div>
+          {/* This was behind a disclosure marked "Advanced", which held one field and
+              drew the browser's own triangle in a page where nothing else has one. A
+              heading with one thing under it does not need a lid, and "Advanced" was
+              telling people to be nervous about a box they will never open. The
+              hint already says nobody needs to touch it. */}
+          <Section title="Public address">
+            <div className="max-w-sm">
+              <Field
+                label="This server's address on the internet"
+                hint="Derailed works this out by itself and almost nobody needs to change it. Set it only if your server sits behind a different address, such as a load balancer."
+              >
+                <input
+                  className="input"
+                  value={ip}
+                  onChange={(e) => setIp(e.target.value)}
+                  placeholder="203.0.113.7"
+                />
+              </Field>
             </div>
-          </details>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={busy}
+                onClick={() => void save(ip.trim())}
+              >
+                {busy && <Spinner />}
+                Save
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={busy}
+                onClick={() => void save(null)}
+              >
+                Work it out again
+              </button>
+              {saved && <span className="text-[12px] text-ok">Saved</span>}
+            </div>
+            <div className="mt-3">
+              <ErrorNote error={error} />
+            </div>
+          </Section>
         </div>
       </div>
     </>

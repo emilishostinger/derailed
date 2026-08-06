@@ -3,6 +3,7 @@ import { MoreHorizontal, Workflow } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { live } from '../api/ws.ts';
+import { DropToHost } from '../components/DropToHost.tsx';
 import { NewServiceWizard } from '../components/NewServiceWizard.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { ServiceDrawer } from '../components/ServiceDrawer.tsx';
@@ -89,6 +90,8 @@ export function ProjectPage() {
   return (
     <>
       {actions.element}
+      {/* Dropping a zip here means "into this project", so it never asks which one. */}
+      <DropToHost into={{ id: project.id, name: project.name, slug: project.slug }} />
 
       <PageHeader
         title={project.name}
@@ -117,7 +120,7 @@ export function ProjectPage() {
           <EmptyState
             icon={<Workflow className="h-5 w-5" />}
             title="This project is empty"
-            body="Paste a GitHub link to put an app online, or add a database first. Whatever you add shows up here as a map of what's running."
+            body="Paste a GitHub link to put an app online, drop a zip of a folder straight onto this page, or add a database first. Whatever you add shows up here as a map of what's running."
             action={
               <button
                 type="button"

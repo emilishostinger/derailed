@@ -27,11 +27,17 @@ rest and never sent back to the browser.
 
 ### Does it auto-deploy when I push?
 
-No, and deliberately. A push to a branch is a work in progress; it is not a statement
-that the world should see it.
+Yes, once you ask it to. **Settings → Deploy automatically → Every push to your branch**
+on the app, and from then on pushing is all you do: the running app catches up within
+about two minutes.
 
-It does deploy when you publish a **release** on GitHub, if you switch that on for the
-app. See [deploying](deploying.md).
+There is no webhook to set up, no public URL and no shared secret, so it also works on a
+server GitHub cannot reach. And because it asks git rather than GitHub, it works the same
+against GitLab, Bitbucket, Gitea or your own git server.
+
+If pushing and shipping are meant to be separate decisions, the same setting offers
+**Only when I publish a release** instead: ordinary commits are ignored and tagging a
+release is what deploys. See [deploying](deploying.md).
 
 ### Do I need a mail provider for the update emails?
 

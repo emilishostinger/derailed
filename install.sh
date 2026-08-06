@@ -27,6 +27,7 @@ REPO="emilishostinger/derailed"
 BIN_PATH="/usr/local/bin/derailed"
 DATA_DIR="/var/lib/derailed"
 UNIT_PATH="/etc/systemd/system/derailed.service"
+OPENRC_PATH="/etc/init.d/derailed"
 PORT="${DERAILED_PORT:-8422}"
 
 ASSUME_YES="${DERAILED_YES:-0}"
@@ -246,6 +247,17 @@ case "$(uname -m)" in
   *) die "Unsupported processor: $(uname -m). Derailed ships 64-bit Intel and ARM builds." ;;
 esac
 
+# Alpine and friends build on musl rather than glibc, and a glibc binary there does
+# not fail with a message about glibc: the shell says "not found" about a file that is
+# obviously present, which sends people hunting for the wrong problem entirely. There
+# is a separate build, so pick it.
+if [ -f /etc/alpine-release ] || (ldd --version 2>&1 | head -1 | grep -qi musl); then
+  ARCH="$ARCH-musl"
+  LIBC="musl"
+else
+  LIBC="glibc"
+fi
+
 # Read in a subshell. Sourcing os-release directly sets VERSION, NAME and others,
 # which silently overwrote the version of Derailed being installed: every Ubuntu box
 # ended up asking GitHub for a release called "v24.04.4 LTS (Noble Numbat)".
@@ -256,22 +268,72 @@ else
   OS_ID=""; OS_NAME="$(uname -s)"
 fi
 
-case "${OS_ID:-}" in
-  *debian*|*ubuntu*) ;;
-  *)
-    warn "$OS_NAME isn't a tested platform. Derailed is built for Debian and Ubuntu."
-    confirm "Try anyway?" || die "Nothing was changed."
-    ;;
-esac
-
 step "$OS_NAME ($ARCH)"
 
-if command -v systemctl >/dev/null 2>&1; then
-  HAS_SYSTEMD=1
+# Which package manager this machine has.
+#
+# Derailed itself is one static binary and does not care what distribution it is on.
+# The only reason to know is to install curl, git and tar when they are missing, so
+# this is a lookup rather than a supported-platforms list. An unrecognised manager is
+# not a refusal: if the three tools are already there, nothing needs installing and
+# the question never comes up.
+PM=""
+for candidate in apt-get dnf yum pacman apk zypper; do
+  if command -v "$candidate" >/dev/null 2>&1; then PM="$candidate"; break; fi
+done
+
+install_packages() {
+  # $* = package names
+  case "$PM" in
+    apt-get)
+      DEBIAN_FRONTEND=noninteractive apt-get update -qq
+      # shellcheck disable=SC2086
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $* >/dev/null
+      ;;
+    # shellcheck disable=SC2086
+    dnf)    dnf install -y -q $* >/dev/null ;;
+    # shellcheck disable=SC2086
+    yum)    yum install -y -q $* >/dev/null ;;
+    # shellcheck disable=SC2086
+    pacman) pacman -Sy --noconfirm --needed $* >/dev/null ;;
+    # shellcheck disable=SC2086
+    apk)    apk add --no-cache $* >/dev/null ;;
+    # shellcheck disable=SC2086
+    zypper) zypper --non-interactive install -y $* >/dev/null ;;
+    *) return 1 ;;
+  esac
+}
+
+# How this machine starts things at boot.
+#
+# systemd is what nearly every server distribution uses, and OpenRC is what Alpine
+# uses, which is the one people reach for when they want a small VM. Anything else
+# gets the binary and a line telling them how to run it, which is honest and still
+# leaves them with a working Derailed.
+if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+  INIT="systemd"
+elif command -v rc-update >/dev/null 2>&1; then
+  INIT="openrc"
 else
-  HAS_SYSTEMD=0
-  warn "systemd isn't available here, so Derailed won't be installed as a service."
+  INIT="none"
 fi
+HAS_SYSTEMD=0
+[ "$INIT" = "systemd" ] && HAS_SYSTEMD=1
+
+if [ "$INIT" = "none" ]; then
+  warn "No systemd or OpenRC here, so Derailed won't be installed as a service."
+fi
+
+# Waits for the dashboard to answer, so "started" means started.
+wait_for_health() {
+  i=0
+  while [ "$i" -lt 30 ]; do
+    curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && return 0
+    i=$((i + 1))
+    sleep 1
+  done
+  return 1
+}
 
 # ------------------------------------------------------------------ basic tools
 
@@ -280,37 +342,84 @@ for tool in curl git tar; do
   command -v "$tool" >/dev/null 2>&1 || MISSING="$MISSING $tool"
 done
 
+# The musl build still wants the C++ runtime, which a minimal Alpine does not have.
+# Without it the binary starts and immediately reports a missing shared library.
+if [ "$LIBC" = "musl" ] && [ "$PM" = "apk" ] && [ ! -e /usr/lib/libstdc++.so.6 ]; then
+  MISSING="$MISSING libstdc++"
+fi
+
 if [ -n "$MISSING" ]; then
   step "Installing:$MISSING"
-  if command -v apt-get >/dev/null 2>&1; then
-    DEBIAN_FRONTEND=noninteractive apt-get update -qq
-    # shellcheck disable=SC2086
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $MISSING >/dev/null
+  # shellcheck disable=SC2086
+  if install_packages $MISSING; then
+    ok "Installed:$MISSING"
   else
     die "Please install:$MISSING, then run this again."
   fi
-  ok "Installed:$MISSING"
 fi
 
 # ----------------------------------------------------------------------- docker
+
+start_docker() {
+  case "$INIT" in
+    systemd) systemctl enable --now docker >/dev/null 2>&1 || true ;;
+    openrc)  rc-update add docker default >/dev/null 2>&1; rc-service docker start >/dev/null 2>&1 || true ;;
+    *)       return 0 ;;
+  esac
+}
+
+docker_hint() {
+  case "$INIT" in
+    systemd) printf '%s' "Check: systemctl status docker" ;;
+    openrc)  printf '%s' "Check: rc-service docker status" ;;
+    *)       printf '%s' "Start the Docker daemon, then run this again." ;;
+  esac
+}
+
+# get.docker.com covers Debian, Ubuntu, Fedora, CentOS, RHEL and openSUSE. It does
+# not cover Alpine or Arch, which package Docker themselves and where the script
+# refuses rather than doing something surprising, so those go through the
+# distribution instead.
+install_docker() {
+  case "$PM" in
+    apk)    install_packages docker docker-cli ;;
+    pacman) install_packages docker ;;
+    *)      curl -fsSL https://get.docker.com | sh >/dev/null 2>&1 ;;
+  esac
+}
 
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   ok "Docker is already running"
 elif command -v docker >/dev/null 2>&1; then
   step "Docker is installed but not running, starting it"
-  [ "$HAS_SYSTEMD" = "1" ] && systemctl enable --now docker >/dev/null 2>&1 || true
-  docker info >/dev/null 2>&1 || die "Docker is installed but won't start. Check: systemctl status docker"
+  start_docker
+  docker info >/dev/null 2>&1 || die "Docker is installed but won't start. $(docker_hint)"
   ok "Docker started"
 else
   say ""
   say "  Derailed runs your apps in Docker containers, so it needs Docker."
-  confirm "Install Docker now (from get.docker.com)?" || die "Nothing was changed. Install Docker, then run this again."
+  confirm "Install Docker now?" || die "Nothing was changed. Install Docker, then run this again."
   step "Installing Docker. This takes a minute"
-  curl -fsSL https://get.docker.com | sh >/dev/null 2>&1 || die "Docker install failed. Try it by hand: curl -fsSL https://get.docker.com | sh"
-  [ "$HAS_SYSTEMD" = "1" ] && systemctl enable --now docker >/dev/null 2>&1 || true
-  docker info >/dev/null 2>&1 || die "Docker installed but isn't responding. Check: systemctl status docker"
+  install_docker || die "Docker install failed. Install it the way your distribution recommends, then run this again."
+  start_docker
+  docker info >/dev/null 2>&1 || die "Docker installed but isn't responding. $(docker_hint)"
   ok "Docker installed"
 fi
+
+# Derailed speaks Docker's API directly and pins a version of it, so a daemon too old
+# to answer is worth saying now rather than after the install, from a dashboard that
+# cannot start anything. The distribution packages on older releases are exactly this.
+DOCKER_MAJOR=$(docker version --format '{{.Server.Version}}' 2>/dev/null | cut -d. -f1)
+case "$DOCKER_MAJOR" in
+  ''|*[!0-9]*) ;;
+  *)
+    if [ "$DOCKER_MAJOR" -lt 25 ]; then
+      warn "This Docker is version $(docker version --format '{{.Server.Version}}' 2>/dev/null), and Derailed needs 25 or newer."
+      say "  ${DIM}Upgrade it with: curl -fsSL https://get.docker.com | sh${RESET}"
+      confirm "Carry on anyway?" || die "Nothing was changed."
+    fi
+    ;;
+esac
 
 # ------------------------------------------------------------------- the binary
 
@@ -467,18 +576,36 @@ UNIT
 
   if [ "$START_SERVICE" = "1" ]; then
     systemctl restart derailed
-    # Give it a moment to bind the port before we claim success.
-    i=0
-    while [ "$i" -lt 30 ]; do
-      if curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1; then
-        break
-      fi
-      i=$((i + 1))
-      sleep 1
-    done
-    if [ "$i" -ge 30 ]; then
-      die "Derailed didn't come up. See what it said with: journalctl -u derailed -n 50 --no-pager"
-    fi
+    wait_for_health || die "Derailed didn't come up. See what it said with: journalctl -u derailed -n 50 --no-pager"
+    ok "Service started"
+  fi
+elif [ "$INIT" = "openrc" ]; then
+  cat > "$OPENRC_PATH" <<'RC'
+#!/sbin/openrc-run
+
+description="Derailed"
+
+command="__BIN__"
+command_args="serve"
+command_background=true
+pidfile="/run/derailed.pid"
+output_log="/var/log/derailed.log"
+error_log="/var/log/derailed.log"
+directory="__DATA__"
+
+depend() {
+	need docker
+	after net
+}
+RC
+  sed -i "s|__BIN__|$BIN_PATH|; s|__DATA__|$DATA_DIR|" "$OPENRC_PATH"
+  printf 'export DERAILED_PORT=%s\n' "$PORT" > /etc/conf.d/derailed
+  chmod 0755 "$OPENRC_PATH"
+  rc-update add derailed default >/dev/null 2>&1
+
+  if [ "$START_SERVICE" = "1" ]; then
+    rc-service derailed restart >/dev/null 2>&1
+    wait_for_health || die "Derailed didn't come up. See what it said in: /var/log/derailed.log"
     ok "Service started"
   fi
 else
@@ -490,7 +617,7 @@ fi
 [ -n "$IP" ] || IP="your-server-ip"
 
 say ""
-if [ "$HAS_SYSTEMD" = "1" ] && [ "$START_SERVICE" = "1" ]; then
+if [ "$INIT" != "none" ] && [ "$START_SERVICE" = "1" ]; then
   say "  ${GREEN}${BOLD}Derailed is running.${RESET}"
   say ""
   if [ -n "$PANEL_DOMAIN" ]; then
@@ -505,8 +632,13 @@ if [ "$HAS_SYSTEMD" = "1" ] && [ "$START_SERVICE" = "1" ]; then
     say "  ${DIM}Create your account in the browser. That's the whole setup.${RESET}"
   fi
   say ""
-  say "  ${DIM}Logs      journalctl -u derailed -f${RESET}"
-  say "  ${DIM}Restart   systemctl restart derailed${RESET}"
+  if [ "$INIT" = "openrc" ]; then
+    say "  ${DIM}Logs      tail -f /var/log/derailed.log${RESET}"
+    say "  ${DIM}Restart   rc-service derailed restart${RESET}"
+  else
+    say "  ${DIM}Logs      journalctl -u derailed -f${RESET}"
+    say "  ${DIM}Restart   systemctl restart derailed${RESET}"
+  fi
   say "  ${DIM}Update    derailed update${RESET}"
 else
   say "  ${GREEN}${BOLD}Derailed is installed.${RESET}"
@@ -521,13 +653,16 @@ else
   else
     NEXT="Then open $WHERE and create your account."
   fi
-  if [ "$HAS_SYSTEMD" = "1" ]; then
+  if [ "$INIT" = "systemd" ]; then
     say "  Start it   ${BOLD}systemctl start derailed${RESET}"
+    say "  ${DIM}${NEXT}${RESET}"
+  elif [ "$INIT" = "openrc" ]; then
+    say "  Start it   ${BOLD}rc-service derailed start${RESET}"
     say "  ${DIM}${NEXT}${RESET}"
   else
     say "  Start it   ${BOLD}derailed serve${RESET}"
     say "  ${DIM}${NEXT}${RESET}"
-    say "  ${DIM}There's no systemd here, so nothing will restart it for you.${RESET}"
+    say "  ${DIM}There's no service manager here, so nothing will restart it for you.${RESET}"
   fi
 fi
 say ""

@@ -5,7 +5,7 @@ waiting for a build.
 
 ## 1. Install
 
-On a fresh Ubuntu or Debian server, as root:
+On a fresh Linux server, as root:
 
 ```sh
 sudo sh install.sh

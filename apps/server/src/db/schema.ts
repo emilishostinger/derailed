@@ -315,4 +315,47 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_deployments_service ON deployments(service_id, created_at DESC);
     `,
   },
+  {
+    id: 11,
+    name: 'deploy when a commit is pushed',
+    sql: `
+      ALTER TABLE services ADD COLUMN deploy_on_push INTEGER NOT NULL DEFAULT 0;
+      -- The commit last seen at the top of the branch, whether or not deploying it
+      -- worked. Recorded before the build starts on purpose: if it were only written
+      -- on success, one commit that fails to build would be redeployed every couple
+      -- of minutes, for ever, and the build queue would never be empty again.
+      ALTER TABLE services ADD COLUMN last_pushed_sha TEXT;
+
+      -- 'push' joins the list, and the column checks its own values, so the table is
+      -- rebuilt to widen it. 'webhook' stays: it has never been produced by anything,
+      -- but a CHECK that a stored row fails is a database that will not open.
+      CREATE TABLE deployments_new (
+        id             TEXT PRIMARY KEY,
+        service_id     TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        status         TEXT NOT NULL CHECK (status IN (
+                         'queued','cloning','detecting','building','starting','checking',
+                         'routing','running','failed','canceled','superseded')),
+        commit_sha     TEXT,
+        commit_message TEXT,
+        trigger        TEXT NOT NULL DEFAULT 'manual'
+                         CHECK (trigger IN ('manual','redeploy','rollback','webhook','release','push')),
+        image_tag      TEXT,
+        container_id   TEXT,
+        error_summary  TEXT,
+        error_hint     TEXT,
+        log_path       TEXT,
+        created_at     INTEGER NOT NULL,
+        started_at     INTEGER,
+        finished_at    INTEGER
+      );
+      INSERT INTO deployments_new SELECT
+        id, service_id, status, commit_sha, commit_message, trigger, image_tag,
+        container_id, error_summary, error_hint, log_path, created_at, started_at,
+        finished_at
+      FROM deployments;
+      DROP TABLE deployments;
+      ALTER TABLE deployments_new RENAME TO deployments;
+      CREATE INDEX idx_deployments_service ON deployments(service_id, created_at DESC);
+    `,
+  },
 ];

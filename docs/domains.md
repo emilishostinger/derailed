@@ -26,22 +26,24 @@ go.
 
 ### example.com and www.example.com
 
-Adding an apex domain asks whether to handle `www` too, and which of the two people
-should see. The other redirects to it permanently, over HTTPS, with its own
-certificate. They show as one row, and there is a link to swap which is which.
+`www` is not a second domain. It is a property of the first one, so Derailed treats it
+as one, and asks you nothing about it.
 
-This is one question asked once, rather than two addresses that answer independently
-and disagree about which is canonical.
+Add `example.com` and `www.example.com` is set up alongside it, redirecting there
+permanently, over HTTPS, with its own certificate. **The address you type is the address
+people see.** Type `www.example.com` instead and it works the other way round: that is
+what visitors land on, and the bare domain sends them to it.
 
-### example.com and www.example.com, after the fact
+They are one row in the list, with a line underneath saying which way the redirect runs
+and a **Swap** link to turn it around. The redirecting half needs its own A record, which
+the row shows when it is missing.
 
-If only one half is set up, the domain's card offers the other and explains why:
-most people type `www` out of habit, and without it they get an error rather than
+Subdomains are left alone: `www.app.example.com` is nobody's address, so nothing is
+offered for `app.example.com`.
+
+If you added only one half before this existed, the row offers the other and explains
+why: most people type `www` out of habit, and without it they get an error rather than
 your site.
-
-Once both exist, **Which one do people see?** picks the address visitors end up at.
-The other sends them there, so a link shared anywhere lands in the same place. The
-redirecting half needs its own A record, which the card shows underneath.
 
 ## Automatic addresses
 

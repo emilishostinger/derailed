@@ -86,13 +86,26 @@ async function runningContainer(serviceId: string): Promise<string | null> {
  * multiplexed and hijacked, and for a plain dump-to-file the CLI is both simpler and
  * exactly as reliable.
  */
-async function execToFile(
-  containerId: string,
-  cmd: string[],
-  file: string,
-  env: string[] = [],
-): Promise<void> {
-  const proc = Bun.spawn(['docker', ...execArgs(containerId, env), ...cmd], {
+async function execToFile(containerId: string, plan: DumpPlan, file: string): Promise<void> {
+  if (plan.prepare) {
+    const ready = Bun.spawn(['docker', ...execArgs(containerId, plan.env), ...plan.prepare], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    const [problem, readyCode] = await Promise.all([
+      new Response(ready.stderr).text(),
+      ready.exited,
+    ]);
+    if (readyCode !== 0) {
+      throw new FriendlyError(
+        "Derailed couldn't read that database to back it up.",
+        'It may still be starting. Try again in a moment.',
+        problem.split('\n').filter(Boolean).slice(-5),
+      );
+    }
+  }
+
+  const proc = Bun.spawn(['docker', ...execArgs(containerId, plan.env), ...plan.cmd], {
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -122,10 +135,27 @@ async function execToFile(
  * container. Passwords go in the environment, everything else is an argument, and
  * there is no shell left to confuse.
  */
-function dumpCommand(
+export interface DumpPlan {
+  /**
+   * Run first, for engines that cannot write their dump to standard output.
+   *
+   * `redis-cli --rdb /dev/stdout` looks like it should work and does not: the tool
+   * fsyncs and truncates what it wrote, neither of which a pipe supports, so it
+   * failed with "Invalid argument" and a non-zero exit. That took the whole backup
+   * down with it, which meant no project containing a Redis could be backed up at
+   * all, quietly, since the last release that had Redis in it. It writes to a file
+   * inside the container instead, and `cmd` reads that file out.
+   */
+  prepare?: string[];
+  cmd: string[];
+  env: string[];
+  file: string;
+}
+
+export function dumpCommandFor(
   engine: string,
   credentials: { user: string; dbName: string; password: string },
-): { cmd: string[]; env: string[]; file: string } | null {
+): DumpPlan | null {
   if (engine === 'postgres') {
     return {
       cmd: ['pg_dump', '-U', credentials.user, credentials.dbName],
@@ -134,9 +164,10 @@ function dumpCommand(
     };
   }
   if (engine === 'mysql' || engine === 'mariadb') {
+    // Recent MariaDB images have dropped the `mysqldump` symlink.
     return {
       cmd: [
-        'mysqldump',
+        engine === 'mariadb' ? 'mariadb-dump' : 'mysqldump',
         '-u',
         credentials.user,
         '--single-transaction',
@@ -147,15 +178,50 @@ function dumpCommand(
       file: 'dump.sql',
     };
   }
-  if (engine === 'redis') {
-    // Redis has no textual dump; the append-only log is the honest thing to keep.
-    return { cmd: ['redis-cli', '--rdb', '/dev/stdout'], env: [], file: 'dump.rdb' };
+  if (engine === 'mongodb') {
+    // One gzipped archive on stdout, which `mongorestore` reads back as it stands.
+    //
+    // The password is an argument here, unlike everywhere else in this file, because
+    // `mongodump` reads it from nowhere else: it has no environment variable and its
+    // only other route is an interactive prompt. It is still an argument in a list
+    // rather than a line of shell, so there is nothing to escape and nothing to
+    // inject; it is visible in the container's own process list for the second the
+    // dump takes, and that container holds this database and nothing else.
+    return {
+      cmd: [
+        'mongodump',
+        '--username',
+        credentials.user,
+        '--password',
+        credentials.password,
+        '--authenticationDatabase',
+        'admin',
+        '--db',
+        credentials.dbName,
+        '--archive',
+        '--gzip',
+        '--quiet',
+      ],
+      env: [],
+      file: 'dump.archive.gz',
+    };
+  }
+  if (engine === 'redis' || engine === 'valkey') {
+    // Neither has a textual dump; the snapshot is the honest thing to keep.
+    const tool = engine === 'valkey' ? 'valkey-cli' : 'redis-cli';
+    const scratch = '/tmp/derailed-dump.rdb';
+    return {
+      prepare: [tool, '--rdb', scratch],
+      cmd: ['cat', scratch],
+      env: [`REDISCLI_AUTH=${credentials.password}`, `VALKEYCLI_AUTH=${credentials.password}`],
+      file: 'dump.rdb',
+    };
   }
   return null;
 }
 
-/** The mirror image of `dumpCommand`: how to read one back in. */
-function restoreCommand(
+/** The mirror image of `dumpCommandFor`: how to read one back in. */
+export function restoreCommandFor(
   engine: string,
   credentials: { user: string; dbName: string; password: string },
 ): { cmd: string[]; env: string[] } | null {
@@ -167,8 +233,28 @@ function restoreCommand(
   }
   if (engine === 'mysql' || engine === 'mariadb') {
     return {
-      cmd: ['mysql', '-u', credentials.user, credentials.dbName],
+      cmd: [engine === 'mariadb' ? 'mariadb' : 'mysql', '-u', credentials.user, credentials.dbName],
       env: [`MYSQL_PWD=${credentials.password}`],
+    };
+  }
+  if (engine === 'mongodb') {
+    // `--drop` because restoring into collections that still hold the old documents
+    // merges the two, which is not what "put it back" means to anybody.
+    return {
+      cmd: [
+        'mongorestore',
+        '--username',
+        credentials.user,
+        '--password',
+        credentials.password,
+        '--authenticationDatabase',
+        'admin',
+        '--archive',
+        '--gzip',
+        '--drop',
+        '--quiet',
+      ],
+      env: [],
     };
   }
   return null;
@@ -325,12 +411,12 @@ export async function createBackup(projectId: string): Promise<BackupSummary> {
         const containerId = await runningContainer(service.id);
         if (!engine || !credentials || !containerId) continue;
 
-        const dump = dumpCommand(engine.engine, credentials);
+        const dump = dumpCommandFor(engine.engine, credentials);
         if (!dump) continue;
 
         const file = `databases/${service.slug}-${dump.file}`;
         await mkdir(join(work, 'databases'), { recursive: true });
-        await execToFile(containerId, dump.cmd, join(work, file), dump.env);
+        await execToFile(containerId, dump, join(work, file));
         manifest.databases.push({
           service: service.slug,
           engine: engine.engine,
@@ -522,7 +608,7 @@ export async function restoreBackup(id: string, projectId: string): Promise<Rest
         continue;
       }
 
-      const restore = restoreCommand(entry.engine, credentials);
+      const restore = restoreCommandFor(entry.engine, credentials);
       if (!restore) {
         report.warnings.push(`Derailed can't restore ${entry.engine} yet, so it was skipped.`);
         continue;

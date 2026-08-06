@@ -25,17 +25,18 @@ No YAML. No `docker-compose` to babysit. No Kubernetes. No monthly bill.
 
 ## Install it
 
-On a fresh Debian or Ubuntu server, as root:
+On a fresh Linux server, as root:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/emilishostinger/derailed/main/install.sh | sh
 ```
 
 That is the whole setup. It installs Docker if it is missing, drops a single binary at
-`/usr/local/bin/derailed`, starts it under systemd, and prints a URL. Open the URL, make
+`/usr/local/bin/derailed`, sets it up as a service, and prints a URL. Open the URL, make
 an account, paste a repository link.
 
-<sub>64-bit Intel or ARM · nothing else to install · takes about a minute ·
+<sub>Debian, Ubuntu, Fedora, RHEL, Rocky, Alma, Arch, Alpine, openSUSE · 64-bit Intel or ARM ·
+nothing else to install · takes about a minute ·
 [other ways to install](docs/install.md) · [what it does to your server](docs/security.md)</sub>
 
 <br>
@@ -57,10 +58,11 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 |  |  |
 | --- | --- |
 | 🚀 **Paste a link, get an app** | Any GitHub repository, public or private. Dockerfile or not: without one, Derailed works out how to build it and says what it found in plain language. |
+| 🔄 **Push, and it deploys** | Turn it on and the running app catches up with your branch on its own, within a couple of minutes. No webhook, no public URL, no shared secret. Works with GitLab, Bitbucket and Gitea too. Or wait for a tagged release instead, if pushing and shipping are separate decisions. |
 | 📦 **Or just drag in a zip** | A folder of HTML is served as it is. A folder of PHP gets PHP and Apache. No repository, no account, no build step. |
 | ⚡ **Twenty apps in one click** | WordPress, Nextcloud, Gitea, Jellyfin, Vaultwarden, Grafana and more, each with its database and storage already right. |
 | 🔒 **HTTPS that just happens** | Type your domain, follow the on-screen checklist, get a padlock. Point a wildcard at the server and every app gets a secured name automatically. |
-| 🗄️ **Databases in one click** | PostgreSQL, MySQL, Redis. Private by default. Connect one to an app and the credentials are wired in for you. |
+| 🗄️ **Databases in one click** | PostgreSQL, MySQL, MariaDB, MongoDB, Redis and Valkey. Private by default. Connect one to an app and the credentials are wired in for you. |
 | 📈 **Visitor figures, no tracker** | Counted by the proxy that already serves every request. No script in your pages, nothing leaves the machine, nothing to consent to. |
 | 💾 **Backups you can restore** | Scheduled per project, and an ordinary `.tar.gz` you can download and open with `tar`. Restoring stops the app first, because emptying a folder underneath a running app is how people lose data. |
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |

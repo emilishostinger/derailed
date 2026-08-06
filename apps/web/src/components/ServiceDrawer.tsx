@@ -24,7 +24,7 @@ import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
 import { TechIcon } from './TechIcon.tsx';
 import { TerminalTab } from './TerminalTab.tsx';
 import { TrafficTab } from './TrafficTab.tsx';
-import { cx, ErrorNote, Spinner, StatusPill, Switch } from './ui.tsx';
+import { cx, ErrorNote, Spinner, StatusPill } from './ui.tsx';
 import { useDrawerWidth } from './useDrawerWidth.ts';
 
 type Tab =
@@ -429,6 +429,7 @@ function Deployments({ service }: { service: Service }) {
                       appeared on its own is otherwise indistinguishable from one
                       somebody else started. */}
                   {deployment.trigger === 'release' && ' · a new release'}
+                  {deployment.trigger === 'push' && ' · a push'}
                 </p>
               </div>
               {active ? (
@@ -492,7 +493,7 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
   const [port, setPort] = useState(service.port ? String(service.port) : '');
   const [healthPath, setHealthPath] = useState(service.healthPath);
   const [memory, setMemory] = useState(service.memoryLimitMb ? String(service.memoryLimitMb) : '');
-  const [onRelease, setOnRelease] = useState(service.deployOnRelease);
+  const [autoDeploy, setAutoDeploy] = useState<AutoDeploy>(autoDeployOf(service));
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -511,7 +512,8 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
               rootDir: rootDir || null,
               port: port ? Number(port) : null,
               healthPath: healthPath || '/',
-              deployOnRelease: onRelease,
+              deployOnRelease: autoDeploy === 'release',
+              deployOnPush: autoDeploy === 'push',
             }
           : {}),
         memoryLimitMb: memory ? Number(memory) : null,
@@ -579,7 +581,7 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
         )}
 
         {service.kind === 'app' && service.source === 'repo' && (
-          <ReleaseDeploys service={service} checked={onRelease} onChange={setOnRelease} />
+          <AutoDeployChoice service={service} value={autoDeploy} onChange={setAutoDeploy} />
         )}
 
         <label className="block">
@@ -737,38 +739,119 @@ function RepoToken({ service }: { service: Service }) {
  * are being read from. Offering the switch anywhere else would be offering something
  * that quietly never fires.
  */
-function ReleaseDeploys({
+/** Off, on every push, or only on a published release. */
+export type AutoDeploy = 'off' | 'push' | 'release';
+
+export function autoDeployOf(service: Service): AutoDeploy {
+  // Push wins if both are somehow set: it is the looser rule, so it is the one
+  // actually in force, and showing "only on a release" would be a lie.
+  if (service.deployOnPush) return 'push';
+  return service.deployOnRelease ? 'release' : 'off';
+}
+
+/**
+ * When Derailed should deploy this app by itself.
+ *
+ * One question with three answers rather than a switch per mechanism. They are not
+ * independent in practice: deploying every push already covers deploying every
+ * release, so two switches would offer a combination that means nothing and leave
+ * people wondering which one wins.
+ */
+function AutoDeployChoice({
   service,
-  checked,
+  value,
   onChange,
 }: {
   service: Service;
-  checked: boolean;
-  onChange: (next: boolean) => void;
+  value: AutoDeploy;
+  onChange: (next: AutoDeploy) => void;
 }) {
+  const fromRepo = service.source === 'repo' && !!service.repoUrl;
   const isGithub = /(^|\/\/|@)github\.com[/:]/i.test(service.repoUrl ?? '');
+  const branch = service.branch ?? 'your branch';
+
+  if (!fromRepo) {
+    return (
+      <div className="rounded-[var(--radius-card)] border border-line p-3.5">
+        <p className="text-[13px] text-ink">Deploy automatically</p>
+        <p className="mt-1 text-[12px] text-ink-muted">
+          {service.source === 'upload'
+            ? 'This app was made from files you dropped in, so there is no repository to watch. Drop a new zip on it to update it.'
+            : 'This app runs a ready-made image, so there is no repository to watch. Updates to the image show up under Updates.'}
+        </p>
+      </div>
+    );
+  }
+
+  const options: { value: AutoDeploy; label: string; hint: string; disabled?: boolean }[] = [
+    {
+      value: 'off',
+      label: 'Only when I ask',
+      hint: 'Nothing happens until you press Deploy.',
+    },
+    {
+      value: 'push',
+      label: `Every push to ${branch}`,
+      hint:
+        value === 'push' && service.lastPushedSha
+          ? `Following on from ${service.lastPushedSha.slice(0, 7)}. New commits are built and deployed within about two minutes.`
+          : 'Push your code and the running app catches up on its own, within about two minutes. What is running today is left alone, so choosing this does not redeploy anything now.',
+    },
+    {
+      value: 'release',
+      label: 'Only when I publish a release',
+      hint: !isGithub
+        ? 'Releases are a GitHub feature, and this app is not from a GitHub repository.'
+        : value === 'release' && service.lastReleaseTag
+          ? `Following on from ${service.lastReleaseTag}. The next release published on GitHub is deployed within about ten minutes.`
+          : 'For when pushing and shipping are meant to be separate decisions. Tagging a release deploys it; ordinary commits are ignored.',
+      disabled: !isGithub,
+    },
+  ];
 
   return (
     <div className="rounded-[var(--radius-card)] border border-line p-3.5">
-      <Switch
-        label="Deploy new releases"
-        checked={checked}
-        disabled={!isGithub}
-        onChange={onChange}
-        hint={
-          !isGithub ? (
-            'Releases are read from GitHub, and this app is not from a GitHub repository.'
-          ) : service.lastReleaseTag ? (
-            <>
-              Following on from <span className="text-ink">{service.lastReleaseTag}</span>. The next
-              release published on GitHub is built and deployed on its own, within about ten
-              minutes.
-            </>
-          ) : (
-            'Whatever is released next on GitHub gets built and deployed on its own. Whatever is out today is left alone, so switching this on does not redeploy anything.'
-          )
-        }
-      />
+      <p className="text-[13px] text-ink">Deploy automatically</p>
+      <div className="mt-2.5 space-y-1.5">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className={cx(
+              'flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-control)] border px-3 py-2.5 transition-colors',
+              'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent',
+              value === option.value
+                ? 'border-accent bg-accent-soft'
+                : 'border-line hover:border-line-strong',
+              option.disabled && 'pointer-events-none opacity-50',
+            )}
+          >
+            {/* A real radio, so arrow keys, grouping and "selected" all work for a
+                screen reader without any of it being written by hand. */}
+            <input
+              type="radio"
+              name={`auto-deploy-${service.id}`}
+              className="sr-only"
+              checked={value === option.value}
+              disabled={option.disabled}
+              onChange={() => onChange(option.value)}
+            />
+            <span
+              className={cx(
+                'mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border',
+                value === option.value ? 'border-accent bg-accent-solid' : 'border-line-strong',
+              )}
+            >
+              {value === option.value && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[13px] text-ink">{option.label}</span>
+              <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-muted">
+                {option.hint}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

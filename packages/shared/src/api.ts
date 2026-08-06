@@ -139,6 +139,7 @@ export const patchServiceRequest = z.object({
   healthPath: healthPath.optional(),
   memoryLimitMb: z.number().int().min(64).max(65536).nullable().optional(),
   deployOnRelease: z.boolean().optional(),
+  deployOnPush: z.boolean().optional(),
 });
 export type PatchServiceRequest = z.infer<typeof patchServiceRequest>;
 

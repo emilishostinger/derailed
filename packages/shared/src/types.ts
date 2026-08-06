@@ -39,7 +39,7 @@ export const ACTIVE_DEPLOYMENT_STATUSES: readonly DeploymentStatus[] = [
 /** What the UI shows on a service node, derived, never stored. */
 export type ServiceStatus = 'running' | 'deploying' | 'stopped' | 'failed' | 'crashed' | 'creating';
 
-export type DeploymentTrigger = 'manual' | 'redeploy' | 'rollback' | 'webhook' | 'release';
+export type DeploymentTrigger = 'manual' | 'redeploy' | 'rollback' | 'webhook' | 'release' | 'push';
 
 export type EnvSource = 'user' | 'link' | 'system';
 
@@ -97,6 +97,9 @@ export interface Service {
   memoryLimitMb: number | null;
   /** Deploy by itself when a new release is published on GitHub. */
   deployOnRelease: boolean;
+  /** The newest commit seen on the branch, deployed or not. See the push watcher. */
+  deployOnPush: boolean;
+  lastPushedSha: string | null;
   /** The newest release tag Derailed has seen, deployed or merely noted. */
   lastReleaseTag: string | null;
 

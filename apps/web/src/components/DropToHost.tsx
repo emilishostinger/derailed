@@ -6,7 +6,7 @@ import { useProjects } from '../stores/projects.ts';
 import { cx, ErrorNote, Modal, Spinner } from './ui.tsx';
 
 /**
- * Drag a zip onto the projects page and it becomes a website.
+ * Drag a zip anywhere and it becomes a website.
  *
  * The wizard already accepts a zip, four clicks in, behind a choice about what sort
  * of thing you are making. But the shortest description of this product is "put my
@@ -14,9 +14,12 @@ import { cx, ErrorNote, Modal, Spinner } from './ui.tsx';
  * drop the thing on it and it asks the one question it cannot guess.
  *
  * It only asks that question when it has to. With no projects yet there is nothing to
- * choose between, so it makes one named after the file and gets on with it.
+ * choose between, so it makes one named after the file and gets on with it. And when
+ * this is mounted inside a project, standing in that project is the answer: dropping
+ * a zip on a page with the project's name at the top of it, and then being asked
+ * which project you meant, is the interface not paying attention.
  */
-export function DropToHost() {
+export function DropToHost({ into }: { into?: { id: string; name: string; slug: string } } = {}) {
   const projects = useProjects((s) => s.projects);
   const load = useProjects((s) => s.load);
   const navigate = useNavigate();
@@ -80,7 +83,9 @@ export function DropToHost() {
         <div className="deep-surface pointer-events-none fixed inset-2 z-50 flex items-center justify-center rounded-[var(--radius-shell)] border-2 border-dashed border-accent bg-canvas/95 backdrop-blur-sm">
           <div className="flex flex-col items-center text-center">
             <CloudUpload className="h-8 w-8 text-accent" />
-            <p className="mt-3 text-[15px] font-semibold text-ink">Drop it anywhere</p>
+            <p className="mt-3 text-[15px] font-semibold text-ink">
+              {into ? `Drop it into ${into.name}` : 'Drop it anywhere'}
+            </p>
             <p className="mt-1 text-[13px] text-ink-muted">
               A zip of your site goes online in about a minute.
             </p>
@@ -109,7 +114,10 @@ export function DropToHost() {
       {file && (
         <PlaceIt
           file={file}
-          projects={projects}
+          // Inside a project there is nothing to choose between, so the list is not
+          // offered: `PlaceIt` treats a single known destination as already decided.
+          projects={into ? [into] : projects}
+          decided={!!into}
           onClose={() => setFile(null)}
           onDone={async (slug) => {
             setFile(null);
@@ -126,11 +134,14 @@ export function DropToHost() {
 function PlaceIt({
   file,
   projects,
+  decided,
   onClose,
   onDone,
 }: {
   file: File;
   projects: { id: string; name: string; slug: string }[];
+  /** The destination is already known, so do not ask. */
+  decided?: boolean;
   onClose: () => void;
   onDone: (slug: string) => void | Promise<void>;
 }) {
@@ -169,24 +180,35 @@ function PlaceIt({
     }
   }
 
-  // Nothing to choose between yet, so do not pretend there is.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fires once, for the empty case.
+  // Nothing to choose between, so do not pretend there is: either there are no
+  // projects yet, or we are standing inside the one it belongs to.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires once, for the settled cases.
   useEffect(() => {
-    if (projects.length === 0) void go(null);
+    if (decided) void go(projects[0]!.id);
+    else if (projects.length === 0) void go(null);
   }, []);
 
+  const settled = decided || projects.length === 0;
   const megabytes = (file.size / 1024 / 1024).toFixed(1);
 
   return (
     <Modal
-      title={projects.length === 0 ? 'Putting it online' : 'Where should it live?'}
+      title={settled ? 'Putting it online' : 'Where should it live?'}
       subtitle={`${file.name} · ${megabytes} MB`}
       onClose={busy ? () => undefined : onClose}
     >
-      {projects.length === 0 ? (
-        <p className="flex items-center gap-2 text-[13px] text-ink-muted">
-          <Spinner /> Making a project for it and unpacking the files.
-        </p>
+      {settled ? (
+        <div className="space-y-2">
+          {busy && (
+            <p className="flex items-center gap-2 text-[13px] text-ink-muted">
+              <Spinner />
+              {decided
+                ? 'Unpacking the files and starting it.'
+                : 'Making a project for it and unpacking the files.'}
+            </p>
+          )}
+          <ErrorNote error={error} />
+        </div>
       ) : (
         <div className="space-y-4">
           <label className="block">

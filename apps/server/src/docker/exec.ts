@@ -128,15 +128,49 @@ export function shellCommandFor(
         label: 'psql',
       };
     }
-    if (engine === 'mysql' || engine === 'mariadb') {
+    if (engine === 'mysql') {
       return {
         cmd: ['mysql', '-u', credentials.user, credentials.dbName],
         env: [`MYSQL_PWD=${credentials.password}`],
         label: 'mysql',
       };
     }
-    if (engine === 'redis') {
-      return { cmd: ['redis-cli'], env: [], label: 'redis-cli' };
+    if (engine === 'mariadb') {
+      // The `mysql` name is a symlink that recent MariaDB images have dropped.
+      return {
+        cmd: ['mariadb', '-u', credentials.user, credentials.dbName],
+        env: [`MYSQL_PWD=${credentials.password}`],
+        label: 'mariadb',
+      };
+    }
+    if (engine === 'mongodb') {
+      return {
+        cmd: [
+          'mongosh',
+          '--username',
+          credentials.user,
+          '--password',
+          credentials.password,
+          '--authenticationDatabase',
+          'admin',
+          credentials.dbName,
+        ],
+        env: [],
+        label: 'mongosh',
+      };
+    }
+    // `REDISCLI_AUTH` rather than `-a`, for the reason at the top of this branch: a
+    // password in the argument list is a password in `ps`. Both names are set because
+    // Valkey's fork of the tool answers to its own. An unauthenticated `redis-cli`
+    // used to be what opened here, which connected and then refused every command
+    // typed into it with NOAUTH.
+    if (engine === 'redis' || engine === 'valkey') {
+      const tool = engine === 'valkey' ? 'valkey-cli' : 'redis-cli';
+      return {
+        cmd: [tool],
+        env: [`REDISCLI_AUTH=${credentials.password}`, `VALKEYCLI_AUTH=${credentials.password}`],
+        label: tool,
+      };
     }
   }
   // Try bash, fall back to sh. The image may have neither, and the terminal will

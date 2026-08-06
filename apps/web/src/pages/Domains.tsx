@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  CornerDownRight,
   ExternalLink,
   Globe,
   Lock,
@@ -168,23 +169,35 @@ function AddDomain({
   onAdded: () => void;
 }) {
   const [hostname, setHostname] = useState('');
-  const [alsoWww, setAlsoWww] = useState(true);
-  const [shown, setShown] = useState<'typed' | 'other'>('typed');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [result, setResult] = useState<DomainRow[] | null>(null);
 
+  const typed = hostname.trim().toLowerCase().replace(/\.$/, '');
+  const typedIsWww = typed.startsWith('www.');
+  const other = typedIsWww ? apexOf(typed) : `www.${typed}`;
+  const pairable = apexOf(typed).split('.').filter(Boolean).length === 2;
+
+  /**
+   * Both halves, always, and the one you typed is the one people see.
+   *
+   * This used to be a checkbox and then a pair of radio buttons asking which address
+   * visitors should land on, which is two decisions before you have added anything at
+   * all, and the answer to the second one is always "the one I just typed". So it is
+   * not asked. Whichever you wrote is the address; the other one sends people to it;
+   * and if that was the wrong way round it is one click on the row to turn it over.
+   */
   async function add() {
     setBusy(true);
     setError(null);
     try {
-      // The server always takes the apex as the name and works the pair out from it,
-      // so typing the www half is turned back into the same request with the other
-      // half marked as the one people see.
+      // The server takes the apex as the name and works the pair out from it, so
+      // typing the www half becomes the same request with the other half marked as
+      // the one people see.
       const { domains } = await endpoints.addOwnDomain(
-        pairable && alsoWww ? apexOf(typed) : typed,
-        pairable && alsoWww,
-        wantsWwwShown ? 'www' : 'apex',
+        pairable ? apexOf(typed) : typed,
+        pairable,
+        typedIsWww ? 'www' : 'apex',
       );
       setResult(domains);
     } catch (err) {
@@ -193,14 +206,6 @@ function AddDomain({
       setBusy(false);
     }
   }
-
-  const typed = hostname.trim().toLowerCase().replace(/\.$/, '');
-  const typedIsWww = typed.startsWith('www.');
-  const other = typedIsWww ? apexOf(typed) : `www.${typed}`;
-  // Offered both ways round: someone who types the www half wants the bare one too,
-  // and the old check only looked at label count, so it never asked them.
-  const pairable = apexOf(typed).split('.').filter(Boolean).length === 2;
-  const wantsWwwShown = pairable && alsoWww && (typedIsWww ? shown === 'typed' : shown === 'other');
 
   return (
     <Modal title="Add a domain" onClose={onClose}>
@@ -242,47 +247,13 @@ function AddDomain({
             />
           </label>
 
+          {/* Said, not asked. One sentence naming both addresses and which way round
+              they go, so nothing about the result is a surprise. */}
           {pairable && (
-            <div className="rounded-[var(--radius-card)] border border-line p-3.5">
-              <label className="flex cursor-pointer items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={alsoWww}
-                  onChange={(event) => setAlsoWww(event.target.checked)}
-                />
-                <span className="min-w-0">
-                  <span className="block text-[13px] text-ink">Set up {other} as well</span>
-                  <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-muted">
-                    {typedIsWww
-                      ? 'Plenty of people leave the www off. Without it they get an error rather than your site.'
-                      : 'Most people type it out of habit. Without it they get an error rather than your site.'}
-                  </span>
-                </span>
-              </label>
-
-              {/* Only once there are two of them is there anything to choose between. */}
-              {alsoWww && (
-                <div className="mt-3 border-t border-line pt-3">
-                  <p className="text-[12px] font-medium text-ink">Which one do people see?</p>
-                  <p className="mt-0.5 text-[11px] text-ink-faint">
-                    The other sends visitors to it, so a link shared anywhere ends up in the same
-                    place. This can be changed later.
-                  </p>
-                  <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                    {(['typed', 'other'] as const).map((which) => (
-                      <HostChoice
-                        key={which}
-                        group="add-domain-primary"
-                        hostname={which === 'typed' ? typed : other}
-                        chosen={shown === which}
-                        onChoose={() => setShown(which)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <p className="text-[12px] leading-relaxed text-ink-muted">
+              <span className="text-ink">{other}</span> will work too and send people to{' '}
+              <span className="text-ink">{typed}</span>. You can turn that around afterwards.
+            </p>
           )}
 
           <div className="rounded-[var(--radius-card)] border border-line bg-surface-2 p-3 text-[12px] text-ink-muted">
@@ -595,74 +566,18 @@ function otherHalf(hostname: string): string {
 }
 
 /**
- * One address in a pair, as something you pick rather than something you read.
+ * The www half of a domain, as a line under the address it belongs to.
  *
- * Shared by the add dialog and the domain card so the question looks the same in
- * both places: it is the same question, asked before and after the fact.
- */
-function HostChoice({
-  group,
-  hostname,
-  chosen,
-  onChoose,
-  disabled,
-  note,
-}: {
-  /** Ties the pair together, so the browser treats them as one choice. */
-  group: string;
-  hostname: string;
-  chosen: boolean;
-  onChoose: () => void;
-  disabled?: boolean;
-  note?: string;
-}) {
-  return (
-    <label
-      className={cx(
-        'flex cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 text-[12px] transition-colors',
-        'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent',
-        chosen
-          ? 'border-accent bg-accent-soft text-ink'
-          : 'border-line text-ink-muted hover:border-line-strong hover:text-ink',
-        disabled && 'pointer-events-none opacity-60',
-      )}
-    >
-      {/* A real radio rather than a button wearing the role. The browser then gives
-          arrow-key movement, grouping and "selected" to a screen reader for free,
-          none of which a div with aria-checked has unless it is written by hand. */}
-      <input
-        type="radio"
-        name={group}
-        className="sr-only"
-        checked={chosen}
-        disabled={disabled}
-        aria-label={hostname}
-        onChange={() => onChoose()}
-      />
-      <span
-        className={cx(
-          'flex h-3 w-3 shrink-0 items-center justify-center rounded-full border',
-          chosen ? 'border-accent bg-accent-solid' : 'border-line-strong',
-        )}
-      >
-        {chosen && <span className="h-1 w-1 rounded-full bg-white" />}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{hostname}</span>
-      {note && <span className="shrink-0 text-[11px] text-ink-faint">{note}</span>}
-    </label>
-  );
-}
-
-/**
- * The www half of a domain, nested under the half it belongs to.
+ * www is not a second domain, it is a property of the first one, and every version of
+ * this that treated it as its own thing made people do arithmetic: two rows in the
+ * list for one website, a radio group asking which of two nearly identical strings
+ * visitors should land on, and the same question again in the add dialogue before
+ * anything existed to answer it about.
  *
- * This replaces a link that said "swap", which is a verb with no object: it never
- * said what was being swapped with what, and the thing it changed, which of the two
- * addresses people actually land on, was written as a sentence three items along a
- * row of dots. It is a choice between two named addresses, so it is drawn as one.
- *
- * When the pair does not exist yet it offers to make it, because "should www work
- * too" is a question everybody answers yes to and nobody enjoys being asked twice.
+ * So it says what is true in one sentence, and offers the only thing anyone ever
+ * wants from it, which is to turn it around. When the pair does not exist yet it
+ * offers to make it, because "should www work too" is a question everybody answers
+ * yes to and nobody enjoys being asked twice.
  */
 function WwwHalf({
   domain,
@@ -721,29 +636,25 @@ function WwwHalf({
   const needsRecord = partner.dnsStatus !== 'ok' && serverIp;
 
   return (
-    <div className="mt-2 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5">
-      <p className="text-[12px] font-medium text-ink">Which one do people see?</p>
-      <p className="mt-0.5 text-[11px] text-ink-faint">
-        Both work. The other one sends visitors to whichever you pick, so a link shared anywhere
-        ends up at the same address.
-      </p>
-
-      <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
-        {[domain, partner].map((option) => (
-          <HostChoice
-            key={option.id}
-            group={`primary-${domain.id}`}
-            hostname={option.hostname}
-            chosen={option.id === domain.id}
-            disabled={busy}
-            note={option.id === domain.id ? 'shown' : undefined}
-            onChoose={() => void run(() => endpoints.makePrimary(option.id))}
-          />
-        ))}
+    <div className="mt-2 pl-6.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+        <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
+        <span className="min-w-0 truncate text-ink-muted">
+          <span className="text-ink">{partner.hostname}</span> redirects here
+        </span>
+        <button
+          type="button"
+          className="text-accent hover:underline disabled:opacity-50"
+          disabled={busy}
+          title={`Show ${partner.hostname} instead, and send ${domain.hostname} to it`}
+          onClick={() => void run(() => endpoints.makePrimary(partner.id))}
+        >
+          {busy ? 'Swapping…' : 'Swap'}
+        </button>
       </div>
 
       {needsRecord && (
-        <div className="mt-2.5 border-t border-line pt-2.5">
+        <div className="mt-2 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3">
           <p className="text-[12px] text-ink">
             <span className="text-ink-muted">{partner.hostname}</span> needs a record of its own
             before it can redirect.

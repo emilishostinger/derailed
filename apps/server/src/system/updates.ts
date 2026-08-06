@@ -50,34 +50,133 @@ async function run(cmd: string[], timeoutMs = 120_000): Promise<{ code: number; 
   }
 }
 
-/** Debian and Ubuntu ship this; it is the same data `apt` prints on login. */
+/**
+ * The package manager this machine uses, worked out once.
+ *
+ * Derailed is one static binary and runs anywhere, so this is the only part of it
+ * that has to know what distribution it landed on. A machine whose manager is not
+ * here still works: it simply does not offer to update the operating system, which
+ * is better than offering and then running the wrong command as root.
+ */
+export type PackageManager = 'apt' | 'dnf' | 'yum' | 'pacman' | 'apk' | 'zypper';
+
+const MANAGER_BINARIES: Record<PackageManager, string> = {
+  apt: '/usr/bin/apt-get',
+  dnf: '/usr/bin/dnf',
+  yum: '/usr/bin/yum',
+  pacman: '/usr/bin/pacman',
+  apk: '/sbin/apk',
+  zypper: '/usr/bin/zypper',
+};
+
+let cachedManager: PackageManager | null | undefined;
+
+export function packageManager(): PackageManager | null {
+  if (cachedManager !== undefined) return cachedManager;
+  cachedManager =
+    (Object.keys(MANAGER_BINARIES) as PackageManager[]).find((name) => {
+      const path = MANAGER_BINARIES[name];
+      return existsSync(path) || existsSync(path.replace('/usr/bin/', '/usr/sbin/'));
+    }) ?? null;
+  return cachedManager;
+}
+
+/** How to ask each manager what is waiting, without changing anything. */
+export function countPendingUpdates(manager: PackageManager, output: string, code: number): number {
+  switch (manager) {
+    case 'apt':
+      return (output.match(/^Inst /gm) ?? []).length;
+    case 'dnf':
+    case 'yum':
+      // Exit 100 means "there are updates", 0 means none. The listing has a header
+      // and blank lines, so rows are counted rather than lines.
+      if (code === 0) return 0;
+      return output.split('\n').filter((line) => /^\S+\.\S+\s+\S+\s+\S+$/.test(line.trim())).length;
+    case 'pacman':
+      return output.split('\n').filter((line) => line.trim()).length;
+    case 'apk':
+      // `apk version -l '<'` prints a header line and then one row per package.
+      return output
+        .split('\n')
+        .filter((line) => line.trim() && !line.startsWith('Installed:') && line.includes('<'))
+        .length;
+    case 'zypper':
+      return output.split('\n').filter((line) => line.startsWith('v |')).length;
+  }
+}
+
+function checkCommand(manager: PackageManager): string[] {
+  switch (manager) {
+    case 'apt':
+      return ['apt-get', '-s', 'upgrade'];
+    case 'dnf':
+      return ['dnf', '-q', 'check-update'];
+    case 'yum':
+      return ['yum', '-q', 'check-update'];
+    case 'pacman':
+      return ['pacman', '-Qu'];
+    case 'apk':
+      return ['apk', 'version', '-l', '<'];
+    case 'zypper':
+      return ['zypper', '--non-interactive', 'list-updates'];
+  }
+}
+
+/** How to actually apply them. */
+export function upgradeCommand(manager: PackageManager): string[] {
+  switch (manager) {
+    case 'apt':
+      return [
+        'sh',
+        '-c',
+        'DEBIAN_FRONTEND=noninteractive apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get -y -qq upgrade',
+      ];
+    case 'dnf':
+      return ['dnf', '-y', 'upgrade'];
+    case 'yum':
+      return ['yum', '-y', 'update'];
+    case 'pacman':
+      return ['pacman', '-Syu', '--noconfirm'];
+    case 'apk':
+      return ['sh', '-c', 'apk update && apk upgrade'];
+    case 'zypper':
+      return ['zypper', '--non-interactive', 'update'];
+  }
+}
+
 async function systemUpdates(): Promise<UpdateItem[]> {
-  const { code, out } = await run(
-    ['/usr/lib/update-notifier/apt-check', '--human-readable'],
-    60_000,
-  );
-  if (code === 0 && out.trim()) {
-    const packages = Number(out.match(/(\d+)\s+package/)?.[1] ?? 0);
-    const security = Number(out.match(/(\d+)\s+.*securit/i)?.[1] ?? 0);
-    if (packages === 0) return [];
-    return [
-      {
-        id: 'system-packages',
-        kind: 'system',
-        name: `${packages} system package${packages === 1 ? '' : 's'}`,
-        detail:
-          security > 0
-            ? `${security} of them are security updates, so this is worth doing soon.`
-            : 'Routine updates to the operating system.',
-        security: security > 0,
-        actionable: true,
-      },
-    ];
+  const manager = packageManager();
+  if (!manager) return [];
+
+  // Debian and Ubuntu ship this, and it is the only one of these that separates out
+  // the security updates, which is the number worth leading with.
+  if (manager === 'apt') {
+    const { code, out } = await run(
+      ['/usr/lib/update-notifier/apt-check', '--human-readable'],
+      60_000,
+    );
+    if (code === 0 && out.trim()) {
+      const packages = Number(out.match(/(\d+)\s+package/)?.[1] ?? 0);
+      const security = Number(out.match(/(\d+)\s+.*securit/i)?.[1] ?? 0);
+      if (packages === 0) return [];
+      return [
+        {
+          id: 'system-packages',
+          kind: 'system',
+          name: `${packages} system package${packages === 1 ? '' : 's'}`,
+          detail:
+            security > 0
+              ? `${security} of them are security updates, so this is worth doing soon.`
+              : 'Routine updates to the operating system.',
+          security: security > 0,
+          actionable: true,
+        },
+      ];
+    }
   }
 
-  // No apt-check: fall back to asking apt directly.
-  const simulated = await run(['apt-get', '-s', 'upgrade'], 90_000);
-  const count = (simulated.out.match(/^Inst /gm) ?? []).length;
+  const checked = await run(checkCommand(manager), 90_000);
+  const count = countPendingUpdates(manager, checked.out, checked.code);
   if (count === 0) return [];
   return [
     {
@@ -159,15 +258,35 @@ async function derailedUpdate(): Promise<UpdateItem[]> {
   ];
 }
 
+/**
+ * Whether the machine needs restarting to finish what it has installed.
+ *
+ * Debian and Ubuntu drop a file. The Red Hat family has a command that answers with
+ * its exit status. Everywhere else nothing is claimed, which is what was already
+ * happening on every distribution but one, only now on purpose.
+ */
+async function needsReboot(): Promise<boolean> {
+  if (existsSync('/var/run/reboot-required')) return true;
+
+  const manager = packageManager();
+  if (manager === 'dnf' || manager === 'yum') {
+    // Exit 1 means a reboot is needed, 0 means it is not. Anything else (the plugin
+    // is not installed) is not an answer, so it is not treated as one.
+    const { code } = await run([manager, 'needs-restarting', '-r'], 60_000);
+    return code === 1;
+  }
+  return false;
+}
+
 export async function checkUpdates(): Promise<UpdateReport> {
-  const [system, images, derailed] = await Promise.all([
+  const [system, images, derailed, rebootRequired] = await Promise.all([
     systemUpdates().catch(() => []),
     imageUpdates().catch(() => []),
     derailedUpdate().catch(() => []),
+    needsReboot().catch(() => false),
   ]);
 
   const items = [...system, ...images, ...derailed];
-  const rebootRequired = existsSync('/var/run/reboot-required');
   const security = items.some((item) => item.security);
 
   return {
@@ -193,20 +312,18 @@ export interface ApplyResult {
 /** Applies one update. Deliberately one at a time, so a failure is easy to attribute. */
 export async function applyUpdate(id: string): Promise<ApplyResult> {
   if (id === 'system-packages') {
-    const result = await run(
-      [
-        'sh',
-        '-c',
-        'DEBIAN_FRONTEND=noninteractive apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get -y -qq upgrade',
-      ],
-      900_000,
-    );
+    const manager = packageManager();
+    if (!manager) {
+      return { ok: false, message: "Derailed doesn't know how to update packages on this system." };
+    }
+    const command = upgradeCommand(manager);
+    const result = await run(command, 900_000);
     return {
       ok: result.code === 0,
       message:
         result.code === 0
           ? 'System packages updated. A restart may be needed to finish.'
-          : "The system update didn't finish. Run apt-get upgrade on the server to see why.",
+          : `The system update didn't finish. Run ${command[0] === 'sh' ? 'the upgrade' : command.join(' ')} on the server to see why.`,
       output: result.out.split('\n').filter(Boolean).slice(-20),
     };
   }

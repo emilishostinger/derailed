@@ -168,7 +168,10 @@ describe('first-run setup and sign-in', () => {
     // fires; the socket ceiling is the only thing standing here.
     expect(statuses.filter((status) => status === 429).length).toBeGreaterThan(0);
     expect(statuses.filter((status) => status === 401).length).toBeLessThanOrEqual(30);
-  });
+    // Forty-five password verifications, and argon2 is meant to be slow. On a loaded
+    // machine that is comfortably past the default five seconds, so this failed for
+    // reasons that had nothing to do with rate limiting.
+  }, 60_000);
 
   test('the dashboard cannot be framed, and API replies are never cached', async () => {
     const response = await get('/api/auth/status');

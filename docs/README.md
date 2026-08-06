@@ -31,7 +31,7 @@ about five minutes.
 
 ## The short version
 
-Derailed runs on the host under systemd. Everything else, meaning your apps, your databases and
+Derailed runs on the host as a service (systemd, or OpenRC on Alpine). Everything else, meaning your apps, your databases and
 the Caddy reverse proxy that fronts them, runs in Docker containers it creates and
 labels. It touches nothing it did not create.
 

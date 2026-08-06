@@ -95,7 +95,8 @@ deploy record.
 apps/server/src/
   analytics/     access log → counters
   backup/        archives, restore, schedule
-  build/         detect, nixpacks, site, pipeline, upload, zip
+  build/         detect, nixpacks, site, pipeline, upload, zip, and the two
+                 watchers that deploy on their own: pushes and releases
   catalog/       databases and ready-made apps
   db/            schema, migrations, repositories
   docker/        client, containers, images, networks, volumes, labels

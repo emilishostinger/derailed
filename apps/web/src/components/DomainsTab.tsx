@@ -8,12 +8,20 @@ export function DomainsTab({ service }: { service: Service }) {
   const serverIp = useSession((s) => s.system?.serverIp);
   const [domains, setDomains] = useState<Domain[]>(service.domains ?? []);
   const [hostname, setHostname] = useState('');
-  const [alsoWww, setAlsoWww] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   // Domains added on the Domains page that nothing is using yet. Offering them here
   // saves retyping a name that is already set up and already checked.
   const [spare, setSpare] = useState<{ id: string; hostname: string }[]>([]);
+
+  const typed = hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, '')
+    .replace(/\.$/, '');
+  // A bare name like example.com has a www half worth setting up. A subdomain such as
+  // app.example.com does not: www.app.example.com is nobody's address.
+  const pairable = typed.split('.').filter(Boolean).length === 2;
 
   async function refresh() {
     setDomains(await endpoints.domains(service.id).catch(() => domains));
@@ -45,7 +53,7 @@ export function DomainsTab({ service }: { service: Service }) {
     setBusy(true);
     setError(null);
     try {
-      setDomains(await endpoints.addDomain(service.id, hostname.trim(), alsoWww));
+      setDomains(await endpoints.addDomain(service.id, typed, pairable));
       setHostname('');
     } catch (err) {
       setError(err);
@@ -104,14 +112,15 @@ export function DomainsTab({ service }: { service: Service }) {
               Add
             </button>
           </div>
-          <label className="flex items-center gap-2 text-xs text-ink-muted">
-            <input
-              type="checkbox"
-              checked={alsoWww}
-              onChange={(event) => setAlsoWww(event.target.checked)}
-            />
-            Also add the www version
-          </label>
+          {/* Told, not asked. The www half always comes with an apex domain, and it
+              redirects to the one typed here, which is the same rule the Domains page
+              follows. Turning it around is a click on the row there. */}
+          {pairable && (
+            <p className="text-xs text-ink-muted">
+              <span className="text-ink">www.{typed}</span> comes with it and sends people to{' '}
+              <span className="text-ink">{typed}</span>.
+            </p>
+          )}
           <ErrorNote error={error} />
         </div>
       </section>

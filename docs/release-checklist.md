@@ -20,10 +20,16 @@ CI covers the automatable parts. This is the list of things a machine can't chec
 ```sh
 bun run build --target=linux-x64
 bun run build --target=linux-arm64
+bun run build --target=linux-x64-musl
+bun run build --target=linux-arm64-musl
 ```
 
-- [ ] Both binaries produced
+- [ ] All four binaries produced. The `-musl` pair are what Alpine installs, and the
+      installer picks between them, so a release missing them leaves those machines
+      downloading a binary that cannot start
 - [ ] `./derailed version` works on the host build
+- [ ] The musl build runs on Alpine:
+      `docker run --rm -v "$PWD/derailed-linux-arm64-musl:/d" alpine sh -c 'apk add -q libstdc++ && /d version'`
 
 ## Manual smoke test on a real VPS
 

@@ -44,29 +44,59 @@ On an app's **Settings** tab:
   Anything that answers, even a 404, counts as alive; only a refused connection or a
   timeout is a failure.
 - **Memory limit**: a ceiling, so one runaway app cannot take the machine down.
-- **Deploy new releases**: for GitHub repositories. See below.
+- **Deploy automatically**: whether pushing, or publishing a release, puts new code
+  online on its own. See below.
 
-### Deploying when you publish a release
+### Deploying by itself
 
-Switch on **Deploy new releases** on an app's Settings tab and Derailed builds and
-deploys the tag whenever a new release is published on GitHub. It checks every ten
-minutes; there is no webhook to set up, no public URL and no shared secret, which also
-means it keeps working on a server GitHub cannot reach.
+**Settings → Deploy automatically** on an app, which offers three answers:
 
-Releases, not pushes. A push is a work in progress. Publishing a release is somebody
-saying this one is meant to be out there.
+| Choice | What happens |
+| --- | --- |
+| **Only when I ask** | Nothing until you press Deploy. The default. |
+| **Every push to your branch** | Push, and the running app catches up within about two minutes. |
+| **Only when I publish a release** | Ordinary commits are ignored; tagging a release deploys it, within about ten minutes. |
 
-Two things worth knowing:
+One choice rather than a switch for each, because they are not independent: deploying
+every push already covers every release, so having both on would be a combination that
+means nothing.
 
-- **Switching it on changes nothing today.** Derailed notes whichever release is
-  current and waits for the next one, so turning it on never redeploys an app that is
-  already running.
-- **Drafts and prereleases are ignored.** The tag has to be published, and marked as a
-  full release.
+**Switching either on changes nothing today.** Derailed writes down where your branch
+or your releases stand right now and waits for the next one, so turning it on never
+redeploys an app that is already running.
 
-The deploy builds the release's tag rather than the branch, so what runs is what was
-tagged even if the branch has moved on since. Those deploys are marked *a new release*
-in the app's history, so it is clear nobody pressed anything.
+These deploys are marked *a push* or *a new release* in the app's history, so it is
+clear nobody pressed anything.
+
+#### Every push
+
+Derailed asks your git server where the branch is, every couple of minutes, using
+`git ls-remote`. That is plain git rather than GitHub's API, which has two consequences
+worth knowing: it works against **GitLab, Bitbucket, Gitea or your own git server**
+just as well as GitHub, and it has no rate limit to run out of. Polling GitHub's API
+this often would hit its sixty-an-hour ceiling with a handful of apps and then quietly
+stop noticing anything.
+
+A commit that fails to build is not tried again and again. Derailed writes down what it
+saw before it starts building, so a broken commit is built once and then waits for the
+next one, rather than filling the queue for ever.
+
+#### Only when I publish a release
+
+Releases are a GitHub feature, so this one does use GitHub's API and is offered only for
+GitHub repositories. Drafts and prereleases are ignored: the tag has to be published and
+marked as a full release. The deploy builds the release's tag rather than the branch, so
+what runs is what was tagged, even if the branch has moved on since.
+
+Use it when pushing and shipping are meant to be separate decisions.
+
+#### Why polling rather than a webhook
+
+A webhook would be faster by a minute or two, and would cost you a public URL, a shared
+secret and a trip into every repository's settings. Plenty of servers running Derailed
+are behind a router or somewhere GitHub cannot reach at all, and a webhook nobody is
+watching usually ends its life having quietly stopped working. Asking every couple of
+minutes needs no setup and cannot break in that direction.
 
 ### Private repositories
 

@@ -50,10 +50,12 @@ describe('migrations', () => {
   });
 
   test('rebuilding the deployments table keeps every row', () => {
-    // Migration 10 widens the trigger column, which SQLite can only do by copying the
-    // table. A copy that drops rows would silently erase everyone's deploy history,
-    // and the copy is written out column by column, so a column added in the wrong
-    // order would shift every value one place along.
+    // Migrations 10 and 11 each widen the trigger column, which SQLite can only do by
+    // copying the table. A copy that drops rows would silently erase everyone's deploy
+    // history, and the copy is written out column by column, so a column added in the
+    // wrong order would shift every value one place along. This starts before both of
+    // them and migrates all the way up, so it covers each rebuild and the pair of them
+    // run back to back.
     const upto = migrations.findIndex((m) => m.id === 10);
     expect(upto).toBeGreaterThan(0);
 
@@ -118,20 +120,24 @@ describe('migrations', () => {
     expect(after.map((r) => r.commit_message)).toEqual(before.map((r) => r.message));
     expect(after.map((r) => r.image_tag)).toEqual(before.map((r) => `img${r.id}`));
 
-    // The new value is accepted and the old ones still are.
+    // Every trigger the code can produce is accepted, and the old ones still are. A
+    // CHECK that has not kept up is not a type error anywhere: it is a deploy that
+    // refuses to be written down, at the moment it is meant to start.
+    for (const [n, trigger] of ['release', 'push', 'manual'].entries()) {
+      expect(() =>
+        db
+          .query(
+            `INSERT INTO deployments (id, service_id, status, trigger, created_at)
+             VALUES (?, 's1', 'queued', ?, ?)`,
+          )
+          .run(`d${9 + n}`, trigger, 2000 + n),
+      ).not.toThrow();
+    }
     expect(() =>
       db
         .query(
           `INSERT INTO deployments (id, service_id, status, trigger, created_at)
-           VALUES ('d9', 's1', 'queued', 'release', 2000)`,
-        )
-        .run(),
-    ).not.toThrow();
-    expect(() =>
-      db
-        .query(
-          `INSERT INTO deployments (id, service_id, status, trigger, created_at)
-           VALUES ('d10', 's1', 'queued', 'nonsense', 2001)`,
+           VALUES ('d99', 's1', 'queued', 'nonsense', 2099)`,
         )
         .run(),
     ).toThrow();

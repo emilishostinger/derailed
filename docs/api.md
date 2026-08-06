@@ -54,7 +54,7 @@ Creating a service:
 | | |
 | --- | --- |
 | `GET /services/:id` | One service |
-| `PATCH /services/:id` | Branch, folder, port, health path, memory limit, image |
+| `PATCH /services/:id` | Branch, folder, port, health path, memory limit, image, and `deployOnPush` / `deployOnRelease` |
 | `DELETE /services/:id` | Removes it, its containers and its volumes |
 | `POST /services/:id/start` · `/stop` · `/restart` | Control it |
 | `POST /services/:id/upload` | `multipart/form-data` with `file`, a zip, up to 200 MB |

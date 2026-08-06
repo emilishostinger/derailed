@@ -24,9 +24,17 @@ const PLACEHOLDER = `/**
 export const assets: Record<string, string> = {};
 `;
 
+/**
+ * The `-musl` pair are for Alpine and anything else not built on glibc. Bun's normal
+ * Linux builds link against glibc, so on Alpine they do not merely misbehave, they do
+ * not start at all: the shell reports "not found" for a file that is plainly there,
+ * which is the least helpful error in computing.
+ */
 const targets: Record<string, string> = {
   'linux-x64': 'bun-linux-x64',
   'linux-arm64': 'bun-linux-arm64',
+  'linux-x64-musl': 'bun-linux-x64-musl',
+  'linux-arm64-musl': 'bun-linux-arm64-musl',
   'darwin-x64': 'bun-darwin-x64',
   'darwin-arm64': 'bun-darwin-arm64',
 };

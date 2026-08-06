@@ -25,6 +25,8 @@ interface ServiceRow {
   memory_limit_mb: number | null;
   deploy_on_release: 0 | 1;
   last_release_tag: string | null;
+  deploy_on_push: 0 | 1;
+  last_pushed_sha: string | null;
   db_engine: string | null;
   db_version: string | null;
   db_name: string | null;
@@ -59,6 +61,8 @@ function toService(row: ServiceRow): Service {
     memoryLimitMb: row.memory_limit_mb,
     deployOnRelease: row.deploy_on_release === 1,
     lastReleaseTag: row.last_release_tag,
+    deployOnPush: row.deploy_on_push === 1,
+    lastPushedSha: row.last_pushed_sha,
     dbEngine: row.db_engine,
     dbVersion: row.db_version,
     dbName: row.db_name,
@@ -219,6 +223,8 @@ export function databasePassword(serviceId: string): string | null {
 const UPDATABLE: Record<string, string> = {
   deployOnRelease: 'deploy_on_release',
   lastReleaseTag: 'last_release_tag',
+  deployOnPush: 'deploy_on_push',
+  lastPushedSha: 'last_pushed_sha',
   name: 'name',
   branch: 'branch',
   rootDir: 'root_dir',

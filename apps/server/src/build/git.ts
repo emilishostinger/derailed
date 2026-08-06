@@ -220,6 +220,32 @@ export async function resolveDefaultBranch(repoUrl: string): Promise<string | nu
   return match?.[1] ?? null;
 }
 
+/**
+ * The commit at the top of a branch, without cloning anything.
+ *
+ * `ls-remote` is one short conversation with the server, and it is the reason the
+ * push watcher does not need GitHub's API: no token for a public repository, no sixty
+ * calls an hour, and it works the same against GitLab, Bitbucket, Gitea or a git
+ * server somebody runs themselves. The release watcher next door has to use the API,
+ * because a release is a GitHub idea rather than a git one; a commit is not.
+ *
+ * Null when the branch cannot be read at all, which is deliberately not the same as
+ * "no new commit": the caller must not record a missing answer as the current state.
+ */
+export async function resolveBranchHead(
+  repoUrl: string,
+  branch: string,
+  token?: string | null,
+): Promise<string | null> {
+  const url = token ? withToken(repoUrl, token) : repoUrl;
+  // Fully qualified, so a tag of the same name cannot answer instead.
+  const result = await git(['ls-remote', url, `refs/heads/${branch}`], { timeoutMs: 30_000 });
+  if (result.code !== 0) return null;
+
+  const sha = result.stdout.split(/\s+/)[0]?.trim();
+  return sha && /^[0-9a-f]{40}$/i.test(sha) ? sha : null;
+}
+
 export async function gitAvailable(): Promise<boolean> {
   const result = await git(['--version'], { timeoutMs: 5000 });
   return result.code === 0;

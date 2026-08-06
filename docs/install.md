@@ -2,7 +2,7 @@
 
 ## The short version
 
-On a fresh Ubuntu or Debian server, as root:
+On a fresh Linux server, as root:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/emilishostinger/derailed/main/install.sh | sh
@@ -57,8 +57,25 @@ leaving you locked out.
 
 ## Requirements
 
-- **Ubuntu or Debian.** Other distributions may work. The installer will warn and ask.
-- **64-bit Intel (`x86_64`) or ARM (`aarch64`).**
+- **Any Linux with a 64-bit Intel (`x86_64`) or ARM (`aarch64`) processor.**
+
+  Derailed is one static binary and does not care what is underneath it. The installer
+  knows `apt`, `dnf`, `yum`, `pacman`, `apk` and `zypper` for the two or three tools it
+  needs, and sets Derailed up under systemd or OpenRC, whichever the machine uses. That
+  covers Debian, Ubuntu, Fedora, RHEL, Rocky, Alma, Arch, Alpine and openSUSE without
+  anything special being done for each.
+
+  A distribution using none of those still works: install `curl`, `git` and `tar`
+  yourself and the installer carries on. There is nothing to start it at boot in that
+  case, and it says so rather than pretending otherwise.
+
+  Alpine and other musl systems get their own build, chosen for you. A glibc binary
+  there does not fail with a message about glibc, it fails with "not found" about a file
+  that is plainly present, so it is worth not doing.
+
+- **Docker 25 or newer.** The installer fetches a current one. If the machine already
+  has an older Docker from its distribution, the installer says so before changing
+  anything: Derailed speaks Docker's API directly and pins a version of it.
 - **2 GB of RAM** is comfortable. 1 GB works but building larger apps may run out of memory;
   add swap if you hit that.
 - **10 GB of disk** or more. Images add up. Derailed prunes old build logs and images

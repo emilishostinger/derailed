@@ -1,6 +1,7 @@
 import { startTrafficCollector, stopTrafficCollector } from './analytics/collect.ts';
 import { pruneTraffic } from './analytics/store.ts';
 import { startBackupSchedule, stopBackupSchedule } from './backup/schedule.ts';
+import { startPushWatcher, stopPushWatcher } from './build/pushes.ts';
 import { startReleaseWatcher, stopReleaseWatcher } from './build/releases.ts';
 import { ensureDirs, host, isDev, paths, port, VERSION } from './config.ts';
 import { initDb } from './db/index.ts';
@@ -124,6 +125,7 @@ export async function serve(): Promise<void> {
     stopDomainWatcher();
     stopBackupSchedule();
     stopReleaseWatcher();
+    stopPushWatcher();
     stopUpdateNotifier();
     stopTrafficCollector();
     stopMonitor();
@@ -174,6 +176,7 @@ async function bootRuntime(): Promise<void> {
     startDomainWatcher();
     startBackupSchedule();
     startReleaseWatcher();
+    startPushWatcher();
     startUpdateNotifier();
     startTrafficCollector();
     pruneTraffic();

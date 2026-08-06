@@ -278,36 +278,47 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
   );
 }
 
-const ENGINES = [
-  {
-    engine: 'postgres',
-    label: 'PostgreSQL',
-    versions: ['17', '16', '15'],
-    blurb: 'The usual choice. Great for almost anything.',
-  },
-  {
-    engine: 'mysql',
-    label: 'MySQL',
-    versions: ['8.4', '8.0'],
-    blurb: 'Widely supported, especially by PHP apps.',
-  },
-  {
-    engine: 'redis',
-    label: 'Redis',
-    versions: ['7'],
-    blurb: 'In-memory store for caching, queues and sessions.',
-  },
-];
+interface CatalogEngine {
+  engine: string;
+  label: string;
+  versions: string[];
+  blurb: string;
+}
 
+/**
+ * The engines come from the server rather than from a copy kept here.
+ *
+ * There were two lists: one the server would actually run and one the dashboard drew
+ * buttons from, and they had already drifted, so adding an engine meant editing both
+ * and noticing that you had to. Now adding one is a change to `catalog/databases.ts`
+ * and nothing else.
+ */
 function FromCatalog({ projectId, onDone }: { projectId: string; onDone: () => void }) {
   const load = useProjects((s) => s.load);
-  const [engine, setEngine] = useState(ENGINES[0]!);
-  const [version, setVersion] = useState(ENGINES[0]!.versions[0]!);
+  const [engines, setEngines] = useState<CatalogEngine[] | null>(null);
+  const [engine, setEngine] = useState<CatalogEngine | null>(null);
+  const [version, setVersion] = useState('');
   const [name, setName] = useState('database');
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    endpoints
+      .databaseCatalog()
+      .then(({ engines: list }) => {
+        setEngines(list);
+        const first = list[0];
+        if (first) {
+          setEngine(first);
+          setVersion(first.versions[0] ?? '');
+          setName(first.engine);
+        }
+      })
+      .catch(setError);
+  }, []);
+
   async function onCreate() {
+    if (!engine) return;
     setError(null);
     setBusy(true);
     try {
@@ -320,27 +331,56 @@ function FromCatalog({ projectId, onDone }: { projectId: string; onDone: () => v
     }
   }
 
+  if (!engines || !engine) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 py-6 text-[13px] text-ink-muted">
+          <Spinner /> Loading the list.
+        </div>
+        <ErrorNote error={error} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-3">
-        {ENGINES.map((entry) => (
-          <button
-            key={entry.engine}
-            type="button"
-            onClick={() => {
-              setEngine(entry);
-              setVersion(entry.versions[0]!);
-              setName(entry.engine);
-            }}
-            className={cx(
-              'card p-3 text-left transition-colors',
-              engine.engine === entry.engine ? 'border-accent' : 'hover:border-line-strong',
-            )}
-          >
-            <p className="text-sm font-medium text-ink">{entry.label}</p>
-            <p className="mt-1 text-xs text-ink-muted">{entry.blurb}</p>
-          </button>
-        ))}
+      {/* Two to a row rather than three: with a mark and a sentence on each, three
+          across squeezed the words into a column two syllables wide. */}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {engines.map((entry) => {
+          const brand = brandByName(entry.engine) ?? brandByName(entry.label);
+          return (
+            <button
+              key={entry.engine}
+              type="button"
+              onClick={() => {
+                setEngine(entry);
+                setVersion(entry.versions[0] ?? '');
+                setName(entry.engine);
+              }}
+              className={cx(
+                'card flex items-start gap-2.5 p-3 text-left transition-colors',
+                engine.engine === entry.engine ? 'border-accent' : 'hover:border-line-strong',
+              )}
+            >
+              {/* The mark does the identifying. "Postgres or MySQL?" is answered by
+                  the elephant and the dolphin before either word is read. */}
+              {brand ? (
+                <BrandTile brand={brand} className="mt-0.5 h-7 w-7" />
+              ) : (
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-surface-2 text-ink-faint">
+                  <Database className="h-4 w-4" />
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-ink">{entry.label}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted">
+                  {entry.blurb}
+                </span>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

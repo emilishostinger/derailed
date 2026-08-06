@@ -4,6 +4,7 @@ import { trafficFor } from '../../analytics/store.ts';
 import { deleteDeploymentLog } from '../../build/deploylog.ts';
 import { normalizeRepoUrl, resolveDefaultBranch } from '../../build/git.ts';
 import { queueDeployment } from '../../build/pipeline.ts';
+import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
 import { MAX_UPLOAD_BYTES, removeUpload, storeUpload } from '../../build/upload.ts';
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
@@ -109,10 +110,14 @@ serviceRoutes.patch('/:id', async (c) => {
   );
   if (!updated) throw notFound('That service');
 
-  // Turning release deploys on notes the release that is out today, so switching it
-  // on does not immediately rebuild an app that is already running that release.
+  // Turning either of these on notes where things stand today, so switching it on
+  // does not immediately rebuild an app that is already running that very commit or
+  // release.
   if (patch.deployOnRelease === true && !updated.lastReleaseTag) {
     await adoptCurrentRelease(updated.id).catch(() => null);
+  }
+  if (patch.deployOnPush === true && !updated.lastPushedSha) {
+    await adoptCurrentCommit(updated.id).catch(() => null);
   }
 
   const after = findService(updated.id) ?? updated;

@@ -1,4 +1,4 @@
-import { chmodSync, copyFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, renameSync, statSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { VERSION } from './config.ts';
 
@@ -13,9 +13,26 @@ export interface ReleaseInfo {
   notes: string | null;
 }
 
-function assetName(): string {
+/**
+ * Whether this machine's C library is musl rather than glibc.
+ *
+ * Read from the running binary rather than from `/etc/alpine-release`, because the
+ * question is what this build was linked against, not what distribution it is sitting
+ * on. Bun reports it directly. Updating a musl install with a glibc build would leave
+ * a binary that cannot start, on a machine whose service is set to restart it forever.
+ */
+export function isMusl(): boolean {
+  if (process.platform !== 'linux') return false;
+  // The dynamic loader, by name. This is the thing that actually differs, it is on
+  // disk rather than inferred, and it does not depend on any runtime's idea of what
+  // it was built against.
+  const loaders = ['/lib/ld-musl-x86_64.so.1', '/lib/ld-musl-aarch64.so.1'];
+  return loaders.some((path) => existsSync(path)) || existsSync('/etc/alpine-release');
+}
+
+export function assetName(): string {
   const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
-  return `derailed-linux-${arch}`;
+  return `derailed-linux-${arch}${isMusl() ? '-musl' : ''}`;
 }
 
 /** Compares dotted versions numerically, so 0.10.0 beats 0.9.0. */
