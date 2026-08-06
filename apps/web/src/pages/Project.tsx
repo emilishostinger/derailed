@@ -1,9 +1,10 @@
 import { topics } from '@derailed/shared';
-import { Workflow } from 'lucide-react';
+import { MoreHorizontal, Workflow } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { live } from '../api/ws.ts';
 import { NewServiceWizard } from '../components/NewServiceWizard.tsx';
+import { useProjectActions } from '../components/projectActions.tsx';
 import { ServiceDrawer } from '../components/ServiceDrawer.tsx';
 import { TopologyCanvas } from '../components/topology/Canvas.tsx';
 import { EmptyState, Spinner } from '../components/ui.tsx';
@@ -12,6 +13,7 @@ import { NewButton, PageHeader } from './Layout.tsx';
 
 export function ProjectPage() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const projects = useProjects((s) => s.projects);
   const loaded = useProjects((s) => s.loaded);
@@ -40,6 +42,16 @@ export function ProjectPage() {
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
+
+  // Before the early returns below, because a hook cannot be called conditionally.
+  // Deleting the project you are standing on has to put you somewhere that exists.
+  const actions = useProjectActions({
+    id: project?.id ?? '',
+    name: project?.name ?? '',
+    slug: project?.slug ?? '',
+    services: project?.services?.length ?? 0,
+    onDeleted: () => navigate('/'),
+  });
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: resubscribing on every project object change would tear down the socket subscription on each live update.
   useEffect(() => {
@@ -76,10 +88,25 @@ export function ProjectPage() {
 
   return (
     <>
+      {actions.element}
+
       <PageHeader
         title={project.name}
         subtitle={services.length === 0 ? 'Empty' : `${running} of ${services.length} running`}
-        actions={<NewButton label="New" onClick={() => setWizardOpen(true)} />}
+        actions={
+          <>
+            <button
+              type="button"
+              aria-label="Project actions"
+              title="Rename, back up or delete"
+              className="rounded-[var(--radius-control)] p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+              onClick={actions.openFrom}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+            <NewButton label="New" onClick={() => setWizardOpen(true)} />
+          </>
+        }
       />
 
       <div className="relative min-h-0 flex-1">

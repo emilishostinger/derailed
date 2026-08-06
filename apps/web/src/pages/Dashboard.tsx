@@ -8,6 +8,7 @@ import {
   Globe,
   Layers,
   Lock,
+  MoreHorizontal,
   Server,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -15,6 +16,7 @@ import { Link } from 'react-router-dom';
 import type { OtherSoftware } from '../api/endpoints.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { DropToHost } from '../components/DropToHost.tsx';
+import { useProjectActions } from '../components/projectActions.tsx';
 import { cx, EmptyState, ErrorNote, Field, Modal, Spinner, StatusDot } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
@@ -178,6 +180,12 @@ function AlsoHere() {
 
 function ProjectCard({ project }: { project: Project }) {
   const services = project.services ?? [];
+  const actions = useProjectActions({
+    id: project.id,
+    name: project.name,
+    slug: project.slug,
+    services: services.length,
+  });
   const apps = services.filter((service) => service.kind === 'app');
   const databases = services.filter((service) => service.kind === 'database');
   // Someone who has attached their own domain thinks of the project by that name,
@@ -190,64 +198,84 @@ function ProjectCard({ project }: { project: Project }) {
   const secure = address?.tlsStatus === 'active';
 
   return (
-    <Link
-      to={`/p/${project.slug}`}
-      className="card group flex flex-col gap-3 p-4 transition-[border-color,background-color] duration-150 hover:border-line-strong hover:bg-surface-2/40"
-    >
-      <div className="flex items-center gap-2">
-        <Boxes className="h-4 w-4 shrink-0 text-ink-faint" />
-        <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
-          {project.name}
-        </h2>
-        {services.length > 0 && <StatusCounts services={services} />}
-      </div>
+    <>
+      <Link
+        to={`/p/${project.slug}`}
+        onContextMenu={actions.onContextMenu}
+        className="card group relative flex flex-col gap-3 p-4 transition-[border-color,background-color] duration-150 hover:border-line-strong hover:bg-surface-2/40"
+      >
+        <div className="flex items-center gap-2">
+          <Boxes className="h-4 w-4 shrink-0 text-ink-faint" />
+          <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+            {project.name}
+          </h2>
+          {services.length > 0 && <StatusCounts services={services} />}
+          {/* Quiet until the card is under the pointer, then the way in to renaming and
+              deleting. Inside the link, so its click must not follow it. */}
+          <button
+            type="button"
+            aria-label={`Actions for ${project.name}`}
+            className="-mr-1 shrink-0 rounded-[4px] p-0.5 text-ink-faint opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
+            onClick={(event) => {
+              event.preventDefault();
+              actions.openFrom(event);
+            }}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
-      {address ? (
-        <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-accent">
-          {secure ? (
-            <Lock className="h-3 w-3 shrink-0 text-ok" />
-          ) : (
-            <Globe className="h-3 w-3 shrink-0" />
-          )}
-          <span className="truncate">{address.hostname}</span>
-        </p>
-      ) : (
-        <p className="text-[12px] text-ink-faint">No web address yet</p>
-      )}
-
-      <div className="mt-auto flex items-center gap-3 border-t border-line pt-3 text-[12px] text-ink-muted">
-        {services.length === 0 ? (
-          <span className="text-ink-faint">Empty, add an app or a database</span>
-        ) : (
-          <>
-            <span className="flex items-center gap-1.5">
-              <Layers className="h-3 w-3 text-ink-faint" />
-              {apps.length} app{apps.length === 1 ? '' : 's'}
-            </span>
-            {databases.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <Database className="h-3 w-3 text-ink-faint" />
-                {databases.length}
-              </span>
+        {address ? (
+          <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-accent">
+            {secure ? (
+              <Lock className="h-3 w-3 shrink-0 text-ok" />
+            ) : (
+              <Globe className="h-3 w-3 shrink-0" />
             )}
-            {/* Said either way. "No backups" is the more useful of the two to notice. */}
-            <span
-              className={cx(
-                'ml-auto flex items-center gap-1.5',
-                project.backupSchedule === 'off' ? 'text-ink-faint' : 'text-ok',
-              )}
-            >
-              <Archive className="h-3 w-3" />
-              {project.backupSchedule === 'daily'
-                ? 'Daily backups'
-                : project.backupSchedule === 'weekly'
-                  ? 'Weekly backups'
-                  : 'No backups'}
-            </span>
-          </>
+            <span className="truncate">{address.hostname}</span>
+          </p>
+        ) : (
+          <p className="text-[12px] text-ink-faint">No web address yet</p>
         )}
-      </div>
-    </Link>
+
+        <div className="mt-auto flex items-center gap-3 border-t border-line pt-3 text-[12px] text-ink-muted">
+          {services.length === 0 ? (
+            <span className="text-ink-faint">Empty, add an app or a database</span>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5">
+                <Layers className="h-3 w-3 text-ink-faint" />
+                {apps.length} app{apps.length === 1 ? '' : 's'}
+              </span>
+              {databases.length > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Database className="h-3 w-3 text-ink-faint" />
+                  {databases.length}
+                </span>
+              )}
+              {/* Said either way. "No backups" is the more useful of the two to notice. */}
+              <span
+                className={cx(
+                  'ml-auto flex items-center gap-1.5',
+                  project.backupSchedule === 'off' ? 'text-ink-faint' : 'text-ok',
+                )}
+              >
+                <Archive className="h-3 w-3" />
+                {project.backupSchedule === 'daily'
+                  ? 'Daily backups'
+                  : project.backupSchedule === 'weekly'
+                    ? 'Weekly backups'
+                    : 'No backups'}
+              </span>
+            </>
+          )}
+        </div>
+      </Link>
+
+      {/* Outside the link on purpose. React events cross portals by the component
+          tree, so a menu rendered inside the card would follow it on every click. */}
+      {actions.element}
+    </>
   );
 }
 

@@ -28,6 +28,17 @@ export function useContextMenu() {
       event.stopPropagation();
       setAt({ x: event.clientX, y: event.clientY });
     },
+    /**
+     * The same menu, from a button rather than a right-click. Anchored to the
+     * button's bottom-left so it hangs beneath it like a menu rather than appearing
+     * wherever the pointer happened to be.
+     */
+    openFrom: (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      setAt({ x: box.left, y: box.bottom + 4 });
+    },
   };
 }
 

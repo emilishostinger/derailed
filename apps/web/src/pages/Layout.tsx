@@ -29,6 +29,7 @@ import { endpoints } from '../api/endpoints.ts';
 import { CommandPalette } from '../components/CommandPalette.tsx';
 import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
 import { Wordmark } from '../components/Logo.tsx';
+import { useProjectActions } from '../components/projectActions.tsx';
 import { cx, ErrorNote, Modal, Spinner, StatusDot } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
@@ -503,18 +504,20 @@ function ProjectItem({
   services: { status?: string | null; kind: string }[];
   backedUp?: boolean;
 }) {
-  const navigate = useNavigate();
-  const load = useProjects((s) => s.load);
   const status = aggregateStatus(services);
   const databases = services.filter((service) => service.kind === 'database').length;
-  const menu = useContextMenu();
-  const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const actions = useProjectActions({
+    id,
+    name,
+    slug,
+    services: services.length,
+    includeOpen: true,
+  });
 
   return (
     <>
       <NavLink
-        onContextMenu={menu.onContextMenu}
+        onContextMenu={actions.onContextMenu}
         to={`/p/${slug}`}
         className={({ isActive }) =>
           cx(
@@ -527,8 +530,8 @@ function ProjectItem({
       >
         <StatusDot status={status} />
         <span className="min-w-0 flex-1 truncate">{name}</span>
-        {note ? (
-          <span className="shrink-0 text-[11px] text-ink-faint">{note}</span>
+        {actions.note ? (
+          <span className="shrink-0 text-[11px] text-ink-faint">{actions.note}</span>
         ) : (
           <>
             {/* Only for the ones that are backed up: a mark on every row is noise. */}
@@ -548,74 +551,12 @@ function ProjectItem({
         )}
       </NavLink>
 
-      <ContextMenu
-        at={menu.at}
-        onClose={menu.close}
-        items={[
-          {
-            label: 'Open',
-            icon: <ArrowRight className="h-3.5 w-3.5" />,
-            onSelect: () => navigate(`/p/${slug}`),
-          },
-          {
-            label: 'Rename',
-            icon: <Pencil className="h-3.5 w-3.5" />,
-            onSelect: () => setDialog('rename'),
-          },
-          {
-            label: 'Back it up',
-            icon: <Archive className="h-3.5 w-3.5" />,
-            separated: true,
-            onSelect: async () => {
-              setNote('Copying…');
-              const ok = await endpoints
-                .createBackup(id)
-                .then(() => true)
-                .catch(() => false);
-              setNote(ok ? 'Copied' : 'Failed');
-              setTimeout(() => setNote(null), 4000);
-            },
-          },
-          {
-            label: 'Delete',
-            icon: <Trash2 className="h-3.5 w-3.5" />,
-            danger: true,
-            separated: true,
-            onSelect: () => setDialog('delete'),
-          },
-        ]}
-      />
-
-      {dialog === 'rename' && (
-        <RenameProject
-          id={id}
-          name={name}
-          onClose={() => setDialog(null)}
-          onDone={async () => {
-            setDialog(null);
-            await load();
-          }}
-        />
-      )}
-
-      {dialog === 'delete' && (
-        <DeleteProject
-          id={id}
-          name={name}
-          services={services.length}
-          onClose={() => setDialog(null)}
-          onDone={async () => {
-            setDialog(null);
-            await load();
-            navigate('/');
-          }}
-        />
-      )}
+      {actions.element}
     </>
   );
 }
 
-function RenameProject({
+export function RenameProject({
   id,
   name,
   onClose,
@@ -673,7 +614,7 @@ function RenameProject({
   );
 }
 
-function DeleteProject({
+export function DeleteProject({
   id,
   name,
   services,
