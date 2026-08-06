@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowRight,
   ArrowUpCircle,
+  BookOpen,
   Bot,
   Boxes,
   ChevronDown,
@@ -138,6 +139,9 @@ function MobileNav() {
             </MobileLink>
             <MobileLink to="/settings" onGo={() => setOpen(false)}>
               Settings
+            </MobileLink>
+            <MobileLink to="/help" onGo={() => setOpen(false)}>
+              Handbook
             </MobileLink>
 
             <div className="mt-auto">
@@ -374,6 +378,11 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
           </NavItem>
           <NavItem to="/settings" icon={<Settings2 className="h-4 w-4" />}>
             Settings
+          </NavItem>
+          {/* Last, and always there. The answer to "what does this actually do to my
+              data" should not live in a repository nobody opens. */}
+          <NavItem to="/help" icon={<BookOpen className="h-4 w-4" />}>
+            Handbook
           </NavItem>
         </NavGroup>
       </nav>

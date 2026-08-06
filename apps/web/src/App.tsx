@@ -5,6 +5,7 @@ import { Agents } from './pages/Agents.tsx';
 import { Backups } from './pages/Backups.tsx';
 import { Dashboard } from './pages/Dashboard.tsx';
 import { Domains } from './pages/Domains.tsx';
+import { Help } from './pages/Help.tsx';
 import { Layout } from './pages/Layout.tsx';
 import { Login } from './pages/Login.tsx';
 import { Onboarding } from './pages/Onboarding.tsx';
@@ -37,6 +38,8 @@ export function App() {
           <Route path="/updates" element={<Updates />} />
           <Route path="/backups" element={<Backups />} />
           <Route path="/agents" element={<Agents />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/help/:slug" element={<Help />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
