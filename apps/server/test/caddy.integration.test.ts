@@ -113,4 +113,39 @@ suite('caddy integration', () => {
     }).catch(() => null);
     expect(response?.status).toBe(404);
   }, 30_000);
+
+  /**
+   * Caddy saves its own configuration and `--resume` loads it back, including the
+   * address its admin API listens on. So moving that address left a Caddy running
+   * happily on the old one and Derailed unable to say a word to it: routes stopped
+   * updating, certificates stopped being requested, and the only symptom was a
+   * router marked down with nothing anywhere saying why. It has to notice and
+   * rebuild instead of adopting something it cannot talk to.
+   */
+  test('a running Caddy that cannot be reached is replaced, not adopted', async () => {
+    const stranded = buildCaddyConfig([]);
+    // Move the admin API somewhere Derailed will not look, exactly as an upgrade
+    // that changes the admin address would.
+    stranded.admin = { listen: '0.0.0.0:12931' };
+    await pushCaddyConfig(stranded);
+
+    await Bun.sleep(1000);
+    expect(await pingCaddy()).toBe(false);
+
+    await ensureCaddyRunning();
+    expect(await pingCaddy()).toBe(true);
+
+    // The rebuilt Caddy starts blank, so this is the push `reconcile()` does at
+    // boot. That it succeeds at all is the point: before, it could not.
+    await pushCaddyConfig(buildCaddyConfig([]));
+    await Bun.sleep(500);
+
+    // And it is serving again, rather than merely answering the admin API.
+    const response = await fetch(`http://127.0.0.1:${caddyConfig.httpPort}/`, {
+      headers: { host: 'nobody.example.com' },
+      signal: AbortSignal.timeout(5000),
+      redirect: 'manual',
+    }).catch(() => null);
+    expect(response?.status).toBe(404);
+  }, 180_000);
 });

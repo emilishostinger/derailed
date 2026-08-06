@@ -27,6 +27,30 @@ async function diskUsage(): Promise<SystemInfo['disk']> {
   }
 }
 
+/**
+ * Why Docker isn't answering, in words a person can act on.
+ *
+ * Derailed pins one Docker API version, and a Docker too old to speak it answers
+ * `client version 1.44 is too new. Maximum supported API version is 1.41`, which was
+ * passed through to the dashboard exactly as written. That sentence is about Derailed
+ * being too new, which reads like Derailed is broken, and it names two version numbers
+ * that are neither the one installed nor the one needed. The installer fetches a
+ * current Docker, so this is the person who already had an old one from their
+ * distribution: `docker.io` on Debian 12 and Ubuntu 22.04 is exactly this case.
+ */
+export function explainDockerFailure(err: unknown): string {
+  if (!(err instanceof DockerError)) {
+    return 'Could not reach Docker. Is the Docker service running?';
+  }
+  if (/maximum supported api version/i.test(err.message)) {
+    return 'The Docker on this server is too old for Derailed, which needs Docker 25 or newer. Install the current one with: curl -fsSL https://get.docker.com | sh';
+  }
+  if (/permission denied/i.test(err.message)) {
+    return 'Derailed is not allowed to talk to Docker. It needs to run as root, or as a member of the docker group.';
+  }
+  return err.message;
+}
+
 export async function systemInfo(): Promise<SystemInfo> {
   const [disk, docker] = await Promise.all([
     diskUsage(),
@@ -35,10 +59,7 @@ export async function systemInfo(): Promise<SystemInfo> {
       (err: unknown) => ({
         ok: false,
         version: null,
-        error:
-          err instanceof DockerError
-            ? err.message
-            : 'Could not reach Docker. Is the Docker service running?',
+        error: explainDockerFailure(err),
       }),
     ),
   ]);

@@ -1,5 +1,5 @@
 import { mkdir, readdir, rm, stat } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { FriendlyError } from '../build/git.ts';
 import { credentialsFor } from '../catalog/create.ts';
 import { findEngine } from '../catalog/databases.ts';
@@ -86,8 +86,13 @@ async function runningContainer(serviceId: string): Promise<string | null> {
  * multiplexed and hijacked, and for a plain dump-to-file the CLI is both simpler and
  * exactly as reliable.
  */
-async function execToFile(containerId: string, cmd: string[], file: string): Promise<void> {
-  const proc = Bun.spawn(['docker', 'exec', containerId, ...cmd], {
+async function execToFile(
+  containerId: string,
+  cmd: string[],
+  file: string,
+  env: string[] = [],
+): Promise<void> {
+  const proc = Bun.spawn(['docker', ...execArgs(containerId, env), ...cmd], {
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -106,35 +111,88 @@ async function execToFile(containerId: string, cmd: string[], file: string): Pro
   await Bun.write(file, new Uint8Array(body));
 }
 
+/**
+ * How to dump each engine, as an argument list rather than a line of shell.
+ *
+ * These used to be built by pasting the credentials into `sh -c '…'` between single
+ * quotes. Derailed makes those credentials itself out of letters and digits, so there
+ * was nothing in one to escape and nothing went wrong. But the safety came from the
+ * generator rather than from anything here, and the day a database name came from
+ * somewhere else, one apostrophe in it would have been a command running inside the
+ * container. Passwords go in the environment, everything else is an argument, and
+ * there is no shell left to confuse.
+ */
 function dumpCommand(
   engine: string,
   credentials: { user: string; dbName: string; password: string },
-) {
+): { cmd: string[]; env: string[]; file: string } | null {
   if (engine === 'postgres') {
     return {
-      cmd: [
-        'sh',
-        '-c',
-        `PGPASSWORD='${credentials.password}' pg_dump -U '${credentials.user}' '${credentials.dbName}'`,
-      ],
+      cmd: ['pg_dump', '-U', credentials.user, credentials.dbName],
+      env: [`PGPASSWORD=${credentials.password}`],
       file: 'dump.sql',
     };
   }
   if (engine === 'mysql' || engine === 'mariadb') {
     return {
       cmd: [
-        'sh',
-        '-c',
-        `mysqldump -u '${credentials.user}' -p'${credentials.password}' --single-transaction --routines '${credentials.dbName}'`,
+        'mysqldump',
+        '-u',
+        credentials.user,
+        '--single-transaction',
+        '--routines',
+        credentials.dbName,
       ],
+      env: [`MYSQL_PWD=${credentials.password}`],
       file: 'dump.sql',
     };
   }
   if (engine === 'redis') {
     // Redis has no textual dump; the append-only log is the honest thing to keep.
-    return { cmd: ['sh', '-c', 'redis-cli --rdb /dev/stdout 2>/dev/null'], file: 'dump.rdb' };
+    return { cmd: ['redis-cli', '--rdb', '/dev/stdout'], env: [], file: 'dump.rdb' };
   }
   return null;
+}
+
+/** The mirror image of `dumpCommand`: how to read one back in. */
+function restoreCommand(
+  engine: string,
+  credentials: { user: string; dbName: string; password: string },
+): { cmd: string[]; env: string[] } | null {
+  if (engine === 'postgres') {
+    return {
+      cmd: ['psql', '-U', credentials.user, '-d', credentials.dbName],
+      env: [`PGPASSWORD=${credentials.password}`],
+    };
+  }
+  if (engine === 'mysql' || engine === 'mariadb') {
+    return {
+      cmd: ['mysql', '-u', credentials.user, credentials.dbName],
+      env: [`MYSQL_PWD=${credentials.password}`],
+    };
+  }
+  return null;
+}
+
+/**
+ * A path from the manifest, resolved inside the unpacked backup, or null.
+ *
+ * Derailed writes these manifests itself, so today they say `databases/blog-dump.sql`
+ * and nothing else. But a backup is a file: it can be edited, and it can arrive from
+ * somewhere other than where it was made. A name is only a name here, never a route
+ * out of the folder it was unpacked into.
+ */
+export function safeInside(root: string, name: string): string | null {
+  if (!name) return null;
+  const target = resolve(root, name.replace(/^[/\\]+/, ''));
+  const base = resolve(root);
+  if (target !== base && !target.startsWith(`${base}/`)) return null;
+  return target;
+}
+
+/** `docker exec` with an environment, as `-e KEY=value` pairs before the command. */
+function execArgs(containerId: string, env: string[], extra: string[] = []): string[] {
+  return ['exec', ...extra, ...env.flatMap((entry) => ['-e', entry]), containerId];
 }
 
 /** A tar holding one empty directory. Anything at or below this holds no files. */
@@ -272,7 +330,7 @@ export async function createBackup(projectId: string): Promise<BackupSummary> {
 
         const file = `databases/${service.slug}-${dump.file}`;
         await mkdir(join(work, 'databases'), { recursive: true });
-        await execToFile(containerId, dump.cmd, join(work, file));
+        await execToFile(containerId, dump.cmd, join(work, file), dump.env);
         manifest.databases.push({
           service: service.slug,
           engine: engine.engine,
@@ -454,24 +512,30 @@ export async function restoreBackup(id: string, projectId: string): Promise<Rest
         continue;
       }
 
-      const dump = join(work, entry.file);
-      const restore =
-        entry.engine === 'postgres'
-          ? `PGPASSWORD='${credentials.password}' psql -U '${credentials.user}' -d '${credentials.dbName}'`
-          : entry.engine === 'mysql' || entry.engine === 'mariadb'
-            ? `mysql -u '${credentials.user}' -p'${credentials.password}' '${credentials.dbName}'`
-            : null;
+      // The manifest travels inside the archive, so its filenames are not a path:
+      // one `../` in it would read a file from outside the unpacked backup.
+      const dump = safeInside(work, entry.file);
+      if (!dump) {
+        report.warnings.push(
+          `${entry.service} names a file outside the backup, so it was skipped.`,
+        );
+        continue;
+      }
 
+      const restore = restoreCommand(entry.engine, credentials);
       if (!restore) {
         report.warnings.push(`Derailed can't restore ${entry.engine} yet, so it was skipped.`);
         continue;
       }
 
-      const proc = Bun.spawn(['docker', 'exec', '-i', containerId, 'sh', '-c', restore], {
-        stdin: Bun.file(dump),
-        stdout: 'pipe',
-        stderr: 'pipe',
-      });
+      const proc = Bun.spawn(
+        ['docker', ...execArgs(containerId, restore.env, ['-i']), ...restore.cmd],
+        {
+          stdin: Bun.file(dump),
+          stdout: 'pipe',
+          stderr: 'pipe',
+        },
+      );
       const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
       if (code !== 0) {
         report.warnings.push(`${service.name} did not restore cleanly: ${stderr.slice(0, 200)}`);
@@ -497,7 +561,14 @@ export async function restoreBackup(id: string, projectId: string): Promise<Rest
       }
       // Stopped first, always. Replacing a folder under a running app is how a
       // restore turns into the outage it was supposed to prevent.
-      await withServiceStopped(service.id, () => importVolume(volume.name, join(work, entry.file)));
+      const archived = safeInside(work, entry.file);
+      if (!archived) {
+        report.warnings.push(
+          `${entry.service} names a file outside the backup, so it was skipped.`,
+        );
+        continue;
+      }
+      await withServiceStopped(service.id, () => importVolume(volume.name, archived));
       report.volumes++;
     }
 

@@ -76,6 +76,22 @@ const serviceName = z
   .min(1, 'Give this service a name.')
   .max(60, 'Keep the name under 60 characters.');
 
+/**
+ * The path Derailed asks for to decide an app has started.
+ *
+ * It is pasted straight onto `http://127.0.0.1:<port>`, so it has to be a path and
+ * nothing else. `@example.com/` on the end of that is not a path: it makes the
+ * address point at example.com, and the health check that was meant to poll the
+ * container next door would go and knock on somebody else's door instead.
+ */
+const healthPath = z
+  .string()
+  .trim()
+  .max(400)
+  .refine((value) => value === '' || (value.startsWith('/') && !value.startsWith('//')), {
+    message: 'That has to be a path inside your app, starting with one slash, like /healthz.',
+  });
+
 export const createAppServiceRequest = z
   .object({
     kind: z.literal('app'),
@@ -89,7 +105,7 @@ export const createAppServiceRequest = z
     buildStrategy: z.enum(['auto', 'dockerfile', 'nixpacks']).optional(),
     dockerfilePath: z.string().trim().max(400).optional(),
     port: z.number().int().min(1).max(65535).optional(),
-    healthPath: z.string().trim().max(400).optional(),
+    healthPath: healthPath.optional(),
     deployNow: z.boolean().optional(),
     env: z.record(z.string(), z.string()).optional(),
     volumes: z.array(z.string().trim()).optional(),
@@ -120,7 +136,7 @@ export const patchServiceRequest = z.object({
   buildStrategy: z.enum(['auto', 'dockerfile', 'nixpacks']).optional(),
   dockerfilePath: z.string().trim().max(400).nullable().optional(),
   port: z.number().int().min(1).max(65535).nullable().optional(),
-  healthPath: z.string().trim().max(400).optional(),
+  healthPath: healthPath.optional(),
   memoryLimitMb: z.number().int().min(64).max(65536).nullable().optional(),
   deployOnRelease: z.boolean().optional(),
 });
@@ -160,15 +176,31 @@ export const createDeploymentRequest = z
   })
   .optional();
 
+/**
+ * A hostname Derailed will accept, in one place.
+ *
+ * There were three of these, and the loosest of them took `.example.com`,
+ * `a..b.com`, `-example.com` and a name six hundred characters long, none of which a
+ * certificate authority will ever issue for. Each label is 1-63 characters, cannot
+ * start or end with a hyphen, and the last one is letters, because that is what a
+ * public domain looks like.
+ */
+export const HOSTNAME = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*\.[a-z]{2,63}$/;
+
+/** Names longer than this are refused outright by DNS. */
+export const MAX_HOSTNAME_LENGTH = 253;
+
+export function isHostname(value: string): boolean {
+  return value.length <= MAX_HOSTNAME_LENGTH && HOSTNAME.test(value);
+}
+
 export const createDomainRequest = z.object({
   hostname: z
     .string()
     .trim()
     .toLowerCase()
-    .regex(
-      /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/,
-      'Enter a domain like app.example.com (no http:// and no trailing slash).',
-    ),
+    .max(MAX_HOSTNAME_LENGTH)
+    .regex(HOSTNAME, 'Enter a domain like app.example.com (no http:// and no trailing slash).'),
   alsoAddWww: z.boolean().optional(),
 });
 export type CreateDomainRequest = z.infer<typeof createDomainRequest>;

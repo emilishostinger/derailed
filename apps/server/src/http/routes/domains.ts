@@ -66,7 +66,7 @@ domainRoutes.post('/', async (c) => {
   };
 
   const hostname = (body.hostname ?? '').trim().toLowerCase().replace(/\.$/, '');
-  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(hostname)) {
+  if (!schemas.isHostname(hostname)) {
     throw badRequest(
       `"${body.hostname ?? ''}" doesn't look like a domain name.`,
       'Use something like example.com or shop.example.com.',

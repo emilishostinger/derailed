@@ -33,12 +33,12 @@ export const websocketHandlers = {
     }
     switch (message.type) {
       case 'subscribe':
-        for (const topic of message.topics.slice(0, MAX_TOPICS_PER_CLIENT)) {
+        for (const topic of topicList(message.topics).slice(0, MAX_TOPICS_PER_CLIENT)) {
           if (ws.data.topics.size < MAX_TOPICS_PER_CLIENT) ws.data.topics.add(topic);
         }
         break;
       case 'unsubscribe':
-        for (const topic of message.topics) ws.data.topics.delete(topic);
+        for (const topic of topicList(message.topics)) ws.data.topics.delete(topic);
         break;
       case 'ping':
         send(ws, { type: 'pong' });
@@ -50,6 +50,18 @@ export const websocketHandlers = {
     ws.data.unsubscribe?.();
   },
 };
+
+/**
+ * The topics out of a message, or none.
+ *
+ * The type says it is an array of strings. The socket says it is whatever the other
+ * end typed: `{"type":"subscribe","topics":7}` reached `.slice` on a number and threw
+ * out of Bun's message handler, where nothing was waiting to catch it.
+ */
+function topicList(topics: unknown): Topic[] {
+  if (!Array.isArray(topics)) return [];
+  return topics.filter((topic): topic is Topic => typeof topic === 'string');
+}
 
 function send(ws: ServerWebSocket<WsData>, event: ServerEvent): void {
   try {

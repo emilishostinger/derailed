@@ -50,11 +50,27 @@ export function decrypt(encoded: string): string {
   return Buffer.concat([decipher.update(body), decipher.final()]).toString('utf8');
 }
 
-/** URL-safe secret, used for database passwords and session ids. */
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+/**
+ * URL-safe secret, used for database passwords and session ids.
+ *
+ * Bytes that would skew the result are thrown away rather than folded in with `%`.
+ * 256 does not divide by 62, so the plain remainder picks the first eight letters of
+ * the alphabet slightly more often than the rest, and a session id is exactly the
+ * kind of thing that should not be even slightly more guessable at one end.
+ */
 export function randomSecret(length = 32): string {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const bytes = randomBytes(length);
+  // The largest multiple of 62 that fits in a byte. Anything at or above it is
+  // redrawn, which happens for 8 values in 256.
+  const ceiling = Math.floor(256 / ALPHABET.length) * ALPHABET.length;
   let out = '';
-  for (let i = 0; i < length; i++) out += alphabet[bytes[i]! % alphabet.length];
+  while (out.length < length) {
+    for (const byte of randomBytes((length - out.length) * 2)) {
+      if (byte >= ceiling) continue;
+      out += ALPHABET[byte % ALPHABET.length];
+      if (out.length === length) break;
+    }
+  }
   return out;
 }

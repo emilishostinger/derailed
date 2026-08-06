@@ -7,7 +7,7 @@ import { initDb } from './db/index.ts';
 import { pruneExpiredSessions } from './db/repo/sessions.ts';
 import { publish } from './events/bus.ts';
 import { createApp } from './http/app.ts';
-import { userFromRequest } from './http/auth.ts';
+import { isSameOrigin, userFromRequest } from './http/auth.ts';
 import { socketHandlers } from './http/sockets.ts';
 import { startUpdateNotifier, stopUpdateNotifier } from './mail/notify.ts';
 import { ensureCaddyRunning, pingCaddy } from './proxy/caddy.ts';
@@ -33,6 +33,14 @@ export async function serve(): Promise<void> {
     development: isDev,
     fetch(request, server) {
       const url = new URL(request.url);
+      if (url.pathname === '/api/ws' || url.pathname === '/api/terminal') {
+        // Before the cookie is even looked at: a socket opened by a page on another
+        // origin is not the dashboard, whoever's cookie came with it.
+        if (!isSameOrigin(request)) {
+          return new Response('Not allowed from there', { status: 403 });
+        }
+      }
+
       if (url.pathname === '/api/ws') {
         const user = userFromRequest(request);
         if (!user) return new Response('Unauthorized', { status: 401 });

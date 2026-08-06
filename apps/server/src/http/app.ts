@@ -24,12 +24,24 @@ import { serveApp } from './static.ts';
  *
  * `frame-ancestors` rather than `X-Frame-Options` because it is the one browsers still
  * agree on, and it covers the case the old header never did: a frame inside a frame.
+ *
+ * There is deliberately no `script-src` here. The dashboard sets the theme from an
+ * inline script before first paint, so a policy strict enough to be worth having
+ * would need a hash kept in step with a file in another package, and a policy loose
+ * enough not to break would be `unsafe-inline`, which is no policy at all. The three
+ * directives below need no such bookkeeping and cannot be got around: no `<base>` to
+ * repoint every relative URL on the page, no form posting anywhere but here, and no
+ * plugin content at all.
  */
 const SECURITY_HEADERS: Record<string, string> = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
-  'content-security-policy': "frame-ancestors 'none'",
+  'content-security-policy':
+    "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
   'x-frame-options': 'DENY',
+  // Severs the link to anything that opened this page, so a window handle to the
+  // dashboard is not something another tab can hold on to.
+  'cross-origin-opener-policy': 'same-origin',
 };
 
 export function createApp() {

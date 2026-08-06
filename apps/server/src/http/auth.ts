@@ -83,6 +83,40 @@ export function userFromRequest(request: Request): User | null {
   return findUserById(session.userId);
 }
 
+/**
+ * Whether a websocket handshake came from the dashboard itself.
+ *
+ * The REST API is safe from a page on another site because every call carries a
+ * header a browser will not send cross-origin without a preflight we never answer.
+ * A websocket has no such handshake: `new WebSocket(...)` is exempt from CORS
+ * entirely, so the only thing standing between a hostile page and this socket is the
+ * cookie, and `SameSite=Lax` separates *sites*, not origins.
+ *
+ * That distinction is the whole problem here. Derailed's own dashboard sits on
+ * `panel.example.com` and the apps it deploys sit on `app.example.com`, which is the
+ * same site. So an app someone deployed, running code they did not write, could open
+ * a socket to `/api/terminal` with the admin's cookie riding along and get a shell in
+ * any container on the machine. Hence: the handshake has to come from us.
+ *
+ * A request with no `Origin` at all is allowed. Browsers always send one on a
+ * websocket handshake; a script that does not is not a browser, so there is no
+ * session for it to be riding on and nothing to forge.
+ */
+export function isSameOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  if (!origin) return true;
+
+  const host = request.headers.get('host');
+  if (!host) return false;
+
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    // Not a URL. `null` is what a sandboxed frame sends, and it is not us.
+    return false;
+  }
+}
+
 export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   // An API token stands in for the admin, so coding agents and scripts can drive
   // Derailed without a browser session.

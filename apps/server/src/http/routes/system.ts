@@ -47,7 +47,7 @@ systemRoutes.put('/panel-domain', async (c) => {
     return c.json({ panelDomain: null });
   }
 
-  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(hostname)) {
+  if (!schemas.isHostname(hostname)) {
     throw badRequest(
       `"${hostname}" doesn't look like a domain name.`,
       'Use something like dashboard.example.com.',
@@ -102,7 +102,7 @@ systemRoutes.put('/app-domain', async (c) => {
     return c.json({ appDomain: null });
   }
 
-  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+  if (!schemas.isHostname(domain)) {
     throw badRequest(
       `"${domain}" doesn't look like a domain name.`,
       'Use something like apps.example.com.',

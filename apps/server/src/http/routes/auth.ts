@@ -1,7 +1,13 @@
 import { schemas } from '@derailed/shared';
 import { Hono } from 'hono';
 import { createSession, deleteSession, deleteSessionsForUser } from '../../db/repo/sessions.ts';
-import { getBoolSetting, SETTINGS, setBoolSetting } from '../../db/repo/settings.ts';
+import {
+  claimSetup,
+  getBoolSetting,
+  releaseSetup,
+  SETTINGS,
+  setBoolSetting,
+} from '../../db/repo/settings.ts';
 import {
   countUsers,
   createUser,
@@ -54,18 +60,29 @@ authRoutes.post('/setup', async (c) => {
   if (!setupLimiter.check(clientIp(c))) {
     throw tooManyRequests('Too many attempts. Wait a minute and try again.');
   }
-  if (getBoolSetting(SETTINGS.setupComplete) || countUsers() > 0) {
-    throw conflict(
-      'This server is already set up.',
-      'Sign in instead. Locked out? Run `derailed reset-password` on the server.',
-    );
+  const taken = conflict(
+    'This server is already set up.',
+    'Sign in instead. Locked out? Run `derailed reset-password` on the server.',
+  );
+  if (getBoolSetting(SETTINGS.setupComplete) || countUsers() > 0) throw taken;
+
+  // Claimed before the first `await`, so two people racing to claim an unconfigured
+  // server end with one account rather than two.
+  if (!claimSetup()) throw taken;
+
+  try {
+    const { email, password } = await parseBody(c, schemas.setupRequest);
+    if (countUsers() > 0) throw taken;
+    const user = createUser(email, await Bun.password.hash(password));
+    setBoolSetting(SETTINGS.setupComplete, true);
+    const session = createSession(user.id);
+    setSessionCookie(c, session.id);
+    return c.json({ user });
+  } finally {
+    // Always: a rejected password must not leave a server nobody can set up, and
+    // once an account exists the guards above turn everyone else away anyway.
+    releaseSetup();
   }
-  const { email, password } = await parseBody(c, schemas.setupRequest);
-  const user = createUser(email, await Bun.password.hash(password));
-  setBoolSetting(SETTINGS.setupComplete, true);
-  const session = createSession(user.id);
-  setSessionCookie(c, session.id);
-  return c.json({ user });
 });
 
 authRoutes.post('/login', async (c) => {

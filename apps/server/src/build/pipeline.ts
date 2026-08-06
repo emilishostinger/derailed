@@ -346,6 +346,21 @@ function emitDeployment(deployment: Deployment): void {
 }
 
 /**
+ * The health path, forced back into being a path.
+ *
+ * Validation refuses anything else now, but a service configured before it did still
+ * has whatever it was given in the database, and this is concatenated onto a URL. A
+ * value starting `@somewhere.test/` or `//somewhere.test/` moves the host, and the
+ * check meant for the container next door would poll a stranger's server and call
+ * whatever it said a successful start.
+ */
+export function safeHealthPath(configured: string | null | undefined): string {
+  const value = (configured ?? '').trim();
+  if (!value.startsWith('/') || value.startsWith('//')) return '/';
+  return value;
+}
+
+/**
  * Polls the container until it answers. Any HTTP response counts. A 404 still
  * proves something is listening. And a container that exits early fails fast with
  * its own output rather than after the full timeout.
@@ -359,7 +374,7 @@ async function waitForHealthy(
 ): Promise<void> {
   const inspected = await inspectContainer(containerId);
   const hostPort = Number(inspected?.NetworkSettings.Ports?.[`${port}/tcp`]?.[0]?.HostPort ?? 0);
-  const healthPath = service.healthPath || '/';
+  const healthPath = safeHealthPath(service.healthPath);
   log.write(`Waiting for ${service.name} to answer on port ${port}…`);
 
   const deadline = Date.now() + HEALTH_TIMEOUT_MS;

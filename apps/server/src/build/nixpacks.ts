@@ -12,47 +12,85 @@ import { FriendlyError } from './git.ts';
  *
  * The binary is downloaded once into the data dir, version-pinned.
  */
-const PINNED_VERSION = process.env.DERAILED_NIXPACKS_VERSION ?? '1.38.0';
+const PINNED_VERSION = '1.38.0';
 const RELEASES = 'https://github.com/railwayapp/nixpacks/releases';
 
 export const NIXPACKS_DOCKERFILE = '.nixpacks/Dockerfile';
+
+/**
+ * The exact builds Derailed will run, by content.
+ *
+ * This binary is executed as root on the server, so it gets the same treatment as
+ * Derailed's own update: what arrives is checked against what was expected, and if it
+ * does not match it is thrown away rather than run. Nixpacks publishes no checksum
+ * file of its own, so the digests are recorded here, taken from the release above.
+ *
+ * This is also why there is no "fall back to whatever is newest" any more. That
+ * fallback meant a pinned version was only pinned while the pinned asset kept
+ * resolving: the moment it did not, the server downloaded and ran an unreviewed
+ * release, which is the opposite of what pinning is for. If a new one is wanted, it
+ * is a change to this table and a release of Derailed.
+ */
+const PINNED_DIGESTS: Record<string, string> = {
+  'aarch64-unknown-linux-musl': 'd6e668241ab762c3c7ab21e1d235bc535272ba600f1e039bd000190905c7d21c',
+  'x86_64-unknown-linux-musl': 'b6a76ae7c7e23962797d597f6f34f5ddb1419d70628f4404a484b4dbb0580866',
+  'aarch64-apple-darwin': 'eb2856d4a9c86b2ea624969951995670312d4376652450e2176b34a74a9d5668',
+  'x86_64-apple-darwin': 'cc8856e0c935673b5815fbb3529ce7046424ecd13cfccf3557d4d54493c28be4',
+};
 
 export function nixpacksBinaryPath(): string {
   return join(paths.bin, 'nixpacks');
 }
 
-function assetName(version: string): string {
+/** `aarch64-unknown-linux-musl` and friends: the half of the asset name that varies. */
+export function nixpacksTarget(): string {
   const arch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
   const platform = process.platform === 'darwin' ? 'apple-darwin' : 'unknown-linux-musl';
-  return `nixpacks-v${version}-${arch}-${platform}.tar.gz`;
+  return `${arch}-${platform}`;
 }
 
-async function latestVersion(): Promise<string | null> {
-  try {
-    const response = await fetch(
-      'https://api.github.com/repos/railwayapp/nixpacks/releases/latest',
-      {
-        headers: { accept: 'application/vnd.github+json' },
-        signal: AbortSignal.timeout(10_000),
-      },
+function assetName(version: string): string {
+  return `nixpacks-v${version}-${nixpacksTarget()}.tar.gz`;
+}
+
+/** The digest this machine's build must have, or null if none was recorded for it. */
+export function expectedDigest(target: string = nixpacksTarget()): string | null {
+  return PINNED_DIGESTS[target] ?? null;
+}
+
+async function download(version: string, onLine?: (line: string) => void): Promise<void> {
+  const target = nixpacksTarget();
+  const expected = expectedDigest(target);
+  if (!expected) {
+    throw new FriendlyError(
+      `Derailed has no checked build of its builder for ${target}.`,
+      'Add a Dockerfile to your repository and it will be built from that instead.',
     );
-    if (!response.ok) return null;
-    const body = (await response.json()) as { tag_name?: string };
-    return body.tag_name?.replace(/^v/, '') ?? null;
-  } catch {
-    return null;
   }
-}
 
-async function download(version: string, onLine?: (line: string) => void): Promise<boolean> {
   const url = `${RELEASES}/download/v${version}/${assetName(version)}`;
   onLine?.(`Downloading the builder (nixpacks ${version})…`);
 
   const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(180_000) });
-  if (!response.ok) return false;
+  if (!response.ok) {
+    throw new FriendlyError(
+      `Derailed couldn't download the builder (HTTP ${response.status}).`,
+      'Check that this server has internet access, or add a Dockerfile to your repository.',
+    );
+  }
+
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const actual = new Bun.CryptoHasher('sha256').update(bytes).digest('hex');
+  if (actual !== expected) {
+    // Nothing is written to disk, so there is nothing left behind to be run later.
+    throw new FriendlyError(
+      "The builder Derailed downloaded wasn't the one it expected, so it was thrown away.",
+      'Nothing was installed. Add a Dockerfile to your repository to build without it.',
+    );
+  }
 
   const tmp = join(paths.bin, `nixpacks-${version}.tar.gz`);
-  await Bun.write(tmp, response);
+  await Bun.write(tmp, bytes);
 
   const proc = Bun.spawn(['tar', '-xzf', tmp, '-C', paths.bin], { stderr: 'pipe' });
   const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
@@ -60,7 +98,6 @@ async function download(version: string, onLine?: (line: string) => void): Promi
   if (code !== 0) throw new FriendlyError("Couldn't unpack the builder.", undefined, [stderr]);
 
   chmodSync(nixpacksBinaryPath(), 0o755);
-  return true;
 }
 
 let ensuring: Promise<string> | null = null;
@@ -72,16 +109,8 @@ export function ensureNixpacks(onLine?: (line: string) => void): Promise<string>
 
   ensuring ??= (async () => {
     await mkdir(paths.bin, { recursive: true });
-    if (await download(PINNED_VERSION, onLine)) return binary;
-
-    // The pinned build isn't published for this platform (or was pulled), try latest.
-    const latest = await latestVersion();
-    if (latest && latest !== PINNED_VERSION && (await download(latest, onLine))) return binary;
-
-    throw new FriendlyError(
-      "Derailed couldn't download the builder it uses for projects without a Dockerfile.",
-      'Check that this server has internet access, or add a Dockerfile to your repository.',
-    );
+    await download(PINNED_VERSION, onLine);
+    return binary;
   })().finally(() => {
     ensuring = null;
   });

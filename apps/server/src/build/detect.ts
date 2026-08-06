@@ -188,7 +188,18 @@ async function guessFramework(
 }
 
 async function findDockerfile(base: string, explicit?: string | null): Promise<string | null> {
-  if (explicit) return existsSync(join(base, explicit)) ? explicit : null;
+  if (explicit) {
+    // Through `safeJoin` for the same reason the root folder is: `../../` in a
+    // settings box should not reach out of the checkout and read the host, and this
+    // one sat right beside the check and did not have it.
+    let resolved: string;
+    try {
+      resolved = safeJoin(base, explicit);
+    } catch {
+      return null;
+    }
+    return existsSync(resolved) ? explicit : null;
+  }
   for (const candidate of ['Dockerfile', 'dockerfile', 'docker/Dockerfile']) {
     if (existsSync(join(base, candidate))) return candidate;
   }
