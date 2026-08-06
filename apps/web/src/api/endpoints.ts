@@ -27,6 +27,7 @@ import type {
   SwapState,
   TableSummary,
   TrashItem,
+  UptimeSummary,
   Volume,
 } from '@derailed/shared';
 import { api } from './client.ts';
@@ -325,6 +326,15 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  uptime: () =>
+    api.get<{
+      sites: { domain: Domain; service: string | null; uptime: UptimeSummary }[];
+      statusPage: { enabled: boolean; title: string };
+    }>('/uptime'),
+  checkUptime: (domainId: string) => api.post<unknown>(`/uptime/${domainId}/check`),
+  setStatusPage: (input: { enabled: boolean; title: string }) =>
+    api.put<{ enabled: boolean; title: string }>('/uptime/status-page', input),
 
   files: (serviceId: string, path?: string) =>
     api.get<{ roots: string[]; path: string | null; entries: FileEntry[] }>(

@@ -19,6 +19,7 @@ import { jobRoutes, serviceJobRoutes } from './routes/jobs.ts';
 import { mailRoutes } from './routes/mail.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { projectServiceRoutes, serviceRoutes } from './routes/services.ts';
+import { publicStatusRoutes, uptimeRoutes } from './routes/status.ts';
 import { systemRoutes } from './routes/system.ts';
 import { projectTemplateRoutes, templateRoutes } from './routes/templates.ts';
 import { tokenRoutes } from './routes/tokens.ts';
@@ -75,6 +76,9 @@ export function createApp() {
   api.use('*', requireCsrfHeader);
 
   api.get('/health', (c) => c.json({ ok: true, version: VERSION }));
+  // Before `requireAuth`, on purpose: a status page nobody can read is not one.
+  // It answers 404 until somebody switches it on.
+  api.route('/public', publicStatusRoutes);
   api.route('/auth', authRoutes);
 
   // Everything below needs a session.
@@ -104,6 +108,7 @@ export function createApp() {
   api.route('/trash', trashRoutes);
   api.route('/alerts', alertRoutes);
   api.route('/jobs', jobRoutes);
+  api.route('/uptime', uptimeRoutes);
   api.route('/services', serviceJobRoutes);
 
   api.all('*', () => {

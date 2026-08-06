@@ -540,6 +540,24 @@ export interface FileEntry {
   modifiedAt: number;
 }
 
+/** Whether a site was up, a day at a time. Ninety days is what a status page shows. */
+export interface UptimeDay {
+  day: number;
+  checks: number;
+  uptimePercent: number;
+  averageMs: number;
+}
+
+export interface UptimeSummary {
+  domainId: string;
+  /** Null when it has never been checked. */
+  up: boolean | null;
+  lastCheckedAt: number | null;
+  lastReason: string | null;
+  days: UptimeDay[];
+  uptimePercent: number | null;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

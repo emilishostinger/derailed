@@ -496,4 +496,23 @@ export const migrations: Migration[] = [
         ON domains(hostname, COALESCE(path_prefix, ''));
     `,
   },
+  {
+    id: 17,
+    name: 'is it up, and was it',
+    sql: `
+      -- Uptime Kuma ships as a one-click template here, which is an admission that
+      -- this belongs in the product. One row per check per domain, kept for ninety
+      -- days, which is the window a status page shows.
+      CREATE TABLE uptime_checks (
+        id          TEXT PRIMARY KEY,
+        domain_id   TEXT NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+        at          INTEGER NOT NULL,
+        up          INTEGER NOT NULL,
+        status_code INTEGER,
+        ms          INTEGER,
+        reason      TEXT
+      );
+      CREATE INDEX idx_uptime_domain ON uptime_checks(domain_id, at DESC);
+    `,
+  },
 ];

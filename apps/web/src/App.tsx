@@ -14,6 +14,7 @@ import { Server } from './pages/Server.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { Updates } from './pages/Updates.tsx';
+import { Uptime } from './pages/Uptime.tsx';
 import { useSession } from './stores/session.ts';
 
 export function App() {
@@ -39,6 +40,7 @@ export function App() {
           <Route path="/updates" element={<Updates />} />
           <Route path="/backups" element={<Backups />} />
           <Route path="/trash" element={<Trash />} />
+          <Route path="/uptime" element={<Uptime />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/help" element={<Help />} />
           <Route path="/help/:slug" element={<Help />} />

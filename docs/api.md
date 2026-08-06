@@ -105,6 +105,15 @@ Creating a service:
 | `GET /jobs/:id/runs` | The last twenty runs, with what they printed |
 | `POST /jobs/preview` | `{ schedule }` in words, and when it would next fire |
 
+## Uptime
+
+| | |
+| --- | --- |
+| `GET /uptime` | Every watched address, with ninety days of history |
+| `POST /uptime/:domainId/check` | Check one now |
+| `PUT /uptime/status-page` | `{ enabled, title }` |
+| `GET /public/status.json` | The public page. No session. 404 until switched on |
+
 ## Alerts
 
 | | |

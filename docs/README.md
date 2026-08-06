@@ -18,6 +18,7 @@ about five minutes.
 - **[Files and app email](files.md)**: browsing an app's storage, and letting it send mail
 - **[Scheduled jobs](jobs.md)**: cron, in plain words, with the output kept
 - **[Who can see your apps](access.md)**: passwords, address lists and maintenance mode
+- **[Uptime](uptime.md)**: is it actually up, ninety days of history, and a public status page
 - **[Alerts](alerts.md)**: being told when something breaks, without it becoming noise
 - **[Disk space](disk.md)**: what is using it, freeing it up safely, and swap
 - **[Trash](trash.md)**: deleting is undoable for a week, and what that does and does not cover

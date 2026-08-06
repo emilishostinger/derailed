@@ -139,6 +139,9 @@ function MobileNav() {
             <MobileLink to="/backups" onGo={() => setOpen(false)}>
               Backups
             </MobileLink>
+            <MobileLink to="/uptime" onGo={() => setOpen(false)}>
+              Uptime
+            </MobileLink>
             <MobileLink to="/trash" onGo={() => setOpen(false)}>
               Trash
             </MobileLink>
@@ -366,6 +369,9 @@ function Sidebar() {
           </NavItem>
           <NavItem to="/backups" icon={<Archive className="h-4 w-4" />}>
             Backups
+          </NavItem>
+          <NavItem to="/uptime" icon={<Activity className="h-4 w-4" />}>
+            Uptime
           </NavItem>
           <NavItem to="/trash" icon={<Trash2 className="h-4 w-4" />}>
             Trash

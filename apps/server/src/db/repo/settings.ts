@@ -105,6 +105,9 @@ export const SETTINGS = {
   alertEvents: 'alert_events',
   /** What has already been said recently, so the same thing is not said twice. */
   alertHistory: 'alert_history',
+  /** A public page saying whether the sites are up. Off until asked for. */
+  statusPageEnabled: 'status_page_enabled',
+  statusPageTitle: 'status_page_title',
   /** The most recent restore drill, stored whole as JSON. */
   drillLast: 'drill_last',
 } as const;

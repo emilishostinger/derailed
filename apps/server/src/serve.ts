@@ -28,6 +28,7 @@ import { startMonitor, stopMonitor } from './runtime/monitor.ts';
 import { startPreviews, stopPreviews } from './runtime/preview.ts';
 import { reconcile } from './runtime/reconcile.ts';
 import { startTrashSweep, stopTrashSweep } from './runtime/trash.ts';
+import { startUptime, stopUptime } from './runtime/uptime.ts';
 import { diskReport } from './system/disk.ts';
 import { detectServerIp, setCaddyHealthy, systemInfo } from './system/status.ts';
 import { loadSecretKey } from './util/crypto.ts';
@@ -158,6 +159,7 @@ export async function serve(): Promise<void> {
     stopJobs();
     stopTrashSweep();
     stopPreviews();
+    stopUptime();
     stopReleaseWatcher();
     stopPushWatcher();
     stopUpdateNotifier();
@@ -217,6 +219,7 @@ async function bootRuntime(): Promise<void> {
     startJobs();
     startTrashSweep((line) => console.log(`  trash      →  ${line}`));
     startPreviews();
+    startUptime();
     startReleaseWatcher();
     startPushWatcher();
     startUpdateNotifier();
