@@ -3,6 +3,7 @@ import type {
   AlertEventKind,
   AlertSettings,
   CostComparison,
+  DeployDiff,
   Deployment,
   DetectResult,
   Diagnosis,
@@ -16,6 +17,7 @@ import type {
   Job,
   JobRun,
   LogLine,
+  MetricsHistory,
   OffsiteSettings,
   OffsiteStatus,
   Project,
@@ -320,6 +322,20 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  metrics: (serviceId: string, range: '24h' | '7d' | '30d') =>
+    api
+      .get<{ metrics: MetricsHistory }>(`/services/${serviceId}/metrics?range=${range}`)
+      .then((r) => r.metrics),
+  deployChanges: (deploymentId: string) =>
+    api.get<{ diff: DeployDiff }>(`/deployments/${deploymentId}/changes`).then((r) => r.diff),
+  searchLog: (deploymentId: string, options: { q?: string; errors?: boolean }) =>
+    api.get<{ lines: LogLine[]; matched: number; scanned: number }>(
+      `/deployments/${deploymentId}/search?${new URLSearchParams({
+        ...(options.q ? { q: options.q } : {}),
+        ...(options.errors ? { errors: 'true' } : {}),
+      })}`,
+    ),
 
   jobs: (serviceId: string) =>
     api

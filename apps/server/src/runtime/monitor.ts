@@ -6,6 +6,7 @@ import { LABELS } from '../docker/labels.ts';
 import { publishAll } from '../events/bus.ts';
 import { consumeIntentionalStop } from './intent.ts';
 import { reconcileLiveStatus, recordLiveStatus } from './livestatus.ts';
+import { recordSample } from './metrics.ts';
 
 const STATS_INTERVAL_MS = 5000;
 
@@ -107,6 +108,15 @@ async function sampleStats(): Promise<void> {
         memoryBytes: stats.memoryBytes,
         memoryLimitBytes: stats.memoryLimitBytes,
       });
+
+      // Folded into the hour it belongs to on the way past. This adds no polling of
+      // its own: it is arithmetic on a number that was already being collected and
+      // then thrown away, which is why there was no history before.
+      try {
+        recordSample(serviceId, stats.cpuPercent, stats.memoryBytes, stats.memoryLimitBytes);
+      } catch {
+        // A sample is not worth failing a sweep over.
+      }
     }),
   );
 }

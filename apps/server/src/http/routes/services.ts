@@ -29,6 +29,7 @@ import {
 import { LABELS, labelFilter } from '../../docker/labels.ts';
 import { publish } from '../../events/bus.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
+import { historyFor } from '../../runtime/metrics.ts';
 import { emitProject, emitService, presentService } from '../../runtime/present.ts';
 import { previewFile, refreshPreview } from '../../runtime/preview.ts';
 import type { AppEnv } from '../auth.ts';
@@ -359,6 +360,15 @@ serviceRoutes.post('/:id/upload', async (c) => {
  * every request, so the figures are a by-product of serving the site rather than
  * something extra done to the people reading it.
  */
+serviceRoutes.get('/:id/metrics', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  const range = c.req.query('range');
+  return c.json({
+    metrics: historyFor(service.id, range === '7d' || range === '30d' ? range : '24h'),
+  });
+});
+
 serviceRoutes.get('/:id/traffic', (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');

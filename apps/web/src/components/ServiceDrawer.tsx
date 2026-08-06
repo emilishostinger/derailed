@@ -22,6 +22,7 @@ import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
 import { JobsTab } from './JobsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
+import { MetricsTab } from './MetricsTab.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
 import { TechIcon } from './TechIcon.tsx';
@@ -34,6 +35,7 @@ import { WhyBroken } from './WhyBroken.tsx';
 type Tab =
   | 'overview'
   | 'traffic'
+  | 'metrics'
   | 'deployments'
   | 'variables'
   | 'connection'
@@ -94,6 +96,7 @@ export function ServiceDrawer({
     ? [
         ['overview', 'Overview'],
         ['traffic', 'Visitors'],
+        ['metrics', 'Load'],
         ['deployments', 'Deploys'],
         ['variables', 'Variables'],
         ['connection', 'Connections'],
@@ -290,6 +293,7 @@ export function ServiceDrawer({
           {tab === 'storage' && <StorageTab service={service} />}
           {tab === 'terminal' && <TerminalTab service={service} />}
           {tab === 'domains' && <DomainsTab service={service} />}
+          {tab === 'metrics' && <MetricsTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}
           {tab === 'settings' && <Settings service={service} onClose={onClose} />}

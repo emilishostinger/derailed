@@ -430,4 +430,25 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_job_runs_job ON job_runs(job_id, started_at DESC);
     `,
   },
+  {
+    id: 15,
+    name: 'what things looked like an hour ago',
+    sql: `
+      -- CPU and memory were live-only, which meant "was it slow last night?" and
+      -- "is this getting worse?" were both unanswerable. One row per service per
+      -- hour, with the average and the peak, because an average alone hides exactly
+      -- the spike somebody is looking for.
+      CREATE TABLE metrics_hourly (
+        service_id     TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        hour_start     INTEGER NOT NULL,
+        samples        INTEGER NOT NULL DEFAULT 0,
+        cpu_total      REAL NOT NULL DEFAULT 0,
+        cpu_peak       REAL NOT NULL DEFAULT 0,
+        memory_total   INTEGER NOT NULL DEFAULT 0,
+        memory_peak    INTEGER NOT NULL DEFAULT 0,
+        memory_limit   INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (service_id, hour_start)
+      );
+    `,
+  },
 ];

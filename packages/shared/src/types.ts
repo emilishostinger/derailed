@@ -474,6 +474,44 @@ export interface JobRun {
   trigger: 'schedule' | 'manual';
 }
 
+/**
+ * What an app was doing, an hour at a time.
+ *
+ * Average and peak both, because an average alone hides the spike somebody is looking
+ * for. Deploys come with it: "memory started climbing on Tuesday" is a sentence,
+ * "memory started climbing right after that deploy" is a diagnosis.
+ */
+export interface MetricPoint {
+  at: number;
+  cpuAverage: number;
+  cpuPeak: number;
+  memoryAverage: number;
+  memoryPeak: number;
+  memoryLimit: number | null;
+}
+
+export interface MetricsHistory {
+  range: '24h' | '7d' | '30d';
+  points: MetricPoint[];
+  deploys: { id: string; at: number; commitSha: string | null; commitMessage: string | null }[];
+  summary: string;
+}
+
+/**
+ * What changed between two deploys.
+ *
+ * Debugging is mostly bisecting what changed, and until now Derailed knew and did not
+ * say. Variable values are never included, only which ones moved.
+ */
+export interface DeployDiff {
+  from: { id: string; at: number; commitSha: string | null } | null;
+  to: { id: string; at: number; commitSha: string | null };
+  commits: { sha: string; message: string }[];
+  envChanged: { key: string; change: 'added' | 'removed' | 'changed' }[];
+  imageChanged: boolean;
+  summary: string;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

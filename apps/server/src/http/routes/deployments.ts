@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
-import { readDeploymentLog } from '../../build/deploylog.ts';
+import { readDeploymentLog, searchDeploymentLog } from '../../build/deploylog.ts';
 import { diagnose, interestingLines } from '../../build/diagnose.ts';
+import { diffDeploys } from '../../build/diff.ts';
 import { cancelDeployment, queueDeployment, queueRollback } from '../../build/pipeline.ts';
 import { hasUpload } from '../../build/upload.ts';
 import { findDeployment, listDeployments } from '../../db/repo/deployments.ts';
@@ -80,6 +81,29 @@ deploymentRoutes.get('/:id/logs', async (c) => {
   const tail = Number(c.req.query('tail') ?? 500);
   const lines = await readDeploymentLog(deployment.id, Number.isFinite(tail) ? tail : 500);
   return c.json({ lines });
+});
+
+/** What changed between this deploy and the one before it that shipped. */
+deploymentRoutes.get('/:id/changes', (c) => {
+  const diff = diffDeploys(c.req.param('id'));
+  if (!diff) throw notFound('That deploy');
+  return c.json({ diff });
+});
+
+/**
+ * Searching a deploy's log.
+ *
+ * Live tail was already here; this is everything anybody actually does with a log
+ * when something is wrong.
+ */
+deploymentRoutes.get('/:id/search', async (c) => {
+  const url = new URL(c.req.url);
+  const result = await searchDeploymentLog(c.req.param('id'), {
+    query: url.searchParams.get('q') ?? undefined,
+    errorsOnly: url.searchParams.get('errors') === 'true',
+    limit: Math.min(Number(url.searchParams.get('limit') ?? 500) || 500, 2000),
+  });
+  return c.json(result);
 });
 
 deploymentRoutes.get('/:id/why', async (c) => {

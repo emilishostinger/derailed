@@ -146,6 +146,9 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `POST /deployments/:id/rollback` | Re-run this deploy's image |
 | `POST /deployments/:id/cancel` | Stop one in flight |
 | `GET /deployments/:id/why` | What went wrong and what to do, plus the lines worth reading |
+| `GET /deployments/:id/changes` | What changed since the version before. Variable names, never values |
+| `GET /deployments/:id/search?q=&errors=` | Search one deploy's log, or filter it to errors |
+| `GET /services/:id/metrics?range=24h\|7d\|30d` | Load, an hour at a time, with the deploys marked |
 
 ## Domains
 

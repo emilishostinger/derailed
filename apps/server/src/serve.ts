@@ -23,6 +23,7 @@ import {
   pruneOldDeployments,
   pruneOrphanedNetworks,
 } from './runtime/housekeeping.ts';
+import { pruneMetrics } from './runtime/metrics.ts';
 import { startMonitor, stopMonitor } from './runtime/monitor.ts';
 import { startPreviews, stopPreviews } from './runtime/preview.ts';
 import { reconcile } from './runtime/reconcile.ts';
@@ -87,6 +88,7 @@ export async function serve(): Promise<void> {
   const pruneTicker = setInterval(
     () => {
       void pruneOldDeployments().catch(() => undefined);
+      pruneMetrics();
     },
     6 * 60 * 60 * 1000,
   );
