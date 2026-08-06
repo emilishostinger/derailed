@@ -7,7 +7,6 @@ import {
   Bot,
   Boxes,
   ChevronDown,
-  ChevronsUpDown,
   Command,
   Database,
   Globe,
@@ -57,8 +56,9 @@ export function Layout() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // The canvas is the background everything sits on. Only the main area is lifted
+  // off it; the sidebar stays down on the canvas, which is what gives the contrast.
   return (
-    /* The canvas shows through as a gutter, and the two slabs sit on it. */
     <div className="flex h-full gap-2 bg-canvas p-2">
       <Sidebar onOpenPalette={() => setPaletteOpen(true)} />
       <MobileNav />
@@ -268,12 +268,17 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
   // which is what frees the click up to mean "fold this away".
   const onProjects = useLocation().pathname === '/';
 
+  // Not a slab. It sits directly on the canvas, so the only thing raised off the
+  // background is the work itself, and the navigation reads as part of the frame.
   return (
-    <aside className="shell flex w-60 shrink-0 flex-col max-md:hidden">
-      <div className="px-3 pt-4 pb-2">
+    <aside className="flex w-60 shrink-0 flex-col max-md:hidden">
+      {/* The theme control lives up here beside the mark, where there was empty space
+          anyway, rather than competing with the address for the width of one row. */}
+      <div className="flex items-center justify-between px-3 pt-4 pb-2">
         <NavLink to="/" className="block px-2 py-1">
           <Wordmark />
         </NavLink>
+        <ThemeToggle />
       </div>
 
       <button
@@ -371,8 +376,7 @@ function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
         </NavGroup>
       </nav>
 
-      <SystemPanel />
-      <ThemeToggle />
+      <BrokenDockerNotice />
       <AccountMenu />
     </aside>
   );
@@ -733,64 +737,53 @@ function DeleteProject({
   );
 }
 
-/** The honest state of the machine, in five words or fewer. */
 /**
- * What Derailed is, rather than what it is made of.
- *
- * This used to report the Docker version, whether the proxy was up and how much disk
- * was left: true, and none of it anyone's business on every screen. The Server page
- * covers all three. A broken Docker still shows here, because that one is not trivia,
- * it means nothing can run.
+ * Docker being unreachable means nothing on this machine can run, so it is worth a
+ * permanent line in the sidebar. Nothing else down here was: the version and the
+ * licence took a block each, every screen, for two facts you look up once. Both moved
+ * into the account menu, which is where you go when you want to know about the
+ * install rather than about your apps.
  */
-function SystemPanel() {
+function BrokenDockerNotice() {
   const system = useSession((s) => s.system);
-  const broken = system && !system.dockerOk;
+  if (!system || system.dockerOk) return null;
 
   return (
-    <div className="space-y-1.5 border-t border-line px-4 py-3 text-[12px] text-ink-muted">
-      {broken ? (
-        <Link to="/server" className="flex items-center gap-2 text-warn hover:underline">
-          <StatusDot status="failed" />
-          <span className="truncate">Docker is unreachable</span>
-        </Link>
-      ) : (
-        <>
-          <p className="truncate">Derailed v{system?.version ?? '-'}</p>
-          <a
-            href="https://opensource.org/license/mit"
-            target="_blank"
-            rel="noreferrer"
-            className="block truncate text-ink-faint transition-colors hover:text-ink-muted"
-          >
-            MIT licence, free forever
-          </a>
-        </>
-      )}
-    </div>
+    <Link
+      to="/server"
+      className="mx-2 mb-1 flex items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-[12px] text-warn transition-colors hover:bg-surface-2"
+    >
+      <StatusDot status="failed" />
+      <span className="truncate">Docker is unreachable</span>
+    </Link>
   );
 }
 
-/** Two states, both visible. A hidden toggle is one nobody finds. */
+/**
+ * Both states still visible, because a hidden toggle is one nobody finds, but as two
+ * icons in the corner of the account row rather than a full-width block of its own.
+ */
 function ThemeToggle() {
   const theme = useTheme((s) => s.theme);
   const setTheme = useTheme((s) => s.setTheme);
 
   return (
-    <div className="flex gap-1 border-t border-line p-2">
+    <div className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-control)] bg-surface-2 p-0.5">
       {(['dark', 'light'] as const).map((option) => (
         <button
           key={option}
           type="button"
+          aria-label={option === 'dark' ? 'Dark theme' : 'Light theme'}
+          aria-pressed={theme === option}
           onClick={() => setTheme(option)}
           className={cx(
-            'flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-[12px] transition-colors',
+            'flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors',
             theme === option
-              ? 'bg-surface-2 text-ink'
-              : 'text-ink-faint hover:bg-surface-2/60 hover:text-ink-muted',
+              ? 'bg-elevated text-ink shadow-[var(--d-shadow-card)]'
+              : 'text-ink-faint hover:text-ink-muted',
           )}
         >
           {option === 'dark' ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
-          {option === 'dark' ? 'Dark' : 'Light'}
         </button>
       ))}
     </div>
@@ -820,9 +813,9 @@ function AccountMenu() {
   }, [open]);
 
   return (
-    <div ref={wrapper} className="relative border-t border-line p-2">
+    <div ref={wrapper} className="relative flex items-center gap-1.5 p-2">
       {open && (
-        <div className="panel animate-pop-in absolute bottom-full left-2 right-2 mb-1 overflow-hidden p-1">
+        <div className="panel animate-pop-in absolute right-2 bottom-full left-2 mb-1 overflow-hidden p-1">
           <button
             type="button"
             className="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-[13px] text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
@@ -842,23 +835,34 @@ function AccountMenu() {
             <LogOut className="h-4 w-4" />
             Sign out
           </button>
-          <p className="border-t border-line px-2 pt-2 pb-1 text-[11px] text-ink-faint tabular">
-            Derailed v{system?.version ?? '-'}
-            {system?.serverIp ? ` · ${system.serverIp}` : ''}
-          </p>
+          <div className="mt-1 border-t border-line px-2 pt-2 pb-1">
+            <p className="text-[11px] text-ink-faint tabular">
+              Derailed v{system?.version ?? '-'}
+              {system?.serverIp ? ` · ${system.serverIp}` : ''}
+            </p>
+            <a
+              href="https://opensource.org/license/mit"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-ink-faint transition-colors hover:text-ink-muted"
+            >
+              MIT licence, free forever
+            </a>
+          </div>
         </div>
       )}
 
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors hover:bg-surface-2"
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left transition-colors hover:bg-surface-2"
       >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent">
           {(user?.email ?? '?').slice(0, 1).toUpperCase()}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[13px] text-ink-muted">{user?.email}</span>
-        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
+        <span className="min-w-0 flex-1 truncate text-[13px] text-ink-muted" title={user?.email}>
+          {user?.email}
+        </span>
       </button>
 
       {account && <AccountDialog onClose={() => setAccount(false)} />}

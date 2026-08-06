@@ -38,6 +38,16 @@
  * Every colour is a CSS variable, so the light theme is a variable swap rather
  * than a second set of utility classes. Dark is the default; `:root.light`
  * overrides it. Both are designed, not one derived from the other.
+ *
+ * The neutrals are warm graphite, not the blue-grey every developer tool reaches
+ * for. It is the one decision that stops this looking like the same dashboard as
+ * everyone else's, and it earns its keep twice: the indigo of the mark is cool, so
+ * it sits against these rather than dissolving into them, and the signal colours
+ * that actually matter, a green that means running and a red that means broken,
+ * read as signals rather than as more of the interface.
+ *
+ * Nothing glows and nothing is a gradient. The mark is allowed one; the interface
+ * around it is not.
  * ------------------------------------------------------------------------- */
 
 @theme inline {
@@ -78,18 +88,18 @@
 
 /* Dark. The default, and what the README screenshots show. */
 :root {
-  --d-canvas: #050610;
-  --d-surface: #0f1011;
-  --d-surface-2: #17181a;
-  --d-elevated: #1c1d20;
-  --d-line: #212225;
-  --d-line-strong: #303136;
-  --d-ink: #f7f8f8;
-  --d-ink-muted: #8a8f98;
-  --d-ink-faint: #62666d;
+  --d-canvas: #0a0908;
+  --d-surface: #131211;
+  --d-surface-2: #1b1a18;
+  --d-elevated: #22201e;
+  --d-line: #272522;
+  --d-line-strong: #3a3630;
+  --d-ink: #f8f7f4;
+  --d-ink-muted: #8f8981;
+  --d-ink-faint: #68635c;
   --d-accent: #6e79d6;
   --d-accent-hover: #828cdf;
-  --d-accent-soft: #1b1d2e;
+  --d-accent-soft: #1c1c2c;
   --d-accent-ink: #ffffff;
   --d-ok: #4cb782;
   --d-ok-soft: #10231b;
@@ -103,22 +113,22 @@
   --d-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
   --d-shadow-pop: 0 8px 32px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   --d-shadow-shell: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.35);
-  --d-grid-line: #17181a;
-  --d-canvas-grid: #101114;
+  --d-grid-line: #1b1a18;
+  --d-canvas-grid: #121110;
 
   color-scheme: dark;
 }
 
 :root.light {
-  --d-canvas: #e6e8ee;
+  --d-canvas: #ebe8e3;
   --d-surface: #ffffff;
-  --d-surface-2: #f4f4f6;
+  --d-surface-2: #f5f3ef;
   --d-elevated: #ffffff;
-  --d-line: #e7e7ea;
-  --d-line-strong: #d2d2d8;
-  --d-ink: #17171a;
-  --d-ink-muted: #6b6f76;
-  --d-ink-faint: #93979f;
+  --d-line: #e5e1da;
+  --d-line-strong: #d0cabf;
+  --d-ink: #1a1816;
+  --d-ink-muted: #6c665e;
+  --d-ink-faint: #97918a;
   --d-accent: #5b64c4;
   --d-accent-hover: #4b54b4;
   --d-accent-soft: #eeeffb;
@@ -135,8 +145,8 @@
   --d-shadow-card: 0 1px 2px rgb(16 18 24 / 0.05);
   --d-shadow-pop: 0 12px 32px rgb(16 18 24 / 0.12), 0 0 0 1px rgb(16 18 24 / 0.05);
   --d-shadow-shell: 0 1px 2px rgb(16 18 24 / 0.06), 0 10px 30px rgb(16 18 24 / 0.08);
-  --d-grid-line: #ececef;
-  --d-canvas-grid: #f1f1f3;
+  --d-grid-line: #e8e4dd;
+  --d-canvas-grid: #efece7;
 
   color-scheme: light;
 }
@@ -191,8 +201,23 @@ h3 {
 }
 
 /* Thin, self-coloured scrollbars. The default chrome ones break the dark surface. */
+/* Scrollbars that are there when you are using them and gone when you are not.
+ *
+ * A permanent bar on every scrollable region is a lot of furniture for something
+ * you look at twice a session. These fade in while the region is scrolling, or
+ * while the pointer is over it, and fade back out a moment later.
+ *
+ * The track keeps its width the whole time. Making the bar itself appear and
+ * disappear would reflow the content under it, so only the colour changes:
+ * `is-scrolling` is put on by `scrollbars.ts` and taken off when you stop. */
 * {
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 250ms var(--ease-out);
+}
+
+*:hover,
+*.is-scrolling {
   scrollbar-color: var(--d-line-strong) transparent;
 }
 
@@ -203,9 +228,15 @@ h3 {
 
 *::-webkit-scrollbar-thumb {
   background-clip: content-box;
-  background-color: var(--d-line-strong);
+  background-color: transparent;
   border: 3px solid transparent;
   border-radius: 999px;
+  transition: background-color 250ms var(--ease-out);
+}
+
+*:hover::-webkit-scrollbar-thumb,
+*.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: var(--d-line-strong);
 }
 
 *::-webkit-scrollbar-track {
