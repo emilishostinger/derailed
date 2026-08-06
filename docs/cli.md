@@ -8,6 +8,9 @@ derailed mcp                      Run as an MCP server for coding agents
 derailed setup                    Create the admin account from the command line
 derailed update                   Download and install the latest version
 derailed doctor                   Check everything and say what is wrong
+derailed status                   What is running, and whether it is up
+derailed deploy <app>             Deploy an app now
+derailed logs <app>               What an app last printed
 derailed reset-password [email]   Set a new password for the admin account
 derailed version                  Print the version
 derailed help                     Show this
@@ -20,6 +23,24 @@ a broken Docker install shows up in the dashboard instead of preventing boot.
 
 On start it also reconciles: containers that should be running are started, ones that
 have vanished are marked stopped, and orphans it created are cleaned up.
+
+## status, deploy, logs
+
+For the times you are already in a terminal on the box.
+
+```sh
+derailed status              # every project and app, and whether it is up
+derailed deploy blog         # queue a deploy
+derailed logs blog           # the last 200 lines it printed
+```
+
+An app can be named by its own name, its short name, or `project/app` when two
+projects both have something called `web`. An ambiguous name is reported rather than
+guessed at: deploying the wrong app because two were called the same thing is not a
+mistake worth making on anybody's behalf.
+
+`status` asks Docker directly rather than reading the dashboard's own idea of what is
+running, which lives in the memory of the serving process and would be empty here.
 
 ## doctor
 

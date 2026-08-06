@@ -1,9 +1,16 @@
 import { schemas } from '@derailed/shared';
+import { queueDeployment } from './build/pipeline.ts';
 import { ensureDirs, paths, VERSION } from './config.ts';
 import { initDb } from './db/index.ts';
+import { listDomains } from './db/repo/domains.ts';
+import { listProjects } from './db/repo/projects.ts';
+import { listServices } from './db/repo/services.ts';
 import { deleteSessionsForUser } from './db/repo/sessions.ts';
 import { SETTINGS, setSetting } from './db/repo/settings.ts';
 import { createUser, findUserByEmail, firstUser, updatePassword } from './db/repo/users.ts';
+import { listContainers } from './docker/containers.ts';
+import { LABELS, labelFilter } from './docker/labels.ts';
+import { streamContainerLogs } from './docker/logs.ts';
 import { runMcpServer } from './mcp/server.ts';
 import { serve } from './serve.ts';
 import { runDoctor } from './system/doctor.ts';
@@ -35,6 +42,119 @@ async function doctor(): Promise<void> {
   console.log(`\n  ${report.summary}\n`);
 
   if (report.level === 'bad') process.exit(1);
+}
+
+/**
+ * Finding an app by whatever somebody typed.
+ *
+ * A name, a slug, or `project/app` when two projects both have a `web`. Ambiguity is
+ * reported rather than guessed at: deploying the wrong app because two were called
+ * the same thing is not a mistake worth making on somebody's behalf.
+ */
+function findApp(needle: string): { id: string; label: string } | null {
+  const wanted = needle.trim().toLowerCase();
+  const matches: { id: string; label: string }[] = [];
+
+  for (const project of listProjects()) {
+    for (const service of listServices(project.id)) {
+      const label = `${project.slug}/${service.slug}`;
+      if (
+        wanted === label ||
+        wanted === service.slug.toLowerCase() ||
+        wanted === service.name.toLowerCase()
+      ) {
+        matches.push({ id: service.id, label });
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    console.error(`Nothing here is called "${needle}".`);
+    console.error('Run `derailed status` to see what there is.');
+    process.exit(1);
+  }
+  if (matches.length > 1) {
+    console.error(`More than one thing is called "${needle}":`);
+    for (const match of matches) console.error(`  ${match.label}`);
+    console.error('Use the longer name to say which.');
+    process.exit(1);
+  }
+  return matches[0] ?? null;
+}
+
+/** What is on this machine, in one screen. */
+async function status(): Promise<void> {
+  ensureDirs();
+  initDb();
+  loadSecretKey();
+
+  const projects = listProjects();
+  if (!projects.length) {
+    console.log('\n  Nothing set up yet. Open the dashboard to add something.\n');
+    return;
+  }
+
+  console.log('');
+  for (const project of projects) {
+    console.log(`  ${project.name}`);
+    for (const service of listServices(project.id)) {
+      // Asked of Docker rather than taken from the dashboard's own idea of status.
+      // That is kept in memory by the running server's monitor, and this is a
+      // one-shot process with no monitor, so everything would read as failed.
+      const containers = await listContainers(
+        labelFilter({ [LABELS.service]: service.id }),
+        true,
+      ).catch(() => []);
+
+      const mark = !containers.length
+        ? '  - '
+        : containers.some((container) => container.State === 'running')
+          ? ' up '
+          : 'off ';
+      const address = listDomains(service.id)[0]?.hostname ?? '';
+      console.log(`    [${mark}] ${service.slug.padEnd(20)} ${address}`);
+    }
+    console.log('');
+  }
+  console.log('  [  - ] means nothing has been built for it yet.\n');
+}
+
+async function deployFromCli(name?: string): Promise<void> {
+  if (!name) {
+    console.error('Usage: derailed deploy <app>');
+    process.exit(1);
+  }
+  ensureDirs();
+  initDb();
+  loadSecretKey();
+
+  const app = findApp(name)!;
+  queueDeployment(app.id, 'manual');
+  console.log(`Deploying ${app.label}. Watch it in the dashboard, or with derailed logs.`);
+}
+
+async function logsFromCli(name?: string): Promise<void> {
+  if (!name) {
+    console.error('Usage: derailed logs <app>');
+    process.exit(1);
+  }
+  ensureDirs();
+  initDb();
+  loadSecretKey();
+
+  const app = findApp(name)!;
+  const containers = await listContainers(labelFilter({ [LABELS.service]: app.id })).catch(
+    () => [],
+  );
+  const running = containers.find((container) => container.State === 'running') ?? containers[0];
+  if (!running) {
+    console.error(`${app.label} has no container yet. Deploy it first.`);
+    process.exit(1);
+  }
+
+  for await (const line of streamContainerLogs(running.Id, { tail: 200 })) {
+    console.log(line.line);
+  }
 }
 
 /**
@@ -97,6 +217,9 @@ const HELP = `
                                     it is not visible in ps)
     derailed update                Download and install the latest version
     derailed doctor                Check everything and say what is wrong
+    derailed status                What is running, and whether it is up
+    derailed deploy <app>          Deploy an app now
+    derailed logs <app>            What an app last printed
     derailed reset-password [email]  Set a new password for the admin account
     derailed version               Print the version
     derailed help                  Show this message
@@ -139,6 +262,18 @@ export async function runCli(argv: string[]): Promise<void> {
 
     case 'doctor':
       await doctor();
+      return;
+
+    case 'status':
+      await status();
+      return;
+
+    case 'deploy':
+      await deployFromCli(argv[1]);
+      return;
+
+    case 'logs':
+      await logsFromCli(argv[1]);
       return;
 
     case 'reset-password':
