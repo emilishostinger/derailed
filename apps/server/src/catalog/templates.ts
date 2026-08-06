@@ -25,12 +25,21 @@ export interface TemplateDatabase {
   }) => Record<string, string>;
 }
 
+/**
+ * The order they appear in, which is a decision rather than an accident of the array.
+ * Agents go first: they are the newest reason to have a server of your own, and the
+ * one thing here nobody arrives already knowing they can self-host.
+ */
+export const CATEGORY_ORDER = ['AI agents', 'Websites', 'Tools', 'Analytics', 'Media'] as const;
+
+export type TemplateCategory = (typeof CATEGORY_ORDER)[number];
+
 export interface AppTemplate {
   slug: string;
   name: string;
   /** One line, in plain language, describing what this is for. */
   blurb: string;
-  category: 'Websites' | 'Tools' | 'Analytics' | 'Media';
+  category: TemplateCategory;
   image: string;
   port: number;
   /** Paths that must outlive a redeploy. */
@@ -359,7 +368,7 @@ export const APP_TEMPLATES: AppTemplate[] = [
     name: 'OpenClaw',
     blurb:
       "An AI assistant that runs on your server, not someone else's. Connects to your chat apps.",
-    category: 'Tools',
+    category: 'AI agents',
     image: 'ghcr.io/openclaw/openclaw:latest',
     port: 18789,
     // The workspace lives inside the config directory, so the one volume keeps both.
@@ -373,7 +382,7 @@ export const APP_TEMPLATES: AppTemplate[] = [
     slug: 'hermes-agent',
     name: 'Hermes Agent',
     blurb: 'An AI agent that learns as it works, keeping what it learns on your own machine.',
-    category: 'Tools',
+    category: 'AI agents',
     image: 'nousresearch/hermes-agent:latest',
     // Its entrypoint is the toolbox, not the gateway. Without this it prints help.
     command: ['gateway', 'run'],

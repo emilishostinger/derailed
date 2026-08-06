@@ -20,6 +20,11 @@ import { cx } from './ui.tsx';
  * "maria".
  */
 const ALIASES: Record<string, string> = {
+  // agents
+  openclaw: 'openclaw',
+  'hermes agent': 'hermesagent',
+  hermes: 'hermesagent',
+
   // databases
   postgres: 'postgresql',
   postgresql: 'postgresql',

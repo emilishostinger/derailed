@@ -3,7 +3,7 @@ import { queueDeployment } from '../../build/pipeline.ts';
 import { connectionUrl, createDatabaseFromCatalog, credentialsFor } from '../../catalog/create.ts';
 import { findEngine } from '../../catalog/databases.ts';
 import { connectServices } from '../../catalog/links.ts';
-import { APP_TEMPLATES, findTemplate } from '../../catalog/templates.ts';
+import { APP_TEMPLATES, CATEGORY_ORDER, findTemplate } from '../../catalog/templates.ts';
 import { replaceUserEnv } from '../../db/repo/env.ts';
 import { findProject } from '../../db/repo/projects.ts';
 import { createAppService, deleteService, findService } from '../../db/repo/services.ts';
@@ -16,16 +16,23 @@ import { badRequest, notFound } from '../errors.ts';
 export const templateRoutes = new Hono<AppEnv>();
 export const projectTemplateRoutes = new Hono<AppEnv>();
 
+/**
+ * Sorted here rather than in the browser. The client groups by the order it first
+ * sees a category, so the order of this list *is* the order of the headings, and
+ * which of these people should see first is a decision about the catalogue.
+ */
 templateRoutes.get('/', (c) =>
   c.json({
-    templates: APP_TEMPLATES.map((template) => ({
-      slug: template.slug,
-      name: template.name,
-      blurb: template.blurb,
-      category: template.category,
-      needsDatabase: !!template.database,
-      afterDeploy: template.afterDeploy,
-    })),
+    templates: [...APP_TEMPLATES]
+      .sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category))
+      .map((template) => ({
+        slug: template.slug,
+        name: template.name,
+        blurb: template.blurb,
+        category: template.category,
+        needsDatabase: !!template.database,
+        afterDeploy: template.afterDeploy,
+      })),
   }),
 );
 

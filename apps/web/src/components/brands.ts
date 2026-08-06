@@ -18,7 +18,24 @@ export interface BrandMark {
   path: string;
 }
 
+/**
+ * Two of these are not from Simple Icons, because Simple Icons does not carry them:
+ * OpenClaw and Hermes Agent are both young enough that nobody has drawn them for a
+ * set yet. They are the same 24x24 single-path shape as the rest so they sit in the
+ * same tile, and they say what the thing is rather than reproducing a logo: three
+ * rakes for a claw, a swept wing for the messenger.
+ */
 export const BRANDS: Record<string, BrandMark> = {
+  openclaw: {
+    title: 'OpenClaw',
+    hex: '#E8663D',
+    path: 'M2.24 9.45L5.53 15.63A1.15 1.15 0 0 1 7.56 14.55L4.27 8.37A1.15 1.15 0 0 1 2.24 9.45ZM9.34 8.05L12.63 14.23A1.15 1.15 0 0 1 14.66 13.15L11.37 6.97A1.15 1.15 0 0 1 9.34 8.05ZM16.44 9.45L19.73 15.63A1.15 1.15 0 0 1 21.76 14.55L18.47 8.37A1.15 1.15 0 0 1 16.44 9.45Z',
+  },
+  hermesagent: {
+    title: 'Hermes Agent',
+    hex: '#5B7CFA',
+    path: 'M2.6 5.2C9 4.2 16.4 6.2 21.4 10.4C18.6 11.6 15.8 11.9 13.1 11.5C15.4 13.6 16.4 15.8 16.1 18.2C13.9 16.1 11.5 14.7 8.9 14.1C10.6 16.2 11.2 18.3 10.7 20.6C7.2 16.6 4.4 11.5 2.6 5.2Z',
+  },
   actualbudget: {
     title: 'Actual Budget',
     hex: '#6B46C1',
