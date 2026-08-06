@@ -202,7 +202,10 @@ function ProjectCard({ project }: { project: Project }) {
       <Link
         to={`/p/${project.slug}`}
         onContextMenu={actions.onContextMenu}
-        className="card group relative flex flex-col gap-3 p-4 transition-[border-color,background-color] duration-150 hover:border-line-strong hover:bg-surface-2/40"
+        className={cx(
+          'card group relative flex flex-col gap-3 p-4 transition-[border-color,background-color] duration-150 hover:border-line-strong hover:bg-surface-2/40',
+          actions.isOpen && 'border-line-strong bg-surface-2/40',
+        )}
       >
         <div className="flex items-center gap-2">
           <Boxes className="h-4 w-4 shrink-0 text-ink-faint" />
@@ -215,7 +218,10 @@ function ProjectCard({ project }: { project: Project }) {
           <button
             type="button"
             aria-label={`Actions for ${project.name}`}
-            className="-mr-1 shrink-0 rounded-[4px] p-0.5 text-ink-faint opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
+            className={cx(
+              '-mr-1 shrink-0 rounded-[4px] p-0.5 text-ink-faint opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100',
+              actions.isOpen && 'text-ink opacity-100',
+            )}
             onClick={(event) => {
               event.preventDefault();
               actions.openFrom(event);

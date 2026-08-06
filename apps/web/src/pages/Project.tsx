@@ -7,7 +7,7 @@ import { NewServiceWizard } from '../components/NewServiceWizard.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { ServiceDrawer } from '../components/ServiceDrawer.tsx';
 import { TopologyCanvas } from '../components/topology/Canvas.tsx';
-import { EmptyState, Spinner } from '../components/ui.tsx';
+import { cx, EmptyState, Spinner } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { NewButton, PageHeader } from './Layout.tsx';
 
@@ -99,7 +99,10 @@ export function ProjectPage() {
               type="button"
               aria-label="Project actions"
               title="Rename, back up or delete"
-              className="rounded-[var(--radius-control)] p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+              className={cx(
+                'rounded-[var(--radius-control)] p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink',
+                actions.isOpen && 'bg-surface-2 text-ink',
+              )}
               onClick={actions.openFrom}
             >
               <MoreHorizontal className="h-4 w-4" />

@@ -114,5 +114,16 @@ export function useProjectActions({
     </>
   );
 
-  return { onContextMenu: menu.onContextMenu, openFrom: menu.openFrom, element, note };
+  return {
+    onContextMenu: menu.onContextMenu,
+    openFrom: menu.openFrom,
+    /**
+     * The row or card the menu belongs to keeps its hover look while the menu is up.
+     * Without it the thing you right-clicked goes cold the moment the pointer moves
+     * onto the menu, and the menu is left pointing at nothing in particular.
+     */
+    isOpen: menu.isOpen,
+    element,
+    note,
+  };
 }

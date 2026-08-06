@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { cx } from './ui.tsx';
 
 export interface MenuItem {
@@ -12,6 +12,16 @@ export interface MenuItem {
 }
 
 /**
+ * Every menu on the page, so that opening one can shut the rest.
+ *
+ * Each menu owns its own state, which is right: a card should not have to know that
+ * a sidebar row exists. But "only one menu is open at a time" is a fact about the
+ * page, not about any one menu, so it lives here rather than in a shared parent that
+ * would have to thread a callback through everything in between.
+ */
+const closers = new Set<() => void>();
+
+/**
  * Right-click menus.
  *
  * Everything offered here is also reachable by clicking, because a menu that hides the
@@ -19,25 +29,39 @@ export interface MenuItem {
  */
 export function useContextMenu() {
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const close = useCallback(() => setAt(null), []);
+
+  useEffect(() => {
+    closers.add(close);
+    return () => {
+      closers.delete(close);
+    };
+  }, [close]);
+
+  const open = useCallback(
+    (event: React.MouseEvent, point: { x: number; y: number }) => {
+      event.preventDefault();
+      event.stopPropagation();
+      for (const other of closers) if (other !== close) other();
+      setAt(point);
+    },
+    [close],
+  );
 
   return {
     at,
-    close: () => setAt(null),
-    onContextMenu: (event: React.MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setAt({ x: event.clientX, y: event.clientY });
-    },
+    /** True while this menu is showing, so its trigger can stay lit underneath it. */
+    isOpen: at !== null,
+    close,
+    onContextMenu: (event: React.MouseEvent) => open(event, { x: event.clientX, y: event.clientY }),
     /**
      * The same menu, from a button rather than a right-click. Anchored to the
      * button's bottom-left so it hangs beneath it like a menu rather than appearing
      * wherever the pointer happened to be.
      */
     openFrom: (event: React.MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
       const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
-      setAt({ x: box.left, y: box.bottom + 4 });
+      open(event, { x: box.left, y: box.bottom + 4 });
     },
   };
 }
@@ -106,12 +130,16 @@ export function ContextMenu({
             className={cx(
               'group flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[13px] transition-colors',
               'disabled:pointer-events-none disabled:opacity-40',
+              // Every label is plain readable ink. Dimming the ones you are not on
+              // makes the menu flicker as the pointer crosses it, and implies the
+              // other items are unavailable when they are merely elsewhere.
+              // Hovering moves a background, not a text colour.
               item.danger
                 ? // Reads as an ordinary item until you are actually on it. A row that
                   // is red from the moment the menu opens shouts before it has been
                   // asked a question, and this menu is mostly ordinary items.
-                  'text-ink-muted hover:bg-danger-soft hover:text-danger'
-                : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+                  'text-ink hover:bg-danger-soft hover:text-danger'
+                : 'text-ink hover:bg-surface-2',
             )}
           >
             {/* The icon travels with the label, or half the row turns red and the

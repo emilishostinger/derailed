@@ -305,7 +305,10 @@ function Row({
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: right-click is a shortcut here, and everything in the menu is also reachable by clicking.
-    <div className="card p-4" onContextMenu={menu.onContextMenu}>
+    <div
+      className={cx('card p-4 transition-colors', menu.isOpen && 'border-line-strong')}
+      onContextMenu={menu.onContextMenu}
+    >
       {/* The name is the thing. Everything else on this card is about it. */}
       <div className="flex items-center gap-2.5">
         {secure ? (

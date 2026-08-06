@@ -524,7 +524,10 @@ function ProjectItem({
             'group flex items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-[13px] transition-colors',
             isActive
               ? 'bg-on-canvas-strong text-ink'
-              : 'text-ink-muted hover:bg-on-canvas hover:text-ink',
+              : cx(
+                  'text-ink-muted hover:bg-on-canvas hover:text-ink',
+                  actions.isOpen && 'bg-on-canvas text-ink',
+                ),
           )
         }
       >

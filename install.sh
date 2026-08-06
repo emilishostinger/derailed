@@ -103,24 +103,28 @@ WORDMARK='██████╗ ███████╗██████╗  �
 WORDMARK_WIDTH=61
 
 # The two tones, in whatever the terminal understands. Rows 1 to 3 get the first.
+# Both sit either side of the brand green (#3ecf8e): a pale mint on top, a deeper
+# green below. The dark one is the one that has to survive a white terminal, so it
+# is kept dark enough to read there rather than matching the top for brightness.
 row_colour() {
   case "$COLOR_DEPTH" in
     full)
       case "$1" in
-        1|2|3) printf '\033[38;2;139;147;232m' ;;
-        *)     printf '\033[38;2;91;100;196m'  ;;
+        1|2|3) printf '\033[38;2;95;220;162m' ;;
+        *)     printf '\033[38;2;33;159;110m' ;;
       esac
       ;;
     256)
-      # 147 is #afafff and 62 is #5f5fd7: the closest the xterm cube comes to each.
+      # 79 is #5fd7af and 35 is #00875f: the closest the xterm cube comes to each.
       case "$1" in
-        1|2|3) printf '\033[38;5;147m' ;;
-        *)     printf '\033[38;5;62m'  ;;
+        1|2|3) printf '\033[38;5;79m' ;;
+        *)     printf '\033[38;5;35m' ;;
       esac
       ;;
-    # Sixteen colours has one blue and one bright blue, and the plain one is unreadably
-    # dark on half the themes people use. One tone is better than an invisible half.
-    basic) printf '\033[1;34m' ;;
+    # Sixteen colours has one green and one bright green, and the plain one is
+    # unreadably dark on half the themes people use. One tone is better than an
+    # invisible half.
+    basic) printf '\033[1;32m' ;;
     *)     printf '' ;;
   esac
 }
