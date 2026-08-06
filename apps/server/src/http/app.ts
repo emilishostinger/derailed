@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { VERSION } from '../config.ts';
+import { auditWrites, listAudit } from './audit.ts';
 import { type AppEnv, requireAuth, requireCsrfHeader } from './auth.ts';
 import { errorResponse, notFound } from './errors.ts';
 import { alertRoutes } from './routes/alerts.ts';
@@ -79,10 +80,18 @@ export function createApp() {
   // Before `requireAuth`, on purpose: a status page nobody can read is not one.
   // It answers 404 until somebody switches it on.
   api.route('/public', publicStatusRoutes);
+  // Audited too, and mounted before the session check because signing in has to
+  // work without one. Turning a second factor on or off is exactly the kind of change
+  // somebody will later want a record of.
+  api.use('/auth/*', auditWrites);
   api.route('/auth', authRoutes);
 
   // Everything below needs a session.
   api.use('*', requireAuth);
+  // And every change below is recorded. A middleware rather than a call in each
+  // handler, because the handler that forgets is exactly the one somebody will later
+  // wish had been recorded.
+  api.use('*', auditWrites);
   api.route('/system', systemRoutes);
   api.route('/mail', mailRoutes);
   api.route('/detect', detectRoutes);
@@ -109,6 +118,7 @@ export function createApp() {
   api.route('/alerts', alertRoutes);
   api.route('/jobs', jobRoutes);
   api.route('/uptime', uptimeRoutes);
+  api.get('/audit', (c) => c.json({ entries: listAudit() }));
   api.route('/services', serviceJobRoutes);
 
   api.all('*', () => {

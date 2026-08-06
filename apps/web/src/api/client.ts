@@ -83,7 +83,9 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body ?? {}),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body ?? {}),
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  // A body on DELETE is unusual but not wrong, and turning off a second factor
+  // needs the password travelling with the request rather than in the URL.
+  delete: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body),
 
   me: () => request<{ user: User }>('GET', '/auth/me'),
   authStatus: () => request<{ setupComplete: boolean }>('GET', '/auth/status'),

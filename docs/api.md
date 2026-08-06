@@ -105,6 +105,16 @@ Creating a service:
 | `GET /jobs/:id/runs` | The last twenty runs, with what they printed |
 | `POST /jobs/preview` | `{ schedule }` in words, and when it would next fire |
 
+## Signing in
+
+| | |
+| --- | --- |
+| `POST /auth/login` | `{ email, password, code? }`. Answers `{ needsCode: true }` when one is set up |
+| `POST /auth/totp/start` · `/totp/confirm` | Set up the second factor. Confirm returns recovery codes, once |
+| `DELETE /auth/totp` | `{ password }`. The password again, deliberately |
+| `GET /auth/sessions` · `DELETE /auth/sessions/:id` | Where you are signed in |
+| `GET /audit` | Who changed what, for the last year |
+
 ## Uptime
 
 | | |

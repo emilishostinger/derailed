@@ -1,6 +1,12 @@
 import { schemas } from '@derailed/shared';
 import { Hono } from 'hono';
-import { createSession, deleteSession, deleteSessionsForUser } from '../../db/repo/sessions.ts';
+import {
+  createSession,
+  deleteSession,
+  deleteSessionsForUser,
+  findSession,
+  listSessionsForUser,
+} from '../../db/repo/sessions.ts';
 import {
   claimSetup,
   getBoolSetting,
@@ -9,11 +15,18 @@ import {
   setBoolSetting,
 } from '../../db/repo/settings.ts';
 import {
+  confirmTotp,
+  countRecoveryCodes,
   countUsers,
   createUser,
   findUserByEmail,
+  setTotpSecret,
+  storeRecoveryCodes,
+  totpEnabled,
+  totpSecret,
   updateEmail,
   updatePassword,
+  useRecoveryCode,
 } from '../../db/repo/users.ts';
 import {
   type AppEnv,
@@ -25,9 +38,17 @@ import {
   requireAuth,
   setSessionCookie,
 } from '../auth.ts';
-import { badRequest, conflict, parseBody, tooManyRequests, unauthorized } from '../errors.ts';
+import {
+  badRequest,
+  conflict,
+  notFound,
+  parseBody,
+  tooManyRequests,
+  unauthorized,
+} from '../errors.ts';
+import { generateRecoveryCodes, generateSecret, otpauthUrl, verifyCode } from '../totp.ts';
 
-const loginLimiter = new RateLimiter(5, 60_000);
+export const loginLimiter = new RateLimiter(5, 60_000);
 const setupLimiter = new RateLimiter(10, 60_000);
 
 /**
@@ -44,7 +65,7 @@ const setupLimiter = new RateLimiter(10, 60_000);
  * every real visitor shares that one address and a person mistyping their password a
  * few times must not be stopped, but finite, which is the entire point.
  */
-const peerLimiter = new RateLimiter(30, 60_000);
+export const peerLimiter = new RateLimiter(30, 60_000);
 
 let decoy: Promise<string> | null = null;
 const decoyHash = () => (decoy ??= Bun.password.hash('derailed-decoy-password'));
@@ -94,7 +115,11 @@ authRoutes.post('/login', async (c) => {
   );
   if (!loginLimiter.check(ip)) throw tooMany;
   if (peer && !peerLimiter.check(peer)) throw tooMany;
-  const { email, password } = await parseBody(c, schemas.loginRequest);
+  // Read once: the schema validates the two required fields, and the code is an
+  // optional extra the schema deliberately does not know about.
+  const raw = (await c.req.json().catch(() => ({}))) as { code?: string };
+  const { email, password } = schemas.loginRequest.parse(raw);
+  const body = raw;
   const record = findUserByEmail(email);
   // Verify against a decoy hash when the email is unknown, so response timing
   // doesn't reveal which emails exist.
@@ -102,11 +127,96 @@ authRoutes.post('/login', async (c) => {
   if (!record || !ok) {
     throw unauthorized('That email and password do not match.');
   }
+  // The password was right. If a second factor is set up, that is not yet enough,
+  // and the rate limiter is deliberately not reset until both have passed: otherwise
+  // a correct password would buy unlimited attempts at the code.
+  if (totpEnabled(record.id)) {
+    const secret = totpSecret(record.id);
+    const supplied = (body.code ?? '').trim();
+
+    if (!supplied) {
+      // Deliberately not an error: the browser needs to know to ask, and "wrong
+      // password" would be a lie.
+      return c.json({ needsCode: true }, 200);
+    }
+
+    const ok = (secret && verifyCode(secret, supplied)) || useRecoveryCode(record.id, supplied);
+    if (!ok) throw unauthorized('That code is not right.');
+  }
+
   loginLimiter.reset(ip);
   if (peer) peerLimiter.reset(peer);
-  const session = createSession(record.id);
+  const session = createSession(record.id, c.req.header('user-agent') ?? null, ip);
   setSessionCookie(c, session.id);
   return c.json({ user: { id: record.id, email: record.email, createdAt: record.createdAt } });
+});
+
+/**
+ * Setting up the second factor.
+ *
+ * The secret is stored the moment this is called but two-factor is not *on* until a
+ * code from it has been proved. Without that step, scanning a QR code and closing the
+ * tab would lock somebody out of their own server.
+ */
+authRoutes.post('/totp/start', requireAuth, (c) => {
+  const user = c.get('user');
+  const secret = generateSecret();
+  setTotpSecret(user.id, secret);
+  return c.json({ secret, url: otpauthUrl(secret, user.email) });
+});
+
+authRoutes.post('/totp/confirm', requireAuth, async (c) => {
+  const user = c.get('user');
+  const body = (await c.req.json().catch(() => ({}))) as { code?: string };
+  const secret = totpSecret(user.id);
+
+  if (!secret) throw badRequest('Start setting it up first.');
+  if (!verifyCode(secret, body.code ?? '')) {
+    throw badRequest(
+      'That code is not right.',
+      'Check the clock on your phone if it keeps happening: these codes are based on the time.',
+    );
+  }
+
+  confirmTotp(user.id);
+  // Shown once, here, and never again. Without them this is a way to lock yourself
+  // out of your own server for good.
+  const codes = generateRecoveryCodes();
+  storeRecoveryCodes(user.id, codes);
+  return c.json({ enabled: true, recoveryCodes: codes });
+});
+
+authRoutes.delete('/totp', requireAuth, async (c) => {
+  const user = c.get('user');
+  const body = (await c.req.json().catch(() => ({}))) as { password?: string };
+  const record = findUserByEmail(user.email);
+
+  // The password again, because turning off a second factor with a stolen session is
+  // exactly what a second factor is for.
+  if (!record || !(await Bun.password.verify(body.password ?? '', record.passwordHash))) {
+    throw unauthorized('That password is not right.');
+  }
+  setTotpSecret(user.id, null);
+  return c.json({ enabled: false });
+});
+
+authRoutes.get('/sessions', requireAuth, (c) => {
+  const current = c.get('sessionId');
+  return c.json({
+    sessions: listSessionsForUser(c.get('user').id).map((session) => ({
+      ...session,
+      current: session.id === current,
+    })),
+  });
+});
+
+authRoutes.delete('/sessions/:id', requireAuth, (c) => {
+  const id = c.req.param('id');
+  const session = findSession(id);
+  // Only your own, whatever id was asked for.
+  if (!session || session.userId !== c.get('user').id) throw notFound('That session');
+  deleteSession(id);
+  return c.json({ ok: true });
 });
 
 authRoutes.post('/logout', requireAuth, (c) => {
@@ -118,7 +228,11 @@ authRoutes.post('/logout', requireAuth, (c) => {
 authRoutes.get('/me', (c) => {
   const user = currentUser(c);
   if (!user) throw unauthorized();
-  return c.json({ user });
+  return c.json({
+    user,
+    totpEnabled: totpEnabled(user.id),
+    recoveryCodesLeft: countRecoveryCodes(user.id),
+  });
 });
 
 /**

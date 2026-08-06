@@ -181,6 +181,17 @@ export class RateLimiter {
   reset(key: string): void {
     this.hits.delete(key);
   }
+
+  /**
+   * Forgets everything.
+   *
+   * For tests, which share one process and would otherwise exhaust a real allowance
+   * between files and then fail on the limiter rather than on what they meant to
+   * check. Nothing in the running server calls this.
+   */
+  resetAll(): void {
+    this.hits.clear();
+  }
 }
 
 /**

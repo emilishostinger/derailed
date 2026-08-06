@@ -19,7 +19,42 @@ interface SessionRow {
   created_at: number;
 }
 
-export function createSession(userId: string): Session {
+/** Every session, newest first, for the list somebody signs strangers out of. */
+export function listSessionsForUser(userId: string): (Session & {
+  userAgent: string | null;
+  ip: string | null;
+  lastSeenAt: number | null;
+})[] {
+  return db()
+    .query<
+      {
+        id: string;
+        user_id: string;
+        expires_at: number;
+        created_at: number;
+        user_agent: string | null;
+        ip: string | null;
+        last_seen_at: number | null;
+      },
+      [string, number]
+    >('SELECT * FROM sessions WHERE user_id = ? AND expires_at > ? ORDER BY created_at DESC')
+    .all(userId, Date.now())
+    .map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      expiresAt: row.expires_at,
+      createdAt: row.created_at,
+      userAgent: row.user_agent,
+      ip: row.ip,
+      lastSeenAt: row.last_seen_at,
+    }));
+}
+
+export function createSession(
+  userId: string,
+  userAgent: string | null = null,
+  ip: string | null = null,
+): Session {
   const now = Date.now();
   const session: Session = {
     id: randomSecret(48),
@@ -28,8 +63,21 @@ export function createSession(userId: string): Session {
     createdAt: now,
   };
   db()
-    .query('INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)')
-    .run(session.id, session.userId, session.expiresAt, session.createdAt);
+    .query(
+      `INSERT INTO sessions (id, user_id, expires_at, created_at, user_agent, ip, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      session.id,
+      session.userId,
+      session.expiresAt,
+      session.createdAt,
+      // Trimmed: a user agent is long, and only enough to recognise the device is
+      // wanted. It is not identification, just "was that me, on my laptop?".
+      userAgent?.slice(0, 200) ?? null,
+      ip,
+      now,
+    );
   return session;
 }
 

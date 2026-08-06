@@ -327,6 +327,38 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  me: () => api.get<{ totpEnabled?: boolean; recoveryCodesLeft?: number }>('/auth/me'),
+  startTotp: () => api.post<{ secret: string; url: string }>('/auth/totp/start'),
+  confirmTotp: (code: string) =>
+    api.post<{ enabled: boolean; recoveryCodes: string[] }>('/auth/totp/confirm', { code }),
+  disableTotp: (password: string) => api.delete<{ enabled: boolean }>('/auth/totp', { password }),
+  sessions: () =>
+    api
+      .get<{
+        sessions: {
+          id: string;
+          createdAt: number;
+          lastSeenAt: number | null;
+          userAgent: string | null;
+          ip: string | null;
+          current: boolean;
+        }[];
+      }>('/auth/sessions')
+      .then((r) => r.sessions),
+  endSession: (id: string) => api.delete<{ ok: true }>(`/auth/sessions/${id}`),
+  audit: () =>
+    api
+      .get<{
+        entries: {
+          id: string;
+          at: number;
+          email: string | null;
+          action: string;
+          ip: string | null;
+        }[];
+      }>('/audit')
+      .then((r) => r.entries),
+
   uptime: () =>
     api.get<{
       sites: { domain: Domain; service: string | null; uptime: UptimeSummary }[];

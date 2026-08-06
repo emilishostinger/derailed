@@ -515,4 +515,40 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_uptime_domain ON uptime_checks(domain_id, at DESC);
     `,
   },
+  {
+    id: 18,
+    name: 'a second factor, and a record of who did what',
+    sql: `
+      -- One password guards a machine that can run anything. TOTP because it is
+      -- universal and needs no hardware; the secret is encrypted like every other.
+      ALTER TABLE users ADD COLUMN totp_secret_enc TEXT;
+      ALTER TABLE users ADD COLUMN totp_confirmed_at INTEGER;
+      -- Single-use codes for the day the phone is lost, stored only as hashes.
+      CREATE TABLE recovery_codes (
+        id       TEXT PRIMARY KEY,
+        user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        hash     TEXT NOT NULL,
+        used_at  INTEGER
+      );
+
+      -- Where a session was opened, so the list of them means something.
+      ALTER TABLE sessions ADD COLUMN user_agent TEXT;
+      ALTER TABLE sessions ADD COLUMN ip TEXT;
+      ALTER TABLE sessions ADD COLUMN last_seen_at INTEGER;
+
+      -- "Who deleted the database?" is impossible to answer retroactively and cheap
+      -- to answer in advance.
+      CREATE TABLE audit_log (
+        id      TEXT PRIMARY KEY,
+        at      INTEGER NOT NULL,
+        user_id TEXT,
+        email   TEXT,
+        action  TEXT NOT NULL,
+        subject TEXT,
+        detail  TEXT,
+        ip      TEXT
+      );
+      CREATE INDEX idx_audit_at ON audit_log(at DESC);
+    `,
+  },
 ];

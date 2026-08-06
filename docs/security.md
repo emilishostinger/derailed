@@ -132,3 +132,43 @@ a release of Derailed.
 Use GitHub's private vulnerability reporting on the repository, or contact the
 maintainer directly. Please do not open a public issue for an unpatched vulnerability.
 See [SECURITY.md](../SECURITY.md).
+
+
+## Two-step sign-in
+
+**Settings → Signing in.** Scan the secret into any authenticator app, type the code it
+shows, and from then on signing in needs your password and a six-digit code.
+
+TOTP, to the letter of RFC 6238, so every authenticator app already works with it. The
+secret is encrypted at rest like every other secret here.
+
+You are shown **recovery codes** once, at the moment it is switched on. Each one signs
+you in a single time. Write them down: without them, losing your phone means the only
+way back is `derailed reset-password` on the server itself, which is a fine last resort
+and a terrible only one.
+
+Two details worth knowing:
+
+- It is not switched on until you have proved a code from it. Scanning the QR and
+  closing the tab leaves you exactly where you were, rather than locked out.
+- Turning it off asks for your password again. A stolen session switching off the
+  second factor is precisely what the second factor is for.
+
+When a password is right but the code is missing, the answer is *"a code is needed"*
+rather than an error. The browser has to know to ask, and "wrong password" would be a
+lie. The rate limit is not reset until both have passed, so a correct password does not
+buy unlimited attempts at the code.
+
+## Where you are signed in
+
+The same page lists every session: the device, roughly, when it started, and the
+address it came from. Anything that is not the one you are using can be signed out.
+
+## Who did what
+
+Every change is recorded: who, what, when, and from where. Reads are not, because a log
+of every page anybody looked at would bury the three lines that matter.
+
+It is kept for a year and is on the **Settings** page. On a one-person server it is a
+memory aid. The moment a second person has access, it is the difference between a
+conversation and an argument.

@@ -5,6 +5,7 @@ import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { Alerts } from '../components/Alerts.tsx';
 import { playChime, setSoundsEnabled, soundsEnabled } from '../components/Celebrate.tsx';
+import { Security } from '../components/Security.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
 import { useSession } from '../stores/session.ts';
@@ -50,6 +51,10 @@ export function Settings() {
               To change the password, run{' '}
               <code className="text-ink-muted">derailed reset-password</code> on the server.
             </p>
+          </Section>
+
+          <Section title="Signing in">
+            <Security />
           </Section>
 
           <Section title="Dashboard address">
