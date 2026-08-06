@@ -17,6 +17,7 @@ import type { OtherSoftware } from '../api/endpoints.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { CostCounter } from '../components/CostCounter.tsx';
 import { DropToHost } from '../components/DropToHost.tsx';
+import { GettingStarted } from '../components/GettingStarted.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { ProjectPreview } from '../components/SitePreview.tsx';
 import { cx, EmptyState, ErrorNote, Field, Modal, Spinner, StatusDot } from '../components/ui.tsx';
@@ -76,6 +77,14 @@ export function Dashboard() {
               </button>
             }
           />
+        )}
+
+        {/* Above the projects, and only until it is done with. This is the one place
+            someone on their first day will actually look. */}
+        {loaded && (
+          <div className="px-5 pt-5">
+            <GettingStarted />
+          </div>
         )}
 
         {loaded && projects.length > 0 && (
