@@ -87,6 +87,16 @@ Creating a service:
 | `POST /services/:id/preview` | Refresh one app's title, icon and picture now |
 | `GET /services/previews/:name` | The image itself. Behind the session, like everything |
 
+## Alerts
+
+| | |
+| --- | --- |
+| `GET /alerts` | Channels and what is switched on. Secrets never included |
+| `PUT /alerts/channels` | Replace the list. A blank secret keeps the stored one |
+| `PUT /alerts/events` | Which kinds of thing are worth a message |
+| `POST /alerts/channels/:id/test` | Send a real message to one channel, now |
+| `POST /alerts/test` | Send a test to every channel |
+
 ## Health
 
 | | |

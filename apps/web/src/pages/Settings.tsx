@@ -3,6 +3,7 @@ import { ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
+import { Alerts } from '../components/Alerts.tsx';
 import { playChime, setSoundsEnabled, soundsEnabled } from '../components/Celebrate.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
@@ -65,6 +66,10 @@ export function Settings() {
 
           <Section title="How your apps look, and sound">
             <Screenshots />
+          </Section>
+
+          <Section title="Tell me when something breaks">
+            <Alerts />
           </Section>
 
           <Section title="Keeping up to date">

@@ -386,6 +386,36 @@ export interface CostComparison {
   summary: string;
 }
 
+/** Where alerts can be sent. One shape for every destination. */
+export type AlertChannelKind = 'email' | 'discord' | 'slack' | 'telegram' | 'ntfy' | 'webhook';
+
+export interface AlertChannel {
+  id: string;
+  kind: AlertChannelKind;
+  /** A webhook URL, an ntfy topic address, a Telegram chat id, or an email address. */
+  target: string;
+  /** Only Telegram needs one. Never sent back to the browser. */
+  secret?: string | null;
+}
+
+/** The things worth being told about. */
+export type AlertEventKind =
+  | 'app.crashed'
+  | 'app.crashloop'
+  | 'deploy.failed'
+  | 'deploy.succeeded'
+  | 'disk.low'
+  | 'memory.low'
+  | 'certificate.expiring'
+  | 'domain.drifted'
+  | 'backup.failed'
+  | 'drill.failed';
+
+export interface AlertSettings {
+  channels: AlertChannel[];
+  events: AlertEventKind[];
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

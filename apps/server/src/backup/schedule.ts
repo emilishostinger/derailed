@@ -1,4 +1,5 @@
 import type { BackupSchedule } from '@derailed/shared';
+import { alertBackupFailed } from '../alerts/watch.ts';
 import { listProjects, setProjectBackupSchedule } from '../db/repo/projects.ts';
 import { getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
@@ -85,11 +86,13 @@ async function maybeRun(): Promise<void> {
         });
       });
     } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
       publish('system', {
         type: 'notice',
         level: 'warn',
-        message: `Couldn't back up ${project.name}: ${err instanceof Error ? err.message : err}`,
+        message: `Couldn't back up ${project.name}: ${reason}`,
       });
+      await alertBackupFailed(project.name, reason).catch(() => undefined);
     }
   }
 

@@ -2,6 +2,7 @@ import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { DrillResult } from '@derailed/shared';
+import { alertDrillFailed } from '../alerts/watch.ts';
 import { getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
 import { type BackupManifest, backupFile, listBackups, safeInside } from './backup.ts';
 
@@ -148,6 +149,9 @@ export async function drillBackup(backupId: string): Promise<DrillResult> {
     };
 
     remember(result);
+    // A backup that does not restore is the single worst thing this server can
+    // discover about itself, so it is said out loud rather than left on a page.
+    if (!result.ok) void alertDrillFailed(result.problems).catch(() => undefined);
     return result;
   } catch (err) {
     return fail(backupId, startedAt, err instanceof Error ? err.message : String(err));

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { VERSION } from '../config.ts';
 import { type AppEnv, requireAuth, requireCsrfHeader } from './auth.ts';
 import { errorResponse, notFound } from './errors.ts';
+import { alertRoutes } from './routes/alerts.ts';
 import { authRoutes } from './routes/auth.ts';
 import { backupRoutes } from './routes/backups.ts';
 import { catalogRoutes, connectionRoutes, linkRoutes, singleLinkRoutes } from './routes/catalog.ts';
@@ -93,6 +94,7 @@ export function createApp() {
   api.route('/updates', updateRoutes);
   api.route('/backups', backupRoutes);
   api.route('/trash', trashRoutes);
+  api.route('/alerts', alertRoutes);
 
   api.all('*', () => {
     throw notFound('That endpoint');

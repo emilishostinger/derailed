@@ -1,4 +1,7 @@
 import type {
+  AlertChannel,
+  AlertEventKind,
+  AlertSettings,
   CostComparison,
   Deployment,
   DetectResult,
@@ -314,6 +317,16 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  alerts: () =>
+    api.get<{ settings: AlertSettings; kinds: { kind: AlertEventKind; label: string }[] }>(
+      '/alerts',
+    ),
+  saveAlertChannels: (channels: AlertChannel[]) =>
+    api.put<{ settings: AlertSettings }>('/alerts/channels', { channels }).then((r) => r.settings),
+  saveAlertEvents: (events: AlertEventKind[]) =>
+    api.put<{ settings: AlertSettings }>('/alerts/events', { events }).then((r) => r.settings),
+  testAlertChannel: (id: string) => api.post<{ ok: true }>(`/alerts/channels/${id}/test`),
 
   cost: () => api.get<{ cost: CostComparison }>('/system/cost').then((r) => r.cost),
 

@@ -2,6 +2,7 @@ import { cp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Deployment, DeploymentStatus, DeploymentTrigger, Service } from '@derailed/shared';
 import { topics } from '@derailed/shared';
+import { alertDeployFailed, alertDeploySucceeded } from '../alerts/watch.ts';
 import { ensureDirs, paths } from '../config.ts';
 import {
   createDeployment,
@@ -314,6 +315,9 @@ async function run(job: Job): Promise<void> {
         errorSummary: explained.summary,
         errorHint: explained.hint ?? null,
       });
+      // Told to whoever asked to be told. Not awaited: a slow webhook must not hold
+      // the pipeline open after the deploy has already finished failing.
+      void alertDeployFailed(service.id, explained.summary, explained.hint).catch(() => undefined);
     }
   } finally {
     await log.flush();
@@ -603,6 +607,7 @@ async function launch(input: LaunchInput): Promise<void> {
   // The site has just changed, so whatever is on its tile is now out of date. A short
   // delay because the container has only this second started answering.
   setTimeout(() => void refreshPreview(service.id).catch(() => undefined), 20_000).unref?.();
+  void alertDeploySucceeded(service.id, deployment.commitSha).catch(() => undefined);
   for (const id of superseded) {
     const old = findDeployment(id);
     if (old) emitDeployment(old);

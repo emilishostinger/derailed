@@ -1,3 +1,4 @@
+import { startAlerts, stopAlerts } from './alerts/watch.ts';
 import { startTrafficCollector, stopTrafficCollector } from './analytics/collect.ts';
 import { pruneTraffic } from './analytics/store.ts';
 import { startDrills, stopDrills } from './backup/drill.ts';
@@ -150,6 +151,7 @@ export async function serve(): Promise<void> {
     stopFreeDomainRenewal();
     stopBackupSchedule();
     stopDrills();
+    stopAlerts();
     stopTrashSweep();
     stopPreviews();
     stopReleaseWatcher();
@@ -207,6 +209,7 @@ async function bootRuntime(): Promise<void> {
     startFreeDomainRenewal(() => syncRoutes());
     startBackupSchedule();
     startDrills((line) => console.log(`  backups    →  ${line}`));
+    startAlerts();
     startTrashSweep((line) => console.log(`  trash      →  ${line}`));
     startPreviews();
     startReleaseWatcher();

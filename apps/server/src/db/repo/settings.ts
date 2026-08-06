@@ -100,6 +100,11 @@ export const SETTINGS = {
    * 300 MB browser image, which is not something to download without being asked.
    */
   previewShots: 'preview_shots',
+  /** Where alerts go, and what is worth an alert. Secrets inside are encrypted. */
+  alertChannels: 'alert_channels',
+  alertEvents: 'alert_events',
+  /** What has already been said recently, so the same thing is not said twice. */
+  alertHistory: 'alert_history',
   /** The most recent restore drill, stored whole as JSON. */
   drillLast: 'drill_last',
 } as const;
