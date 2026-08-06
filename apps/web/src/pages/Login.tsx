@@ -52,8 +52,8 @@ export function Login() {
           Sign in
         </button>
         <p className="pt-1 text-center text-xs text-ink-faint">
-          Locked out? Run <code className="font-mono text-ink-muted">derailed reset-password</code>{' '}
-          on your server.
+          Locked out? Run <code className="text-ink-muted">derailed reset-password</code> on your
+          server.
         </p>
       </form>
     </AuthShell>

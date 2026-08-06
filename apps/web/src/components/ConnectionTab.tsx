@@ -97,14 +97,14 @@ function DatabaseConnection({ service }: { service: Service }) {
           />
         </div>
         <div className="mt-2 flex items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2">
-          <code className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink-muted">
+          <code className="min-w-0 flex-1 truncate text-[12px] text-ink-muted">
             {revealed ? connection.url : connection.url.replace(connection.password, '••••••••')}
           </code>
           <CopyButton value={connection.url} label="URL" />
         </div>
         <p className="mt-2 text-[12px] text-ink-faint">
-          Apps in this project reach it at <span className="font-mono">{connection.host}</span>.
-          Connect one below and Derailed sets this up as an environment variable for you.
+          Apps in this project reach it at <span className="">{connection.host}</span>. Connect one
+          below and Derailed sets this up as an environment variable for you.
         </p>
       </section>
 
@@ -149,9 +149,8 @@ function DatabaseConnection({ service }: { service: Service }) {
               This database is open to the internet
             </p>
             <p className="mt-1.5 text-[12px] text-ink-muted">
-              Anyone who finds port{' '}
-              <span className="font-mono text-ink">{connection.exposedPort}</span> can try to log
-              in. Turn this off when you're done.
+              Anyone who finds port <span className="text-ink">{connection.exposedPort}</span> can
+              try to log in. Turn this off when you're done.
             </p>
             <button
               type="button"
@@ -235,7 +234,7 @@ function AppConnections({ service }: { service: Service }) {
                   <span className="min-w-0 flex-1 truncate text-ink">
                     {database?.name ?? 'A database'}
                   </span>
-                  <code className="shrink-0 font-mono text-[11px] text-accent">
+                  <code className="shrink-0 text-[11px] text-accent">
                     {link.injectAs ?? 'DATABASE_URL'}
                   </code>
                   <button
@@ -326,7 +325,7 @@ function Row({
   return (
     <div className="flex items-center gap-2 px-3 py-2">
       <span className="w-20 shrink-0 text-[12px] text-ink-faint">{label}</span>
-      <code className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink">{shown}</code>
+      <code className="min-w-0 flex-1 truncate text-[12px] text-ink">{shown}</code>
       {secret && (
         <button type="button" className="btn-ghost px-1.5" onClick={onReveal}>
           {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}

@@ -105,11 +105,11 @@ export function ApiTokens() {
       {fresh && (
         <div className="rounded-[var(--radius-card)] border border-ok/30 bg-ok-soft p-4">
           <p className="text-[13px] font-medium text-ink">Copy this now. It is not shown again.</p>
-          <code className="mt-2 block truncate rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 font-mono text-[12px] text-ink">
+          <code className="mt-2 block truncate rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 text-[12px] text-ink">
             {fresh}
           </code>
           <p className="eyebrow mt-4 mb-1.5">MCP settings for your agent</p>
-          <pre className="overflow-x-auto rounded-[var(--radius-control)] border border-line bg-surface p-3 font-mono text-[11px] leading-relaxed text-ink-muted">
+          <pre className="overflow-x-auto rounded-[var(--radius-control)] border border-line bg-surface p-3 text-[11px] leading-relaxed text-ink-muted">
             {config}
           </pre>
           <button

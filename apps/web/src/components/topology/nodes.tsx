@@ -83,9 +83,7 @@ export function AppNode({ data, selected }: NodeProps & { data: ServiceNodeData 
         {service.source === 'image' ? (
           <>
             <Package className="h-3 w-3 shrink-0 text-ink-faint" />
-            <span className="min-w-0 truncate font-mono text-[11px] text-ink-muted">
-              {service.image}
-            </span>
+            <span className="min-w-0 truncate text-[11px] text-ink-muted">{service.image}</span>
           </>
         ) : (
           <>
@@ -110,9 +108,7 @@ export function AppNode({ data, selected }: NodeProps & { data: ServiceNodeData 
               ) : (
                 <Globe className="h-3 w-3 shrink-0 text-ink-faint" />
               )}
-              <span className="min-w-0 truncate font-mono text-[11px] text-accent">
-                {domain.hostname}
-              </span>
+              <span className="min-w-0 truncate text-[11px] text-accent">{domain.hostname}</span>
             </>
           ) : (
             <span className="text-[11px] text-ink-faint">No web address yet</span>

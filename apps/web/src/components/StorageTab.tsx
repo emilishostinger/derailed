@@ -65,7 +65,7 @@ export function StorageTab({ service }: { service: Service }) {
         <p className="eyebrow mb-2">Keep another folder</p>
         <div className="flex gap-2">
           <input
-            className="input font-mono text-[12px]"
+            className="input text-[12px]"
             placeholder="/app/data"
             value={path}
             onChange={(event) => setPath(event.target.value)}
@@ -95,7 +95,7 @@ export function StorageTab({ service }: { service: Service }) {
               onClick={() => void add(suggestion.path)}
               className={cx(
                 'rounded-[var(--radius-control)] border border-line bg-surface-2 px-2 py-1',
-                'font-mono text-[11px] text-ink-muted transition-colors',
+                'text-[11px] text-ink-muted transition-colors',
                 'hover:border-line-strong hover:text-ink disabled:opacity-50',
               )}
             >
@@ -127,9 +127,7 @@ function VolumeRow({ volume, serviceName }: { volume: Volume; serviceName: strin
     <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2">
       <div className="flex items-center gap-2">
         <HardDrive className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
-        <code className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink">
-          {volume.containerPath}
-        </code>
+        <code className="min-w-0 flex-1 truncate text-[12px] text-ink">{volume.containerPath}</code>
         <button
           type="button"
           className="btn-ghost px-1.5 text-[12px] text-danger"
@@ -143,7 +141,7 @@ function VolumeRow({ volume, serviceName }: { volume: Volume; serviceName: strin
         <div className="mt-2 border-t border-line pt-2">
           <p className="text-[12px] text-ink">
             Delete everything {serviceName} has saved in{' '}
-            <span className="font-mono">{volume.containerPath}</span>? This can't be undone.
+            <span className="">{volume.containerPath}</span>? This can't be undone.
           </p>
           <div className="mt-2 flex gap-2">
             <button

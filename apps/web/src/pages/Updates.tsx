@@ -140,7 +140,7 @@ export function Updates() {
                 {report.rebootReason ?? 'Some updates only take effect after a restart.'} Your apps
                 come back by themselves afterwards, but the server is offline for about a minute.
               </p>
-              <p className="mt-2 font-mono text-[11px] text-ink-faint">
+              <p className="mt-2 text-[11px] text-ink-faint">
                 Run <span className="text-ink">reboot</span> on the server when it suits you.
               </p>
             </div>
@@ -156,7 +156,7 @@ export function Updates() {
                       <p className="text-[13px] font-medium text-ink">{item.name}</p>
                       <p className="mt-1 text-[12px] text-ink-muted">{item.detail}</p>
                       {item.current && item.available && (
-                        <p className="mt-1.5 font-mono text-[11px] text-ink-faint">
+                        <p className="mt-1.5 text-[11px] text-ink-faint">
                           {item.current} to {item.available}
                         </p>
                       )}

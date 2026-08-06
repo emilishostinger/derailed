@@ -44,8 +44,7 @@ export function Settings() {
             <p className="text-[13px] text-ink">{user?.email}</p>
             <p className="mt-2 text-[12px] text-ink-faint">
               To change the password, run{' '}
-              <code className="font-mono text-ink-muted">derailed reset-password</code> on the
-              server.
+              <code className="text-ink-muted">derailed reset-password</code> on the server.
             </p>
           </Section>
 
@@ -168,14 +167,14 @@ function AppDomain() {
         <div className="mb-4 flex items-center gap-2 rounded-[var(--radius-card)] border border-ok/30 bg-ok-soft px-3.5 py-3">
           <ShieldCheck className="h-4 w-4 shrink-0 text-ok" />
           <p className="min-w-0 flex-1 text-[13px] text-ink">
-            New apps get an address like{' '}
-            <span className="font-mono text-ink-muted">shop.{current}</span>, secured automatically.
+            New apps get an address like <span className="text-ink-muted">shop.{current}</span>,
+            secured automatically.
           </p>
         </div>
       ) : (
         <p className="mb-4 text-[13px] text-ink-muted">
           Right now apps get an address like{' '}
-          <span className="font-mono">
+          <span className="">
             shop.{(system?.serverIp ?? '203.0.113.7').replace(/\./g, '-')}.sslip.io
           </span>
           . It works straight away and needs no setup, but it is plain HTTP and always will be:
@@ -279,7 +278,7 @@ function PanelDomain() {
             The dashboard is served securely at{' '}
             <a
               href={`https://${current}`}
-              className="font-mono text-accent hover:underline"
+              className="text-accent hover:underline"
               target="_blank"
               rel="noreferrer"
             >
@@ -399,9 +398,9 @@ function UpdateCheck() {
             Version {result.version} is available. You're on {result.current}.
           </p>
           <p className="mt-1.5 text-[12px] text-ink-muted">
-            Update from the server with <code className="font-mono text-ink">derailed update</code>,
-            then <code className="font-mono text-ink">systemctl restart derailed</code>. Your apps
-            keep running while it swaps over.
+            Update from the server with <code className="text-ink">derailed update</code>, then{' '}
+            <code className="text-ink">systemctl restart derailed</code>. Your apps keep running
+            while it swaps over.
           </p>
           <a
             href={result.url}

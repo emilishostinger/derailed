@@ -99,13 +99,13 @@ export function EnvEditor({ serviceId, onSaved }: { serviceId: string; onSaved?:
         {rows.map((row, index) => (
           <div key={row.id} className="flex gap-2">
             <input
-              className="input font-mono text-xs"
+              className="input text-xs"
               value={row.key}
               placeholder="NAME"
               onChange={(event) => update(index, { key: event.target.value })}
             />
             <input
-              className="input font-mono text-xs"
+              className="input text-xs"
               type={row.revealed ? 'text' : 'password'}
               value={row.value}
               placeholder="value"
@@ -169,7 +169,7 @@ export function EnvEditor({ serviceId, onSaved }: { serviceId: string; onSaved?:
       {pasting && (
         <div className="space-y-2">
           <textarea
-            className="input h-32 font-mono text-xs"
+            className="input h-32 text-xs"
             placeholder={'DATABASE_URL=postgres://…\nSECRET_KEY=…'}
             value={pasted}
             onChange={(event) => setPasted(event.target.value)}
@@ -216,7 +216,7 @@ export function EnvEditor({ serviceId, onSaved }: { serviceId: string; onSaved?:
             {linked.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2 font-mono text-xs text-ink-muted"
+                className="flex items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2 text-xs text-ink-muted"
               >
                 <span className="text-accent">⛓</span>
                 <span className="text-ink">{entry.key}</span>

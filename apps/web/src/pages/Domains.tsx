@@ -195,7 +195,7 @@ function AddDomain({
         <div className="space-y-4">
           {result.map((domain) => (
             <div key={domain.id} className="rounded-[var(--radius-card)] border border-line p-3.5">
-              <p className="flex items-center gap-2 font-mono text-[13px] text-ink">
+              <p className="flex items-center gap-2 text-[13px] text-ink">
                 {domain.dnsStatus === 'ok' ? (
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-ok" />
                 ) : (
@@ -241,9 +241,9 @@ function AddDomain({
           )}
 
           <div className="rounded-[var(--radius-card)] border border-line bg-surface-2 p-3 text-[12px] text-ink-muted">
-            At your domain provider, add an <span className="font-mono text-ink">A</span> record
-            pointing to <span className="font-mono text-ink">{serverIp ?? 'this server'}</span>. You
-            can add it here first: Derailed keeps checking until the domain points at you.
+            At your domain provider, add an <span className="text-ink">A</span> record pointing to{' '}
+            <span className="text-ink">{serverIp ?? 'this server'}</span>. You can add it here
+            first: Derailed keeps checking until the domain points at you.
           </div>
 
           <ErrorNote error={error} />
@@ -324,7 +324,7 @@ function Row({
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="block max-w-full truncate font-mono text-[14px] text-ink hover:text-accent hover:underline w-fit"
+            className="block max-w-full truncate text-[14px] text-ink hover:text-accent hover:underline w-fit"
           >
             {domain.hostname}
           </a>
@@ -369,7 +369,7 @@ function Row({
           <>
             <span className="text-ink-faint">·</span>
             <span className="text-ink-faint">
-              <span className="font-mono">{partner.hostname}</span> sends people here
+              <span className="">{partner.hostname}</span> sends people here
             </span>
             <button
               type="button"
@@ -405,11 +405,11 @@ function Row({
 
           <dl className="mt-2.5 grid grid-cols-[3.5rem_1fr] gap-y-1 text-[12px]">
             <dt className="text-ink-faint">Type</dt>
-            <dd className="font-mono text-ink">A</dd>
+            <dd className="text-ink">A</dd>
             <dt className="text-ink-faint">Name</dt>
-            <dd className="truncate font-mono text-ink">{domain.hostname}</dd>
+            <dd className="truncate text-ink">{domain.hostname}</dd>
             <dt className="text-ink-faint">Points to</dt>
-            <dd className="font-mono text-ink">{serverIp}</dd>
+            <dd className="text-ink">{serverIp}</dd>
           </dl>
 
           <p className="mt-2.5 text-[11px] text-ink-faint">

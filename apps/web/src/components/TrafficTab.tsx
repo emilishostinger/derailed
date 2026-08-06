@@ -287,12 +287,7 @@ function TopList({
                 style={{ width: `${(row.value / max) * 100}%` }}
               />
               <div className="relative flex items-center gap-2 px-2 py-1">
-                <span
-                  className={cx(
-                    'min-w-0 flex-1 truncate text-[12px] text-ink',
-                    mono && 'font-mono',
-                  )}
-                >
+                <span className={cx('min-w-0 flex-1 truncate text-[12px] text-ink', mono && '')}>
                   {row.label}
                 </span>
                 <span className="shrink-0 text-[11px] text-ink-muted tabular">

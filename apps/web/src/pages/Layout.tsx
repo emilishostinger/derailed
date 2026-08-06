@@ -994,7 +994,7 @@ function AccountDialog({ onClose }: { onClose: () => void }) {
 
         <p className="hint">
           Locked out with no way back in? Run{' '}
-          <span className="font-mono text-ink-muted">derailed reset-password</span> on the server.
+          <span className="text-ink-muted">derailed reset-password</span> on the server.
         </p>
       </div>
     </Modal>

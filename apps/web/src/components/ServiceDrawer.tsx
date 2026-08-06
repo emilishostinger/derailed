@@ -135,7 +135,7 @@ export function ServiceDrawer({
               href={`${address.tlsStatus === 'active' ? 'https' : 'http'}://${address.hostname}`}
               target="_blank"
               rel="noreferrer"
-              className="mt-2.5 flex items-center gap-1.5 truncate font-mono text-[12px] text-accent hover:underline"
+              className="mt-2.5 flex items-center gap-1.5 truncate text-[12px] text-accent hover:underline"
             >
               {address.tlsStatus === 'active' ? (
                 <Lock className="h-3 w-3 shrink-0 text-ok" />
@@ -646,7 +646,7 @@ function RepoToken({ service }: { service: Service }) {
 
       <div className="mt-3 flex gap-2">
         <input
-          className="input font-mono text-[12px]"
+          className="input text-[12px]"
           type="password"
           value={token}
           placeholder={service.hasRepoToken ? 'Replace the saved token' : 'github_pat_…'}

@@ -71,7 +71,7 @@ export function DomainsTab({ service }: { service: Service }) {
                   <button
                     key={domain.id}
                     type="button"
-                    className="btn-secondary font-mono text-[12px]"
+                    className="btn-secondary text-[12px]"
                     onClick={async () => {
                       await endpoints
                         .setDomainService(domain.id, service.id)
@@ -225,10 +225,10 @@ function DomainCard({
           />
           {domain.dnsStatus !== 'ok' && serverIp && (
             <p className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-3 text-xs text-ink-muted">
-              At your domain provider, add an <span className="font-mono text-ink">A</span> record
-              for <span className="font-mono text-ink">{domain.hostname}</span> pointing to{' '}
-              <span className="font-mono text-ink">{serverIp}</span>. Derailed keeps checking. This
-              usually takes a few minutes.
+              At your domain provider, add an <span className="text-ink">A</span> record for{' '}
+              <span className="text-ink">{domain.hostname}</span> pointing to{' '}
+              <span className="text-ink">{serverIp}</span>. Derailed keeps checking. This usually
+              takes a few minutes.
             </p>
           )}
           <Checklist

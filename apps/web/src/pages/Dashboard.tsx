@@ -132,7 +132,7 @@ function AlsoHere() {
               This dashboard. It runs on the server itself rather than in a container, so it keeps
               working even when Docker does not.
             </p>
-            <p className="mt-auto truncate border-t border-line pt-2.5 font-mono text-[11px] text-ink-faint">
+            <p className="mt-auto truncate border-t border-line pt-2.5 text-[11px] text-ink-faint">
               {others.derailed.dataDir}
             </p>
           </div>
@@ -146,7 +146,7 @@ function AlsoHere() {
                 </span>
                 <StatusDot status={container.state === 'running' ? 'running' : 'stopped'} />
               </div>
-              <p className="truncate font-mono text-[12px] text-ink-muted">{container.image}</p>
+              <p className="truncate text-[12px] text-ink-muted">{container.image}</p>
               <p className="mt-auto flex flex-wrap gap-x-3 border-t border-line pt-2.5 text-[11px] text-ink-faint">
                 <span>{container.status}</span>
                 {container.ports.map((port) => (
@@ -204,7 +204,7 @@ function ProjectCard({ project }: { project: Project }) {
           ) : (
             <Globe className="h-3 w-3 shrink-0" />
           )}
-          <span className="truncate font-mono">{address.hostname}</span>
+          <span className="truncate">{address.hostname}</span>
         </p>
       ) : (
         <p className="text-[12px] text-ink-faint">No web address yet</p>

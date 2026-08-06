@@ -522,7 +522,7 @@ function FromImage({ projectId, onDone }: { projectId: string; onDone: () => voi
     <div className="space-y-4">
       <Field label="Image" hint="From Docker Hub or any public registry.">
         <input
-          className="input font-mono text-[12px]"
+          className="input text-[12px]"
           value={image}
           placeholder="wordpress:php8.3-apache"
           autoFocus
