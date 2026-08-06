@@ -117,6 +117,17 @@ someone has probably shared it.
 This is the setting that makes "everything I host is on HTTPS" true without touching
 DNS again.
 
+## Opening it on your phone
+
+Every address has a QR code next to it. Press it, point your phone at the screen, and
+the site opens. Typing `shop-web.203-0-113-7.sslip.io` into a phone keyboard is forty
+characters of getting it wrong twice, and looking at a site on a phone is most of why
+you wanted the address.
+
+The code is drawn by the dashboard itself rather than fetched from an online generator.
+That matters twice over: an online one would tell somebody else's server every address
+on your machine, and it would stop working on a server with no outbound internet.
+
 ## Certificates
 
 Caddy gets and renews them from Let's Encrypt over HTTP-01. There is nothing to

@@ -2,6 +2,7 @@ import type { Domain, Service } from '@derailed/shared';
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useSession } from '../stores/session.ts';
+import { QrCode } from './QrCode.tsx';
 import { cx, ErrorNote, Spinner, StatusDot } from './ui.tsx';
 
 export function DomainsTab({ service }: { service: Service }) {
@@ -190,9 +191,12 @@ function DomainCard({
           {domain.hostname}
           {domain.pathPrefix && <span className="text-ink-muted">{domain.pathPrefix}</span>}
         </a>
+        <div className="ml-auto shrink-0">
+          <QrCode url={url} label={domain.hostname} />
+        </div>
         <button
           type="button"
-          className="btn-ghost ml-auto shrink-0 px-2 py-1"
+          className="btn-ghost shrink-0 px-2 py-1"
           onClick={() => {
             void navigator.clipboard.writeText(url);
             setCopied(true);
