@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { trafficFor } from '../../analytics/store.ts';
 import { normalizeRepoUrl, resolveDefaultBranch } from '../../build/git.ts';
 import { queueDeployment } from '../../build/pipeline.ts';
+import { previewsEnabled, previewsFor, setPreviews, syncPreviews } from '../../build/previews.ts';
 import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
 import { MAX_UPLOAD_BYTES, storeUpload } from '../../build/upload.ts';
@@ -454,6 +455,41 @@ serviceRoutes.put('/:id/files', async (c) => {
  * four. The cost is that the first visitor after a quiet spell waits a few seconds,
  * which is the trade anybody switching it on is choosing to make.
  */
+/**
+ * A copy of this app for every branch.
+ *
+ * Every piece was already here: git polling, a container per service, wildcard
+ * routing. The only new idea is that a branch is a temporary copy of an app.
+ */
+serviceRoutes.put('/:id/previews', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  if (!service.repoUrl) {
+    throw badRequest(
+      'Only apps built from a repository can have a copy per branch.',
+      'There is nothing to read branches from otherwise.',
+    );
+  }
+
+  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  setPreviews(service.id, body.enabled === true);
+
+  // Straight away rather than waiting five minutes, so switching it on does
+  // something visible while somebody is still looking at the screen.
+  if (body.enabled) void syncPreviews(service.id).catch(() => undefined);
+
+  return c.json({ enabled: previewsEnabled(service.id) });
+});
+
+serviceRoutes.get('/:id/previews', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  return c.json({
+    enabled: previewsEnabled(service.id),
+    previews: previewsFor(service.id).map((preview) => presentService(preview)),
+  });
+});
+
 serviceRoutes.put('/:id/sleep', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');

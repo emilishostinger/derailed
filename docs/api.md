@@ -226,6 +226,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `GET /system/panel-domain` · `PUT` | The dashboard's own domain |
 | `GET /system/app-domain` · `PUT` | The base domain for automatic addresses |
 | `GET /updates` · `POST /updates/:id/apply` | What is out of date, and applying it |
+| `GET /services/:id/previews` · `PUT` | A copy of the app per branch |
 | `GET /catalog/databases` · `GET /templates` | What can be created |
 | `GET /tokens` · `POST` · `DELETE /tokens/:id` | API tokens |
 

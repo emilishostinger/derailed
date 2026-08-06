@@ -327,6 +327,11 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  previews: (serviceId: string) =>
+    api.get<{ enabled: boolean; previews: Service[] }>(`/services/${serviceId}/previews`),
+  setPreviews: (serviceId: string, enabled: boolean) =>
+    api.put<{ enabled: boolean }>(`/services/${serviceId}/previews`, { enabled }),
+
   adoptable: () =>
     api
       .get<{

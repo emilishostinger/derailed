@@ -246,6 +246,33 @@ export async function resolveBranchHead(
   return sha && /^[0-9a-f]{40}$/i.test(sha) ? sha : null;
 }
 
+/**
+ * Every branch on the remote.
+ *
+ * The same `ls-remote` conversation as everything else here, for the same reasons: no
+ * API token for a public repository, no rate limit, and it works identically against
+ * GitLab, Bitbucket, Gitea or somebody's own git server.
+ *
+ * Null when the repository cannot be read at all, which is deliberately not the same
+ * as "it has no branches". A caller tearing down every preview because of a network
+ * hiccup would be unforgivable, and only a null can tell it not to.
+ */
+export async function listBranches(
+  repoUrl: string,
+  token?: string | null,
+): Promise<string[] | null> {
+  const url = token ? withToken(repoUrl, token) : repoUrl;
+  const result = await git(['ls-remote', '--heads', url], { timeoutMs: 30_000 });
+  if (result.code !== 0) return null;
+
+  return result.stdout
+    .split('\n')
+    .map((line) => line.split(/\s+/)[1] ?? '')
+    .filter((ref) => ref.startsWith('refs/heads/'))
+    .map((ref) => ref.slice('refs/heads/'.length))
+    .filter(Boolean);
+}
+
 export async function gitAvailable(): Promise<boolean> {
   const result = await git(['--version'], { timeoutMs: 5000 });
   return result.code === 0;

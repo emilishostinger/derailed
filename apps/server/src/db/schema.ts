@@ -563,4 +563,21 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN last_seen_at INTEGER;
     `,
   },
+  {
+    id: 20,
+    name: 'a copy of an app, per branch',
+    sql: `
+      -- The flagship feature of every platform people pay for, and every piece was
+      -- already here: git polling, per-service containers, wildcard routing.
+      --
+      -- A preview is an ordinary service that knows which app it is a copy of and
+      -- which branch it follows. Ordinary, so every existing screen works on it
+      -- without being taught anything, and it is torn down when the branch goes.
+      ALTER TABLE services ADD COLUMN preview_of TEXT REFERENCES services(id) ON DELETE CASCADE;
+      CREATE INDEX idx_services_preview ON services(preview_of);
+
+      -- Whether an app makes copies of its branches at all. Off unless asked for.
+      ALTER TABLE services ADD COLUMN preview_branches INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

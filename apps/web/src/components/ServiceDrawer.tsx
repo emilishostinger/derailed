@@ -25,6 +25,7 @@ import { FilesTab } from './FilesTab.tsx';
 import { JobsTab } from './JobsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
+import { PreviewBranches } from './PreviewBranches.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
 import { TechIcon } from './TechIcon.tsx';
@@ -634,6 +635,13 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
       {/* No type-the-name any more. That friction was protecting against destroying
           the data on the spot, which is no longer what this does: everything stored
           waits a week in the trash, and there is an Undo on the way out. */}
+      {service.repoUrl && (
+        <div className="border-t border-line pt-4">
+          <p className="eyebrow mb-2">Branches</p>
+          <PreviewBranches service={service} />
+        </div>
+      )}
+
       <div className="rounded-lg border border-danger/30 p-4">
         <p className="text-sm font-semibold text-ink">Delete {service.name}</p>
         <p className="mt-1 text-sm text-ink-muted">

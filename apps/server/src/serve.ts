@@ -3,6 +3,7 @@ import { startTrafficCollector, stopTrafficCollector } from './analytics/collect
 import { pruneTraffic } from './analytics/store.ts';
 import { startDrills, stopDrills } from './backup/drill.ts';
 import { startBackupSchedule, stopBackupSchedule } from './backup/schedule.ts';
+import { startPreviewBranches, stopPreviewBranches } from './build/previews.ts';
 import { startPushWatcher, stopPushWatcher } from './build/pushes.ts';
 import { startReleaseWatcher, stopReleaseWatcher } from './build/releases.ts';
 import { ensureDirs, host, isDev, paths, port, VERSION } from './config.ts';
@@ -164,6 +165,7 @@ export async function serve(): Promise<void> {
     stopSleeper();
     stopReleaseWatcher();
     stopPushWatcher();
+    stopPreviewBranches();
     stopUpdateNotifier();
     stopTrafficCollector();
     stopMonitor();
@@ -225,6 +227,7 @@ async function bootRuntime(): Promise<void> {
     startSleeper();
     startReleaseWatcher();
     startPushWatcher();
+    startPreviewBranches((line) => console.log(`  previews   →  ${line}`));
     startUpdateNotifier();
     startTrafficCollector();
     pruneTraffic();
