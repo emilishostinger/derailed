@@ -1,4 +1,4 @@
-import { Check, Mail, Send } from 'lucide-react';
+import { Check, Mail, Send, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { endpoints, type MailSettings } from '../api/endpoints.ts';
 import { cx, ErrorNote, Field, Spinner, Switch } from './ui.tsx';
@@ -194,6 +194,21 @@ export function UpdateEmails() {
                 />
               </Field>
             </div>
+
+            {/* Said where the choice was made, not buried in an error afterwards.
+                "None" plus a password means the password crosses the network in the
+                clear, which is fine to a mail server on this same machine and not
+                fine to one anywhere else. */}
+            {mail.security === 'none' && (mail.username || password || mail.hasPassword) && (
+              <p className="mt-3 flex items-start gap-2 rounded-[var(--radius-card)] border border-warn/30 bg-warn-soft px-3 py-2.5 text-[12.5px] text-ink">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn" />
+                <span>
+                  With no encryption, this username and password cross the network in the clear,
+                  readable by anything in between. That is fine for a mail server on this machine,
+                  and not for one anywhere else.
+                </span>
+              </p>
+            )}
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field label="From address">

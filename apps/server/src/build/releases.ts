@@ -35,6 +35,49 @@ export interface Release {
 }
 
 /**
+ * A tag we are willing to hand to `git clone --branch`.
+ *
+ * Not currently load-bearing: the tag goes in as the value of `--branch`, which git
+ * binds positionally, and the command is an argv array rather than a shell line, so
+ * a tag called `--upload-pack=…` is looked up as a branch name and not found. Both
+ * of those were checked against a real git rather than assumed. This is here so the
+ * guarantee is local to this file instead of resting on git's argument parsing
+ * staying the way it is, and because a tag with a newline or a space in it is a
+ * repository doing something strange whatever git makes of it.
+ */
+export function isUsableTag(tag: string): boolean {
+  if (!tag || tag.length > 200) return false;
+  if (tag.startsWith('-')) return false;
+  // Git's own rules, roughly: no whitespace, no control characters, and none of the
+  // punctuation git itself rejects in a ref name.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: a ref must not contain them.
+  if (/[\s~^:?*[\]\\\x00-\x20\x7f]/.test(tag)) return false;
+  return !tag.includes('..') && !tag.endsWith('.lock') && !tag.endsWith('/');
+}
+
+/** GitHub is not answering any more this hour. */
+export class RateLimited extends Error {
+  constructor() {
+    super('GitHub is rate limiting this server.');
+    this.name = 'RateLimited';
+  }
+}
+
+/**
+ * Told apart from an ordinary refusal by the headers, not by the status alone: a 403
+ * is also what a private repository returns to a token that cannot see it, and
+ * treating that as "stop, we are rate limited" would stall every other repository.
+ */
+function isRateLimited(response: Response): boolean {
+  if (response.status === 429) return true;
+  if (response.status !== 403) return false;
+  return (
+    response.headers.get('x-ratelimit-remaining') === '0' ||
+    (response.headers.get('retry-after') ?? '') !== ''
+  );
+}
+
+/**
  * The newest published release, or null when the repository has none.
  *
  * `/releases/latest` is deliberately not used: it hides prereleases *and* draft
@@ -63,10 +106,15 @@ export async function latestRelease(
     )}/releases?per_page=20`,
     { headers, signal: AbortSignal.timeout(20_000) },
   );
-  // A 404 on a repository we can otherwise see means it has no releases; a 403 is
-  // the rate limit. Neither is worth an alarm, and neither should move the tag we
-  // have stored, so both come back as "nothing new".
-  if (!response.ok) return null;
+  // A 404 on a repository we can otherwise see means it has no releases. Neither
+  // that nor anything else is worth an alarm, and none of it should move the tag
+  // we have stored, so it all comes back as "nothing new".
+  if (!response.ok) {
+    // Except the rate limit, which the caller needs to know about: carrying on and
+    // asking about nine more repositories only digs the hole deeper.
+    if (isRateLimited(response)) throw new RateLimited();
+    return null;
+  }
 
   const releases = (await response.json()) as {
     tag_name?: string;
@@ -143,8 +191,27 @@ export async function checkReleases(): Promise<ReleaseCheck[]> {
     if (service.kind !== 'app' || !service.deployOnRelease) continue;
     if (!githubRepo(service.repoUrl)) continue;
 
-    const release = await latestRelease(service.repoUrl, repoToken(service.id)).catch(() => null);
+    let release: Release | null = null;
+    try {
+      release = await latestRelease(service.repoUrl, repoToken(service.id));
+    } catch (error) {
+      // Nothing useful will come of the rest of this pass. The next one is ten
+      // minutes away, by which point the window has usually moved on.
+      if (error instanceof RateLimited) break;
+      continue;
+    }
     if (!release || release.tag === service.lastReleaseTag) continue;
+
+    // A tag Derailed will not build is not a tag worth recording as "seen": doing so
+    // would skip straight past it and never mention that anything was refused.
+    if (!isUsableTag(release.tag)) {
+      publish('system', {
+        type: 'notice',
+        level: 'warn',
+        message: `${service.name}: ignoring the release tagged "${release.tag.slice(0, 60)}", which is not a name git will accept.`,
+      });
+      continue;
+    }
 
     const first = service.lastReleaseTag === null;
     updateService(service.id, { lastReleaseTag: release.tag });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { githubRepo, latestRelease } from '../src/build/releases.ts';
+import { githubRepo, isUsableTag, latestRelease, RateLimited } from '../src/build/releases.ts';
 
 /**
  * Following GitHub releases.
@@ -14,13 +14,13 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-function answerWith(body: unknown, status = 200): string[] {
+function answerWith(body: unknown, status = 200, headers: Record<string, string> = {}): string[] {
   const seen: string[] = [];
   globalThis.fetch = (async (input: string | URL | Request) => {
     seen.push(String(input));
     return new Response(JSON.stringify(body), {
       status,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...headers },
     });
   }) as typeof fetch;
   return seen;
@@ -130,6 +130,27 @@ describe('picking the newest release', () => {
     }
   });
 
+  test('being rate limited is raised rather than swallowed', async () => {
+    // The watcher has to stop the pass: asking about nine more repositories after
+    // this only digs the hole deeper.
+    answerWith({ message: 'API rate limit exceeded' }, 403, { 'x-ratelimit-remaining': '0' });
+    expect(await latestRelease('https://github.com/o/r').catch((e) => e)).toBeInstanceOf(
+      RateLimited,
+    );
+
+    answerWith({ message: 'Too many requests' }, 429, { 'retry-after': '60' });
+    expect(await latestRelease('https://github.com/o/r').catch((e) => e)).toBeInstanceOf(
+      RateLimited,
+    );
+  });
+
+  test('a plain 403 is not mistaken for the rate limit', async () => {
+    // A private repository answers 403 to a token that cannot see it. Reading that
+    // as "stop, we are rate limited" would stall every other repository behind it.
+    answerWith({ message: 'Forbidden' }, 403, { 'x-ratelimit-remaining': '4998' });
+    expect(await latestRelease('https://github.com/o/r')).toBeNull();
+  });
+
   test('a body that is not a list does not crash the watcher', async () => {
     answerWith({ message: 'Not Found' });
     expect(await latestRelease('https://github.com/o/r')).toBeNull();
@@ -166,5 +187,38 @@ describe('picking the newest release', () => {
 
     await latestRelease('https://github.com/o/r', 'ghp_secret');
     expect(headers?.get('authorization')).toBe('Bearer ghp_secret');
+  });
+});
+
+describe('a tag worth building', () => {
+  test('the ones releases are actually named', () => {
+    for (const tag of ['v1.0.0', '1.2.3', 'v1.0.0-rc.1', 'release-2026-08-06', '2026.08', 'v2.0']) {
+      expect({ tag, ok: isUsableTag(tag) }).toEqual({ tag, ok: true });
+    }
+  });
+
+  test('the ones that are a repository doing something strange', () => {
+    for (const tag of [
+      '',
+      '-v1.0.0',
+      '--upload-pack=touch /tmp/pwned',
+      'v1 0',
+      'v1..0',
+      'v1.0\n',
+      'v1\tx',
+      'a/',
+      'main.lock',
+      'v1^0',
+      'v1~2',
+      'v1:0',
+      'v1?0',
+      'v1*',
+      'v1[0]',
+      'v1]0',
+      'back\\slash',
+      'x'.repeat(201),
+    ]) {
+      expect({ tag, ok: isUsableTag(tag) }).toEqual({ tag, ok: false });
+    }
   });
 });
