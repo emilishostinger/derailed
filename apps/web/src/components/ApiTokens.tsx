@@ -2,7 +2,7 @@ import { Check, Copy, KeyRound, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useSession } from '../stores/session.ts';
-import { cx, ErrorNote, Spinner } from './ui.tsx';
+import { cx, EmptyState, ErrorNote, Spinner } from './ui.tsx';
 
 interface Token {
   id: string;
@@ -62,6 +62,34 @@ export function ApiTokens() {
     2,
   );
 
+  // Nothing made yet. An empty page whose only content is a text box reads as a form
+  // you have to fill in before anything will happen, and this one never did: the name
+  // is optional and always was. So the first token is one button and no decisions.
+  if (tokens.length === 0 && !fresh) {
+    return (
+      <>
+        <EmptyState
+          icon={<KeyRound className="h-5 w-5" />}
+          title="No tokens yet"
+          body="A token lets a coding agent such as Claude Code, Cursor or Codex deploy apps, read logs and add domains for you, from the editor you are already in."
+          action={
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={busy}
+              onClick={() => void create()}
+            >
+              {busy ? <Spinner /> : <KeyRound className="h-3.5 w-3.5" />}
+              Create a token
+            </button>
+          }
+          note="You get the token and the settings to paste into your agent. It is shown once."
+        />
+        <ErrorNote error={error} />
+      </>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <p className="text-[13px] text-ink-muted">
@@ -69,25 +97,6 @@ export function ApiTokens() {
         can deploy apps, read logs and add domains for you while you work. Create a token, paste the
         block below into the agent, and it is connected.
       </p>
-
-      <div className="flex gap-2">
-        <input
-          className="input"
-          placeholder="What is this token for?"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          onKeyDown={(event) => event.key === 'Enter' && void create()}
-        />
-        <button
-          type="button"
-          className="btn-primary shrink-0"
-          disabled={busy}
-          onClick={() => void create()}
-        >
-          {busy ? <Spinner /> : <KeyRound className="h-3.5 w-3.5" />}
-          Create a token
-        </button>
-      </div>
 
       {fresh && (
         <div className="rounded-[var(--radius-card)] border border-ok/30 bg-ok-soft p-4">
@@ -148,6 +157,27 @@ export function ApiTokens() {
           ))}
         </div>
       )}
+
+      {/* Only once there is a list to tell apart is a name worth asking for, and even
+          then it is optional: left blank it is simply "Coding agent". */}
+      <div className="flex gap-2 border-t border-line pt-5">
+        <input
+          className="input"
+          placeholder="Name this one (optional)"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          onKeyDown={(event) => event.key === 'Enter' && void create()}
+        />
+        <button
+          type="button"
+          className="btn-secondary shrink-0"
+          disabled={busy}
+          onClick={() => void create()}
+        >
+          {busy ? <Spinner /> : <KeyRound className="h-3.5 w-3.5" />}
+          Create another
+        </button>
+      </div>
 
       <ErrorNote error={error} />
     </div>
