@@ -5,6 +5,7 @@ import type {
   CostComparison,
   Deployment,
   DetectResult,
+  Diagnosis,
   DiskReport,
   DoctorFix,
   DoctorReport,
@@ -317,6 +318,9 @@ export const endpoints = {
 
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
+
+  whyBroken: (deploymentId: string) =>
+    api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),
 
   alerts: () =>
     api.get<{ settings: AlertSettings; kinds: { kind: AlertEventKind; label: string }[] }>(

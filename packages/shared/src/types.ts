@@ -416,6 +416,23 @@ export interface AlertSettings {
   events: AlertEventKind[];
 }
 
+/**
+ * What went wrong, in two sentences, with something to press.
+ *
+ * `confident` is false when this came from a model rather than a rule Derailed knows,
+ * so the screen can say so. A confident wrong answer is worse than no answer: somebody
+ * will follow it and spend an hour on the thing it named instead of the thing that
+ * broke.
+ */
+export interface Diagnosis {
+  id: string;
+  summary: string;
+  action: string;
+  /** Something Derailed can do about it, from the failure card. */
+  fix?: 'add-swap' | 'reclaim-disk' | null;
+  confident: boolean;
+}
+
 /** Detection result for a repo, phrased for humans, not machines. */
 export interface DetectResult {
   strategy: 'dockerfile' | 'nixpacks' | 'site' | 'unknown';

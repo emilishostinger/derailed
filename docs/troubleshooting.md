@@ -66,6 +66,19 @@ then `systemctl daemon-reload && systemctl restart derailed`.
 
 ## A deploy failed
 
+Press **Why did this break?** on the failure. Derailed reads what the build actually
+printed and, for about two dozen failures it recognises, answers in two sentences with
+something to press: a missing lockfile, a native module with no compiler, a database
+that is not connected, migrations that never ran, a full disk, a build that ran out of
+memory.
+
+Where it can put the problem right itself, it offers to: adding swap and freeing disk
+space are both one button from the failure card.
+
+When it does not recognise something it says so, rather than guessing. A confident
+wrong answer would send you off for an hour on whatever it happened to name.
+
+
 Open the **Deploys** tab on the service. Every deploy keeps its full build log, and a failed one
 shows a summary at the top. The common ones:
 

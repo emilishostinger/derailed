@@ -133,6 +133,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `GET /deployments/:id/logs?tail=1000` | Its output |
 | `POST /deployments/:id/rollback` | Re-run this deploy's image |
 | `POST /deployments/:id/cancel` | Stop one in flight |
+| `GET /deployments/:id/why` | What went wrong and what to do, plus the lines worth reading |
 
 ## Domains
 

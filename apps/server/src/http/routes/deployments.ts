@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { readDeploymentLog } from '../../build/deploylog.ts';
+import { diagnose, interestingLines } from '../../build/diagnose.ts';
 import { cancelDeployment, queueDeployment, queueRollback } from '../../build/pipeline.ts';
 import { hasUpload } from '../../build/upload.ts';
 import { findDeployment, listDeployments } from '../../db/repo/deployments.ts';
@@ -8,6 +9,25 @@ import type { AppEnv } from '../auth.ts';
 import { badRequest, notFound } from '../errors.ts';
 
 export const serviceDeploymentRoutes = new Hono<AppEnv>();
+/**
+ * Why this deploy broke, in two sentences, with something to press.
+ *
+ * Read on request rather than stored on the deployment: the rules improve between
+ * versions, and a diagnosis written down in March should not still be the answer in
+ * September when Derailed has learned to recognise the failure properly.
+ */
+async function explainFailure(deploymentId: string) {
+  const deployment = findDeployment(deploymentId);
+  if (!deployment) return null;
+
+  const lines = await readDeploymentLog(deploymentId).catch(() => []);
+  const text = lines.map((line) => line.line);
+  return {
+    diagnosis: diagnose(text, deployment.errorSummary),
+    lines: interestingLines(text, 12),
+  };
+}
+
 export const deploymentRoutes = new Hono<AppEnv>();
 
 /** GET/POST /services/:id/deployments */
@@ -60,6 +80,12 @@ deploymentRoutes.get('/:id/logs', async (c) => {
   const tail = Number(c.req.query('tail') ?? 500);
   const lines = await readDeploymentLog(deployment.id, Number.isFinite(tail) ? tail : 500);
   return c.json({ lines });
+});
+
+deploymentRoutes.get('/:id/why', async (c) => {
+  const explained = await explainFailure(c.req.param('id'));
+  if (!explained) throw notFound('That deploy');
+  return c.json(explained);
 });
 
 deploymentRoutes.post('/:id/rollback', (c) => {

@@ -27,6 +27,7 @@ import { TerminalTab } from './TerminalTab.tsx';
 import { TrafficTab } from './TrafficTab.tsx';
 import { cx, ErrorNote, Spinner, StatusPill } from './ui.tsx';
 import { useDrawerWidth } from './useDrawerWidth.ts';
+import { WhyBroken } from './WhyBroken.tsx';
 
 type Tab =
   | 'overview'
@@ -330,6 +331,11 @@ function Overview({ service }: { service: Service }) {
         <div className="rounded-[var(--radius-card)] border border-danger/25 bg-danger-soft p-4">
           <p className="text-sm font-medium text-ink">{latest.errorSummary}</p>
           {latest.errorHint && <p className="mt-1 text-sm text-ink-muted">{latest.errorHint}</p>}
+          {/* Offered rather than shown: reading the log is the right first move for
+              anybody who can, and an opinion pushed in front of that is in the way. */}
+          <div className="mt-3">
+            <WhyBroken deploymentId={latest.id} />
+          </div>
         </div>
       )}
 
