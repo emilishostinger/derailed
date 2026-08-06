@@ -12,8 +12,8 @@ export function Logo({ className = 'h-6 w-6' }: { className?: string }) {
       <title>Derailed</title>
       <defs>
         <linearGradient id="derailed-mark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ff9a3d" />
-          <stop offset="100%" stopColor="#c4490c" />
+          <stop offset="0%" stopColor="#4fd694" />
+          <stop offset="100%" stopColor="#0d6b45" />
         </linearGradient>
       </defs>
       <rect width="512" height="512" rx="112" fill="url(#derailed-mark)" />

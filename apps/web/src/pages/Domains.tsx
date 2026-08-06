@@ -316,14 +316,19 @@ function Row({
           <Clock className="h-4 w-4 shrink-0 text-warn" />
         )}
 
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="min-w-0 flex-1 truncate font-mono text-[14px] text-ink hover:text-accent hover:underline"
-        >
-          {domain.hostname}
-        </a>
+        {/* The link is only as wide as the name. It used to be the flexible child of
+            this row, so it stretched to the buttons and lit up when the pointer was
+            an inch away from anything clickable. The spacer does the stretching. */}
+        <div className="min-w-0 flex-1">
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="block max-w-full truncate font-mono text-[14px] text-ink hover:text-accent hover:underline w-fit"
+          >
+            {domain.hostname}
+          </a>
+        </div>
 
         <CopyButton value={url} />
         <a href={url} target="_blank" rel="noreferrer" className="btn-ghost px-1.5">

@@ -10,8 +10,8 @@
   -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ff9a3d" />
-      <stop offset="100%" stop-color="#c4490c" />
+      <stop offset="0%" stop-color="#4fd694" />
+      <stop offset="100%" stop-color="#0d6b45" />
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#tile)" />
