@@ -33,6 +33,23 @@ that the world should see it.
 It does deploy when you publish a **release** on GitHub, if you switch that on for the
 app. See [deploying](deploying.md).
 
+### Do I need a mail provider for the update emails?
+
+Probably, and Derailed checks rather than guessing.
+
+**Settings** offers two ways to send. *From this server* needs nothing set up: Derailed
+hands the message straight to the recipient's mail server. It also tests whether that
+will work before offering it, because two things have to be true and on most rented
+servers neither is. Outbound port 25 has to be open, and nearly every provider blocks
+it by default to stop spam leaving their network. And the server's address needs a
+reverse DNS name, or receivers refuse the message before reading it. Both are things
+your host can turn on, usually by asking.
+
+*Through a mail provider* is the other way, and there is a list of the usual ones, so
+picking Gmail or Fastmail or Resend fills in the server and the port and leaves you
+with a username and a password. Most of those want an app password rather than the
+one you sign in with, which the page says at the point you need to know it.
+
 Otherwise, hit Deploy (or `⌘K` → "Deploy …"), or have a coding agent do it through
 [MCP](mcp.md).
 

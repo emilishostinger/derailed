@@ -17,6 +17,7 @@ const KEYS = {
   password: 'mail_password_enc',
   from: 'mail_from',
   fromName: 'mail_from_name',
+  delivery: 'mail_delivery',
   notify: 'notify_updates',
   notifyTo: 'notify_updates_to',
   securityOnly: 'notify_updates_security_only',
@@ -24,7 +25,11 @@ const KEYS = {
   lastDigest: 'notify_updates_last_digest',
 } as const;
 
+/** Straight from this server, or handed to a mail provider to send for us. */
+export type DeliveryMode = 'server' | 'smtp';
+
 export interface MailSettings {
+  delivery: DeliveryMode;
   host: string;
   port: number;
   security: MailSecurity;
@@ -49,6 +54,7 @@ export function mailSettings(): MailSettings {
   const lastSent = getSetting(KEYS.lastSent);
 
   return {
+    delivery: (getSetting(KEYS.delivery) ?? 'smtp') as DeliveryMode,
     host: getSetting(KEYS.host) ?? '',
     port: Number.isFinite(port) && port > 0 ? port : (DEFAULT_PORTS[security] ?? 587),
     security,
@@ -67,6 +73,7 @@ export function mailSettings(): MailSettings {
 }
 
 export interface MailSettingsPatch {
+  delivery?: DeliveryMode;
   host?: string;
   port?: number;
   security?: MailSecurity;
@@ -81,6 +88,7 @@ export interface MailSettingsPatch {
 }
 
 export function saveMailSettings(patch: MailSettingsPatch): MailSettings {
+  if (patch.delivery !== undefined) setSetting(KEYS.delivery, patch.delivery);
   if (patch.host !== undefined) setSetting(KEYS.host, patch.host.trim());
   if (patch.port !== undefined) setSetting(KEYS.port, String(patch.port));
   if (patch.security !== undefined) setSetting(KEYS.security, patch.security);
@@ -115,6 +123,20 @@ export function mailPassword(): string | null {
 /** The account to send with, or null when it is not set up enough to try. */
 export function mailAccount(): MailAccount | null {
   const settings = mailSettings();
+  // Sending from this server needs no host and no credentials: the address it comes
+  // from is the only part that still has to be right.
+  if (settings.delivery === 'server') {
+    if (!isEmailAddress(settings.from)) return null;
+    return {
+      host: '',
+      port: 25,
+      security: 'none',
+      username: null,
+      password: null,
+      from: settings.from,
+      fromName: settings.fromName || null,
+    };
+  }
   if (!settings.host.trim() || !isEmailAddress(settings.from)) return null;
   return {
     host: settings.host,

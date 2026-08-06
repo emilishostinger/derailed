@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { hostname } from 'node:os';
 import { getSetting, SETTINGS } from '../db/repo/settings.ts';
 import { checkUpdates, type UpdateItem } from '../system/updates.ts';
+import { sendDirect } from './direct.ts';
 import { lastDigest, mailAccount, mailSettings, markNotified } from './settings.ts';
-import { sendMail } from './smtp.ts';
+import { type Mail, sendMail } from './smtp.ts';
 import { htmlFor, subjectFor, textFor, type UpdateNotice } from './template.ts';
 
 /**
@@ -39,6 +40,18 @@ export function noticeFor(items: UpdateItem[], rebootRequired: boolean): UpdateN
   };
 }
 
+/**
+ * Straight to the recipient's mail server, or through the relay that was set up.
+ *
+ * The one place that decides, so the daily notice and the "send a test" button
+ * cannot end up taking different routes and disagreeing about whether it works.
+ */
+async function deliver(account: ReturnType<typeof mailAccount>, mail: Mail): Promise<void> {
+  if (!account) throw new Error('Nothing is set up to send with.');
+  if (mailSettings().delivery === 'server') return sendDirect(account, mail);
+  return sendMail(account, mail);
+}
+
 export type NotifyOutcome =
   | { sent: true; to: string; items: number }
   | {
@@ -72,7 +85,7 @@ export async function notifyAboutUpdates({
   }
 
   const notice = noticeFor(items, report.rebootRequired);
-  await sendMail(account, {
+  await deliver(account, {
     to,
     subject: subjectFor(notice),
     text: textFor(notice),
@@ -110,7 +123,7 @@ export async function sendTestEmail(to: string): Promise<void> {
       ];
 
   const notice = noticeFor(items, report?.rebootRequired ?? false);
-  await sendMail(account, {
+  await deliver(account, {
     to,
     subject: `Test: ${subjectFor(notice)}`,
     text: textFor(notice),

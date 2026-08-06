@@ -180,6 +180,7 @@ export type CreateDomainRequest = z.infer<typeof createDomainRequest>;
  * dashboard shows whether one is stored rather than what it is.
  */
 export const patchMailRequest = z.object({
+  delivery: z.enum(['server', 'smtp']).optional(),
   host: z.string().trim().max(255).optional(),
   port: z.number().int().min(1).max(65535).optional(),
   security: z.enum(['tls', 'starttls', 'none']).optional(),

@@ -4,6 +4,7 @@ import { createServer, type Server, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { initDb } from '../src/db/index.ts';
+import { verdict } from '../src/mail/direct.ts';
 import { digestOf } from '../src/mail/notify.ts';
 import { mailAccount, mailPassword, mailSettings, saveMailSettings } from '../src/mail/settings.ts';
 import {
@@ -526,5 +527,74 @@ describe('the stored mail settings', () => {
     expect(mailAccount()).toBeNull();
     saveMailSettings({ from: 'derailed@example.com' });
     expect(mailAccount()?.host).toBe('smtp.example.com');
+  });
+});
+
+describe('sending from this server directly', () => {
+  test('says what has to be fixed, in the order it can be fixed', () => {
+    // Port 25 first: being told about reverse DNS while the port is shut is advice
+    // nobody can act on yet.
+    const blocked = verdict({ port25: false, reverseDns: 'mail.example.com', ip: '1.2.3.4' });
+    expect(blocked.usable).toBe(false);
+    expect(blocked.reason).toContain('port 25');
+
+    const noPtr = verdict({ port25: true, reverseDns: null, ip: '1.2.3.4' });
+    expect(noPtr.usable).toBe(false);
+    expect(noPtr.reason).toContain('reverse DNS');
+    expect(noPtr.reason).toContain('1.2.3.4');
+
+    const fine = verdict({ port25: true, reverseDns: 'mail.example.com', ip: '1.2.3.4' });
+    expect(fine.usable).toBe(true);
+    expect(fine.reason).toBeNull();
+  });
+
+  test('neither fact on its own is enough', () => {
+    expect(verdict({ port25: false, reverseDns: null, ip: null }).usable).toBe(false);
+    expect(verdict({ port25: true, reverseDns: null, ip: null }).usable).toBe(false);
+    expect(verdict({ port25: false, reverseDns: 'x.example.com', ip: null }).usable).toBe(false);
+  });
+
+  test('delivers to a receiver that offers no encryption at all', async () => {
+    // A receiving MX with no STARTTLS is common, and refusing it would mean never
+    // reaching those recipients. The relay path must keep refusing, which the next
+    // test checks: only this one is allowed through.
+    running = await fakeServer((command) =>
+      command.toUpperCase().startsWith('EHLO') ? '250-fake.test\r\n250 SIZE' : null,
+    );
+    await sendMail(account(running.port, { security: 'starttls' }), mail, {
+      opportunistic: true,
+      ehlo: 'panel.example.com',
+    });
+    expect(running.said).toContain('EHLO panel.example.com');
+    expect(running.said.some((line) => line.startsWith('MAIL FROM'))).toBe(true);
+  });
+
+  test('but a configured relay still insists on the encryption it was promised', async () => {
+    running = await fakeServer((command) =>
+      command.toUpperCase().startsWith('EHLO') ? '250-fake.test\r\n250 SIZE' : null,
+    );
+    const failure = await sendMail(account(running.port, { security: 'starttls' }), mail).catch(
+      (error) => error,
+    );
+    expect(failure).toBeInstanceOf(MailError);
+    expect((failure as MailError).message).toContain('does not offer STARTTLS');
+  });
+
+  test('announces a name rather than the bare default when given one', async () => {
+    running = await fakeServer();
+    await sendMail(account(running.port), mail, { ehlo: 'panel.example.com' });
+    expect(running.said[0]).toBe('EHLO panel.example.com');
+
+    await running.close();
+    running = await fakeServer();
+    await sendMail(account(running.port), mail);
+    expect(running.said[0]).toBe('EHLO derailed');
+  });
+
+  test('a name with a newline in it cannot become a second command', async () => {
+    running = await fakeServer();
+    await sendMail(account(running.port), mail, { ehlo: 'evil\r\nMAIL FROM:<a@b.cc>' });
+    expect(running.said[0]).toBe('EHLO evil MAIL FROM:<a@b.cc>');
+    expect(running.said.filter((l) => l.startsWith('MAIL FROM'))).toHaveLength(1);
   });
 });

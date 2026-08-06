@@ -14,11 +14,18 @@ import type { UpdateItem } from '../system/updates.ts';
  * inline styles are the light ones rather than the dark.
  */
 
+/**
+ * The same values the dashboard uses, written out rather than imported: this file is
+ * read by mail clients, not by a browser, so there is nothing here that can resolve
+ * a CSS variable. When the palette moves, these move with it.
+ */
 const BRAND = '#7236e3';
-const INK = '#16181d';
-const MUTED = '#5b6270';
-const LINE = '#e2e5ee';
-const CANVAS = '#f4f6fa';
+const INK = '#151517';
+const MUTED = '#63636e';
+const LINE = '#e5e5e9';
+/* Neutral rather than the dashboard's violet canvas: an email is a page on its own,
+   not a panel floating on Derailed's background. */
+const CANVAS = '#f4f4f6';
 
 export function escapeHtml(value: string): string {
   return value
@@ -158,11 +165,13 @@ export function htmlFor(notice: UpdateNotice): string {
 <title>${escapeHtml(subjectFor(notice))}</title>
 <style>
   @media (prefers-color-scheme: dark) {
-    .d-canvas { background: #0b0c11 !important; }
-    .d-card   { background: #121319 !important; border-color: #262a36 !important; }
-    .d-ink    { color: #f4f6fa !important; }
-    .d-muted  { color: #9aa3b5 !important; }
-    .d-line   { border-color: #262a36 !important; }
+    .d-canvas { background: #0e0e10 !important; }
+    .d-card   { background: #18181a !important; border-color: #28282c !important; }
+    .d-ink    { color: #f4f4f5 !important; }
+    .d-muted  { color: #9a9aa4 !important; }
+    .d-line   { border-color: #28282c !important; }
+    /* Lifted, exactly as accent text is in the dashboard's dark theme, because the
+       brand purple on a dark card is 2.8:1 and cannot be read. */
     .d-brand  { color: #a78bfa !important; }
     .d-danger { background: #2a1416 !important; color: #f0736b !important; }
     .d-warn   { background: #241d0c !important; color: #e0b64a !important; }

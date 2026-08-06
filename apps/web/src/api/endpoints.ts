@@ -10,7 +10,16 @@ import type {
 } from '@derailed/shared';
 import { api } from './client.ts';
 
+export interface DirectCheck {
+  usable: boolean;
+  port25: boolean;
+  reverseDns: string | null;
+  ip: string | null;
+  reason: string | null;
+}
+
 export interface MailSettings {
+  delivery: 'server' | 'smtp';
   host: string;
   port: number;
   security: 'tls' | 'starttls' | 'none';
@@ -80,6 +89,7 @@ export const endpoints = {
 
   service: (id: string) => api.get<{ service: Service }>(`/services/${id}`).then((r) => r.service),
   mail: () => api.get<{ mail: MailSettings }>('/mail').then((r) => r.mail),
+  mailDirectCheck: () => api.get<{ direct: DirectCheck }>('/mail/direct').then((r) => r.direct),
   saveMail: (patch: Record<string, unknown>) =>
     api.patch<{ mail: MailSettings }>('/mail', patch).then((r) => r.mail),
   testMail: (to?: string) => api.post<{ ok: true; to: string }>('/mail/test', { to }),

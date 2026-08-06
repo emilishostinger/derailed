@@ -1,5 +1,6 @@
 import { schemas } from '@derailed/shared';
 import { Hono } from 'hono';
+import { checkDirectDelivery } from '../../mail/direct.ts';
 import { notifyAboutUpdates, sendTestEmail } from '../../mail/notify.ts';
 import { mailSettings, saveMailSettings } from '../../mail/settings.ts';
 import { isEmailAddress, MailError } from '../../mail/smtp.ts';
@@ -8,7 +9,21 @@ import { badRequest, parseBody } from '../errors.ts';
 
 export const mailRoutes = new Hono<AppEnv>();
 
-mailRoutes.get('/', (c) => c.json({ mail: mailSettings() }));
+mailRoutes.get('/', (c) => {
+  const mail = mailSettings();
+  // Nobody should have to type in their own address to be told about their own
+  // server. The account they signed in with is already the right answer.
+  const user = c.get('user');
+  return c.json({ mail: { ...mail, notifyTo: mail.notifyTo || user?.email || '' } });
+});
+
+/**
+ * Whether this server can post a letter by itself.
+ *
+ * Its own route rather than part of the settings, because it talks to DNS and opens
+ * a socket, and the settings page is read on every visit.
+ */
+mailRoutes.get('/direct', async (c) => c.json({ direct: await checkDirectDelivery() }));
 
 mailRoutes.patch('/', async (c) => {
   const patch = await parseBody(c, schemas.patchMailRequest);
@@ -27,10 +42,11 @@ mailRoutes.patch('/', async (c) => {
 
   const saved = saveMailSettings(patch);
 
-  if (saved.notifyUpdates && !saved.host.trim()) {
+  // Sending from this server needs no relay, so only the relay path can be missing one.
+  if (saved.notifyUpdates && saved.delivery === 'smtp' && !saved.host.trim()) {
     throw badRequest(
       'Update emails need a mail server to send through.',
-      'Fill in the server, port and from address first.',
+      'Fill in the server, port and from address, or switch to sending from this server.',
     );
   }
 

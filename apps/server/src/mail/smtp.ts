@@ -266,7 +266,25 @@ export function dotStuff(body: string): string {
   return body.replace(/\r\n\./g, '\r\n..').replace(/^\./, '..');
 }
 
-export async function sendMail(account: MailAccount, mail: Mail): Promise<void> {
+export interface Delivery {
+  /** What to announce in EHLO. Defaults to a name; receivers care, relays do not. */
+  ehlo?: string;
+  /**
+   * Encrypt if the far end offers it, and do not check whose certificate it is.
+   *
+   * Only ever set for direct delivery to a recipient's MX, where the certificate
+   * almost never matches the name the MX record gave. Never set when a password is
+   * about to be sent: that is the case where an unverified certificate is exactly
+   * the thing you are trying to avoid.
+   */
+  opportunistic?: boolean;
+}
+
+export async function sendMail(
+  account: MailAccount,
+  mail: Mail,
+  delivery: Delivery = {},
+): Promise<void> {
   if (!isEmailAddress(account.from)) {
     throw new MailError(`"${account.from}" is not an address a mail server will accept.`);
   }
@@ -301,17 +319,26 @@ export async function sendMail(account: MailAccount, mail: Mail): Promise<void> 
       throw new MailError('The mail server did not greet us.', greeting.lines.join(' '));
     }
 
-    let capabilities = (await session.say('EHLO derailed', [250], 'the greeting')).lines;
+    const greet = `EHLO ${headerSafe(delivery.ehlo ?? 'derailed')}`;
+    let capabilities = (await session.say(greet, [250], 'the greeting')).lines;
 
-    if (account.security === 'starttls') {
-      if (!capabilities.some((line) => line.toUpperCase().startsWith('STARTTLS'))) {
+    const offersTls = capabilities.some((line) => line.toUpperCase().startsWith('STARTTLS'));
+    if (account.security === 'starttls' && !offersTls && delivery.opportunistic) {
+      // Nothing to upgrade to. Cleartext to an MX that offers no encryption is still
+      // delivery; refusing would mean never reaching those receivers at all.
+    } else if (account.security === 'starttls') {
+      if (!offersTls) {
         throw new MailError(
           `${account.host} does not offer STARTTLS on port ${account.port}.`,
           'Try the "TLS" option, which is usually port 465, or port 587 for STARTTLS.',
         );
       }
       await session.say('STARTTLS', [220], 'starting encryption');
-      const secure = tlsConnect({ socket: session.raw as Socket, servername: account.host });
+      const secure = tlsConnect({
+        socket: session.raw as Socket,
+        servername: account.host,
+        rejectUnauthorized: !delivery.opportunistic,
+      });
       await Promise.race([
         once(secure, 'secureConnect'),
         once(secure, 'error').then(([error]) => {
@@ -321,7 +348,7 @@ export async function sendMail(account: MailAccount, mail: Mail): Promise<void> 
       session.replace(secure);
       // Capabilities before and after STARTTLS are allowed to differ, and AUTH is
       // routinely only offered after it, so the list has to be asked for again.
-      capabilities = (await session.say('EHLO derailed', [250], 'the greeting')).lines;
+      capabilities = (await session.say(greet, [250], 'the greeting')).lines;
     }
 
     if (account.username && account.password) {
