@@ -13,6 +13,7 @@ interface ServiceRow {
   source: ServiceSource;
   image: string | null;
   framework: string | null;
+  command: string | null;
   repo_url: string | null;
   branch: string | null;
   root_dir: string | null;
@@ -44,6 +45,7 @@ function toService(row: ServiceRow): Service {
     source: row.source ?? 'repo',
     image: row.image,
     framework: row.framework,
+    command: row.command ? (JSON.parse(row.command) as string[]) : null,
     repoUrl: row.repo_url,
     branch: row.branch,
     rootDir: row.root_dir,
@@ -93,6 +95,8 @@ export interface NewAppService {
   /** Required when source is 'image'. */
   image?: string | null;
   framework?: string | null;
+  /** Only for images whose default command does not start the thing you want. */
+  command?: string[] | null;
   repoUrl: string | null;
   branch: string | null;
   rootDir?: string | null;
@@ -127,10 +131,10 @@ export function createAppService(input: NewAppService): Service {
   db()
     .query(
       `INSERT INTO services
-        (id, project_id, kind, name, slug, source, image, framework, repo_url, branch,
+        (id, project_id, kind, name, slug, source, image, framework, command, repo_url, branch,
          root_dir, build_strategy, dockerfile_path, port, health_path, instances_desired,
          created_at, updated_at)
-       VALUES (?, ?, 'app', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+       VALUES (?, ?, 'app', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
     )
     .run(
       id,
@@ -140,6 +144,7 @@ export function createAppService(input: NewAppService): Service {
       input.source ?? 'repo',
       input.image ?? null,
       input.framework ?? null,
+      input.command ? JSON.stringify(input.command) : null,
       input.repoUrl,
       input.branch,
       input.rootDir ?? null,

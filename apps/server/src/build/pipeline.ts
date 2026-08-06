@@ -531,6 +531,9 @@ async function launch(input: LaunchInput): Promise<void> {
   const containerId = await createContainer({
     name,
     image: imageTag,
+    // Only set for a ready-made image that needs telling what to do. A built image
+    // carries its own entrypoint from the Dockerfile and must not be overridden.
+    cmd: service.command ?? undefined,
     env: runtimeEnv,
     volumes: mounts,
     labels: managedLabels({

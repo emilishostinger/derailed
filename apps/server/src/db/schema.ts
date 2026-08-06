@@ -263,4 +263,14 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    id: 9,
+    name: 'a command for images that need one',
+    sql: `
+      -- Some images are a toolbox with no default job: the Hermes agent's entrypoint
+      -- expects "gateway run" after it, and without that the container starts, prints
+      -- its help and exits. Stored as a JSON array so an argument may contain a space.
+      ALTER TABLE services ADD COLUMN command TEXT;
+    `,
+  },
 ];

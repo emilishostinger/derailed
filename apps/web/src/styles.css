@@ -211,6 +211,21 @@ h3 {
  * In `@layer base` on purpose: unlayered CSS beats anything in a layer, so leaving
  * this outside meant a component that styles its own focus (the ⌘K input, say)
  * couldn't opt out and ended up wearing a second, larger ring. */
+/* Tailwind 4's reset gives buttons `cursor: default`, matching the native control.
+ * That is defensible for a form button and wrong for everything here: half the things
+ * that read as links in this app are buttons, so "Choose an app" and "swap" sat under
+ * an arrow while the domain beside them had a hand. Anything you can click gets the
+ * hand back; anything disabled keeps the arrow, because it does nothing. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select,
+  label[for] {
+    cursor: pointer;
+  }
+}
+
 @layer base {
   :focus-visible {
     outline: 2px solid var(--d-accent);

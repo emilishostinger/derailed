@@ -37,6 +37,17 @@ export interface AppTemplate {
   volumes: string[];
   /** Fixed variables the image needs regardless of anything else. */
   env?: Record<string, string>;
+  /**
+   * Variables that must exist but must not be the same on every server: a dashboard
+   * password, a signing key. Filled with a fresh random value when the app is
+   * created, and visible afterwards in its Variables tab.
+   */
+  generatedEnv?: string[];
+  /**
+   * Overrides the image's default command. Only for images that are a toolbox rather
+   * than a program: run them with no arguments and they print help and exit.
+   */
+  command?: string[];
   database?: TemplateDatabase;
   /** Shown after it deploys, what to do next, in one sentence. */
   afterDeploy: string;
@@ -341,6 +352,40 @@ export const APP_TEMPLATES: AppTemplate[] = [
       }),
     },
     afterDeploy: 'Sign in with admin@example.com / derailed, then change both in the admin area.',
+    slowStart: true,
+  },
+  {
+    slug: 'openclaw',
+    name: 'OpenClaw',
+    blurb:
+      "An AI assistant that runs on your server, not someone else's. Connects to your chat apps.",
+    category: 'Tools',
+    image: 'ghcr.io/openclaw/openclaw:latest',
+    port: 18789,
+    // The workspace lives inside the config directory, so the one volume keeps both.
+    volumes: ['/home/node/.openclaw', '/home/node/.config/openclaw'],
+    generatedEnv: ['OPENCLAW_GATEWAY_TOKEN'],
+    afterDeploy:
+      'Open it and sign in with the gateway token from the Variables tab, then add a model provider key to start talking to it.',
+    slowStart: true,
+  },
+  {
+    slug: 'hermes-agent',
+    name: 'Hermes Agent',
+    blurb: 'An AI agent that learns as it works, keeping what it learns on your own machine.',
+    category: 'Tools',
+    image: 'nousresearch/hermes-agent:latest',
+    // Its entrypoint is the toolbox, not the gateway. Without this it prints help.
+    command: ['gateway', 'run'],
+    port: 9119,
+    volumes: ['/opt/data'],
+    env: { HERMES_DASHBOARD: '1', HERMES_DASHBOARD_BASIC_AUTH_USERNAME: 'admin' },
+    // The dashboard refuses to serve on anything but loopback unless it has a
+    // password, and Derailed always serves it through the proxy. Generated, or the
+    // one-click app would deploy successfully and then answer every visitor with 403.
+    generatedEnv: ['HERMES_DASHBOARD_BASIC_AUTH_PASSWORD'],
+    afterDeploy:
+      'Open it and sign in as admin, with the password from the Variables tab. Then add a model provider key so it can think.',
     slowStart: true,
   },
 ];

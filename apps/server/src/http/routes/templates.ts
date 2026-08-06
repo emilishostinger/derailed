@@ -9,6 +9,7 @@ import { findProject } from '../../db/repo/projects.ts';
 import { createAppService, deleteService, findService } from '../../db/repo/services.ts';
 import { createVolume } from '../../db/repo/volumes.ts';
 import { emitProject, presentService } from '../../runtime/present.ts';
+import { randomSecret } from '../../util/crypto.ts';
 import type { AppEnv } from '../auth.ts';
 import { badRequest, notFound } from '../errors.ts';
 
@@ -47,6 +48,10 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
   let databaseId: string | null = null;
   let env: Record<string, string> = { ...(template.env ?? {}) };
 
+  // Secrets that have to exist but must differ per server. Generated here rather than
+  // written into the catalogue, because a password shipped in the source is not one.
+  for (const key of template.generatedEnv ?? []) env[key] = randomSecret(24);
+
   if (template.database) {
     const database = await createDatabaseFromCatalog(
       project.id,
@@ -84,6 +89,7 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
     source: 'image',
     image: template.image,
     framework: template.name,
+    command: template.command ?? null,
     repoUrl: null,
     branch: null,
     port: template.port,

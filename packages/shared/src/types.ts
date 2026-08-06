@@ -82,6 +82,8 @@ export interface Service {
   image: string | null;
   /** Whatever detection worked out ('Next.js', 'Django', …) for the UI's icon. */
   framework: string | null;
+  /** Overrides the image's own default, for images that have none worth running. */
+  command: string[] | null;
   /** Whether a deploy token is stored. The token itself is never sent. */
   hasRepoToken?: boolean;
   repoUrl: string | null;
