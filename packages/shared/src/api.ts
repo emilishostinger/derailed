@@ -26,7 +26,7 @@ const password = z
   .string()
   .min(
     MIN_PASSWORD_LENGTH,
-    `Use at least ${MIN_PASSWORD_LENGTH} characters. This is the only account on your server.`,
+    `Use at least ${MIN_PASSWORD_LENGTH} characters. This password opens your server.`,
   )
   .max(200);
 
@@ -37,6 +37,15 @@ export type SetupRequest = z.infer<typeof setupRequest>;
 
 export const loginRequest = z.object({ email, password: z.string().min(1).max(200) });
 export type LoginRequest = z.infer<typeof loginRequest>;
+
+/** Three, and no more. Every extra one is a matrix somebody has to hold in their head. */
+export const userRole = z.enum(['owner', 'member', 'viewer']);
+
+export const addPersonRequest = z.object({ email, password, role: userRole });
+export type AddPersonRequest = z.infer<typeof addPersonRequest>;
+
+export const setRoleRequest = z.object({ role: userRole });
+export type SetRoleRequest = z.infer<typeof setRoleRequest>;
 
 /** Each part 0-255. The looser `\d{1,3}` accepted 999.999.999.999 and every address
  *  Derailed then handed out under it pointed nowhere. */

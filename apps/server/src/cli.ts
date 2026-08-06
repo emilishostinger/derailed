@@ -7,7 +7,13 @@ import { listProjects } from './db/repo/projects.ts';
 import { listServices } from './db/repo/services.ts';
 import { deleteSessionsForUser } from './db/repo/sessions.ts';
 import { SETTINGS, setSetting } from './db/repo/settings.ts';
-import { createUser, findUserByEmail, firstUser, updatePassword } from './db/repo/users.ts';
+import {
+  createUser,
+  findUserByEmail,
+  firstUser,
+  listUsers,
+  updatePassword,
+} from './db/repo/users.ts';
 import { listContainers } from './docker/containers.ts';
 import { LABELS, labelFilter } from './docker/labels.ts';
 import { streamContainerLogs } from './docker/logs.ts';
@@ -220,7 +226,7 @@ const HELP = `
     derailed status                What is running, and whether it is up
     derailed deploy <app>          Deploy an app now
     derailed logs <app>            What an app last printed
-    derailed reset-password [email]  Set a new password for the admin account
+    derailed reset-password [email]  Set a new password for an account
     derailed version               Print the version
     derailed help                  Show this message
 
@@ -296,6 +302,16 @@ export async function runCli(argv: string[]): Promise<void> {
 async function resetPassword(email?: string): Promise<void> {
   ensureDirs();
   initDb();
+
+  // With more than one account here, guessing which one was meant is the wrong kind of
+  // helpful: it would silently sign somebody else out of their own account and hand
+  // whoever ran this a password to it.
+  const everyone = listUsers();
+  if (!email && everyone.length > 1) {
+    console.error('There is more than one account on this server. Say which one:\n');
+    for (const person of everyone) console.error(`  derailed reset-password ${person.email}`);
+    process.exit(1);
+  }
 
   const user = email ? findUserByEmail(email) : firstUser();
   if (!user) {

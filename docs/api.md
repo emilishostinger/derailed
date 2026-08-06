@@ -230,6 +230,18 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `GET /catalog/databases` · `GET /templates` | What can be created |
 | `GET /tokens` · `POST` · `DELETE /tokens/:id` | API tokens |
 
+## People
+
+| | |
+| --- | --- |
+| `GET /people` | Everyone, and which one is you |
+| `POST /people` | `{ email, password, role }` |
+| `PUT /people/:id/role` | `{ role }` |
+| `DELETE /people/:id` | Removes them, and their sessions |
+
+Owners only, reads included. Everything else in this reference is refused to a viewer on
+any method but `GET`, and refused to a member where it changes the server itself.
+
 ## Accounts
 
 | | |

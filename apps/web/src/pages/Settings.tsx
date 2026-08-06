@@ -1,4 +1,4 @@
-import type { FreeDomain } from '@derailed/shared';
+import type { FreeDomain, UserRole } from '@derailed/shared';
 import { ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
@@ -6,14 +6,24 @@ import { endpoints } from '../api/endpoints.ts';
 import { Alerts } from '../components/Alerts.tsx';
 import { playChime, setSoundsEnabled, soundsEnabled } from '../components/Celebrate.tsx';
 import { MoveServer } from '../components/MoveServer.tsx';
+import { People } from '../components/People.tsx';
 import { Security } from '../components/Security.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
 
+/** Said in the account panel, so nobody has to guess why a button is missing. */
+const ROLE_SUMMARY: Record<UserRole, string> = {
+  owner: 'You own this server, so you can change anything on it.',
+  member:
+    'You can run the apps here: deploy them, read their logs, change their variables. Deleting them, and changing the server itself, is for an owner.',
+  viewer: 'You can look at everything here, and change nothing.',
+};
+
 export function Settings() {
   const user = useSession((s) => s.user);
+  const isOwner = user?.role === 'owner';
   const system = useSession((s) => s.system);
   const setSystem = useSession((s) => s.setSystem);
   const [ip, setIp] = useState('');
@@ -48,6 +58,7 @@ export function Settings() {
         <div className="mx-auto max-w-2xl space-y-8 p-5">
           <Section title="Account">
             <p className="text-[13px] text-ink">{user?.email}</p>
+            {user && <p className="mt-1 text-[12px] text-ink-faint">{ROLE_SUMMARY[user.role]}</p>}
             <p className="mt-2 text-[12px] text-ink-faint">
               To change the password, run{' '}
               <code className="text-ink-muted">derailed reset-password</code> on the server.
@@ -58,81 +69,101 @@ export function Settings() {
             <Security />
           </Section>
 
-          <Section title="Dashboard address">
-            <PanelDomain />
-          </Section>
+          {isOwner && (
+            <Section title="Who else can get in">
+              <People />
+            </Section>
+          )}
 
-          <Section title="A secure address, free">
-            <FreeAddress />
-          </Section>
+          {/* Everything below this line is about the server rather than about you, so
+              it is an owner's to change. Hidden rather than shown-and-refused: a
+              screen full of controls that answer "you cannot do that" is a worse
+              explanation than a screen that only offers what is yours. */}
+          {isOwner && (
+            <>
+              <Section title="Dashboard address">
+                <PanelDomain />
+              </Section>
 
-          <Section title="Addresses for your apps">
-            <AppDomain />
-          </Section>
+              <Section title="A secure address, free">
+                <FreeAddress />
+              </Section>
 
-          <Section title="How your apps look, and sound">
-            <Screenshots />
-          </Section>
+              <Section title="Addresses for your apps">
+                <AppDomain />
+              </Section>
 
-          <Section title="Tell me when something breaks">
-            <Alerts />
-          </Section>
+              <Section title="How your apps look, and sound">
+                <Screenshots />
+              </Section>
 
-          <Section title="Keeping up to date">
-            <UpdateCheck />
-          </Section>
+              <Section title="Tell me when something breaks">
+                <Alerts />
+              </Section>
 
-          <Section title="Update emails">
-            <UpdateEmails />
-          </Section>
+              <Section title="Keeping up to date">
+                <UpdateCheck />
+              </Section>
 
-          <Section title="Moving to another server">
-            <MoveServer />
-          </Section>
+              <Section title="Update emails">
+                <UpdateEmails />
+              </Section>
 
-          {/* This was behind a disclosure marked "Advanced", which held one field and
+              <Section title="Moving to another server">
+                <MoveServer />
+              </Section>
+            </>
+          )}
+
+          {/* Owner-only for the same reason as the block above: this is the machine's
+              own address, not a preference. */}
+          {isOwner && (
+            <>
+              {/* This was behind a disclosure marked "Advanced", which held one field and
               drew the browser's own triangle in a page where nothing else has one. A
               heading with one thing under it does not need a lid, and "Advanced" was
               telling people to be nervous about a box they will never open. The
               hint already says nobody needs to touch it. */}
-          <Section title="Public address">
-            <div className="max-w-sm">
-              <Field
-                label="This server's address on the internet"
-                hint="Derailed works this out by itself and almost nobody needs to change it. Set it only if your server sits behind a different address, such as a load balancer."
-              >
-                <input
-                  className="input"
-                  value={ip}
-                  onChange={(e) => setIp(e.target.value)}
-                  placeholder="203.0.113.7"
-                />
-              </Field>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={busy}
-                onClick={() => void save(ip.trim())}
-              >
-                {busy && <Spinner />}
-                Save
-              </button>
-              <button
-                type="button"
-                className="btn-ghost"
-                disabled={busy}
-                onClick={() => void save(null)}
-              >
-                Work it out again
-              </button>
-              {saved && <span className="text-[12px] text-ok">Saved</span>}
-            </div>
-            <div className="mt-3">
-              <ErrorNote error={error} />
-            </div>
-          </Section>
+              <Section title="Public address">
+                <div className="max-w-sm">
+                  <Field
+                    label="This server's address on the internet"
+                    hint="Derailed works this out by itself and almost nobody needs to change it. Set it only if your server sits behind a different address, such as a load balancer."
+                  >
+                    <input
+                      className="input"
+                      value={ip}
+                      onChange={(e) => setIp(e.target.value)}
+                      placeholder="203.0.113.7"
+                    />
+                  </Field>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={busy}
+                    onClick={() => void save(ip.trim())}
+                  >
+                    {busy && <Spinner />}
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={busy}
+                    onClick={() => void save(null)}
+                  >
+                    Work it out again
+                  </button>
+                  {saved && <span className="text-[12px] text-ok">Saved</span>}
+                </div>
+                <div className="mt-3">
+                  <ErrorNote error={error} />
+                </div>
+              </Section>
+            </>
+          )}
         </div>
       </div>
     </>

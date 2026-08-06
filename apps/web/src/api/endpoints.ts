@@ -28,6 +28,8 @@ import type {
   TableSummary,
   TrashItem,
   UptimeSummary,
+  User,
+  UserRole,
   Volume,
 } from '@derailed/shared';
 import { api } from './client.ts';
@@ -295,7 +297,7 @@ export const endpoints = {
   panelDomain: () =>
     api.get<{ panelDomain: string | null }>('/system/panel-domain').then((r) => r.panelDomain),
   changeEmail: (email: string, password: string) =>
-    api.patch<{ user: { id: string; email: string; createdAt: number } }>('/auth/me/email', {
+    api.patch<{ user: User }>('/auth/me/email', {
       email,
       password,
     }),
@@ -331,6 +333,13 @@ export const endpoints = {
     api.get<{ enabled: boolean; previews: Service[] }>(`/services/${serviceId}/previews`),
   setPreviews: (serviceId: string, enabled: boolean) =>
     api.put<{ enabled: boolean }>(`/services/${serviceId}/previews`, { enabled }),
+
+  people: () => api.get<{ people: User[]; you: string }>('/people'),
+  addPerson: (email: string, password: string, role: UserRole) =>
+    api.post<{ person: User }>('/people', { email, password, role }),
+  setPersonRole: (id: string, role: UserRole) =>
+    api.put<{ person: User }>(`/people/${id}/role`, { role }),
+  removePerson: (id: string) => api.delete<{ ok: true }>(`/people/${id}`),
 
   adoptable: () =>
     api

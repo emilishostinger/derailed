@@ -3,6 +3,7 @@ import { VERSION } from '../config.ts';
 import { auditWrites, listAudit } from './audit.ts';
 import { type AppEnv, requireAuth, requireCsrfHeader } from './auth.ts';
 import { errorResponse, notFound } from './errors.ts';
+import { enforceRole } from './permissions.ts';
 import { alertRoutes } from './routes/alerts.ts';
 import { authRoutes } from './routes/auth.ts';
 import { backupRoutes } from './routes/backups.ts';
@@ -18,6 +19,7 @@ import { detectRoutes } from './routes/detect.ts';
 import { domainRoutes, serviceDomainRoutes } from './routes/domains.ts';
 import { jobRoutes, serviceJobRoutes } from './routes/jobs.ts';
 import { mailRoutes } from './routes/mail.ts';
+import { peopleRoutes } from './routes/people.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { projectServiceRoutes, serviceRoutes } from './routes/services.ts';
 import { publicStatusRoutes, uptimeRoutes } from './routes/status.ts';
@@ -92,6 +94,11 @@ export function createApp() {
   // handler, because the handler that forgets is exactly the one somebody will later
   // wish had been recorded.
   api.use('*', auditWrites);
+  // And every request below is checked against what this person may do. One place
+  // rather than a note on each route, because the route added next Tuesday will not
+  // be on a list somebody has to remember to update.
+  api.use('*', enforceRole);
+  api.route('/people', peopleRoutes);
   api.route('/system', systemRoutes);
   api.route('/mail', mailRoutes);
   api.route('/detect', detectRoutes);

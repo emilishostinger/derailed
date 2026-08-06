@@ -123,9 +123,18 @@ Environment variables and database passwords are encrypted at rest with AES-256-
 off the box. It does not protect against someone who already has root. Nothing running on the
 machine can.
 
+### Can more than one person use it?
+
+Yes. **Settings → Who else can get in.** Three roles: an owner does anything, a member runs
+the apps without being able to delete them or change the server, and a viewer looks and
+changes nothing. See [more than one person](people.md).
+
+It is not a wall between one person's apps and another's, though. Everybody here sees every
+project. Roles answer "what can this person do", not "which things can they see".
+
 ### Can I run more than one server?
 
-Not yet. One server, one admin. Multi-server is explicitly out of scope for now.
+Not yet. One server. Multi-server is explicitly out of scope for now.
 
 ### Are my apps backed up?
 

@@ -71,6 +71,18 @@ export async function serve(): Promise<void> {
       if (url.pathname === '/api/terminal') {
         const user = userFromRequest(request);
         if (!user) return new Response('Unauthorized', { status: 401 });
+        // A viewer with a shell is not a viewer. Every other restriction on them is
+        // about not changing things, and a prompt inside the container is the one
+        // door that walks around all of them at once.
+        //
+        // A member does get one, and that is not an oversight: they can already
+        // deploy whatever code they like into that container, so a shell in it hands
+        // them nothing they did not have a slower way of taking.
+        if (user.role === 'viewer') {
+          return new Response('You can look at everything here, but not change it.', {
+            status: 403,
+          });
+        }
         const serviceId = url.searchParams.get('service');
         if (!serviceId) return new Response('Which service?', { status: 400 });
         const upgraded = server.upgrade(request, {

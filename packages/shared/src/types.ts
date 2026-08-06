@@ -49,9 +49,18 @@ export type TlsStatus = 'pending' | 'active' | 'error' | 'disabled';
 
 export type LogStream = 'system' | 'build' | 'runtime';
 
+/**
+ * Three, and no more.
+ *
+ * Every extra role is a permission matrix somebody has to hold in their head, and the
+ * questions people actually ask are "can they break it?" and "can they see it?".
+ */
+export type UserRole = 'owner' | 'member' | 'viewer';
+
 export interface User {
   id: string;
   email: string;
+  role: UserRole;
   createdAt: number;
 }
 

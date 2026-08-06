@@ -1,4 +1,4 @@
-import type { User } from '@derailed/shared';
+import type { User, UserRole } from '@derailed/shared';
 import { decrypt, encrypt } from '../../util/crypto.ts';
 import { newId } from '../../util/ids.ts';
 import { db } from '../index.ts';
@@ -7,11 +7,12 @@ interface UserRow {
   id: string;
   email: string;
   password_hash: string;
+  role: UserRole;
   created_at: number;
 }
 
 function toUser(row: UserRow): User {
-  return { id: row.id, email: row.email, createdAt: row.created_at };
+  return { id: row.id, email: row.email, role: row.role, createdAt: row.created_at };
 }
 
 export function countUsers(): number {
@@ -30,17 +31,62 @@ export function findUserById(id: string): User | null {
   return row ? toUser(row) : null;
 }
 
-export function createUser(email: string, passwordHash: string): User {
+export function createUser(
+  email: string,
+  passwordHash: string,
+  role: UserRole = 'owner',
+  invitedBy: string | null = null,
+): User {
   const user: UserRow = {
     id: newId(),
     email: email.toLowerCase(),
     password_hash: passwordHash,
+    role,
     created_at: Date.now(),
   };
   db()
-    .query('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)')
-    .run(user.id, user.email, user.password_hash, user.created_at);
+    .query(
+      'INSERT INTO users (id, email, password_hash, role, invited_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run(user.id, user.email, user.password_hash, user.role, invitedBy, user.created_at);
   return toUser(user);
+}
+
+export function listUsers(): User[] {
+  return db().query<UserRow, []>('SELECT * FROM users ORDER BY created_at').all().map(toUser);
+}
+
+export function countOwners(): number {
+  return db()
+    .query<{ n: number }, []>("SELECT COUNT(*) AS n FROM users WHERE role = 'owner'")
+    .get()!.n;
+}
+
+/**
+ * Changes what somebody may do.
+ *
+ * Refuses to remove the last owner, here rather than only in the route. A server whose
+ * every account is a viewer cannot be fixed from the dashboard at all: there would be
+ * nobody left who is allowed to promote anyone.
+ */
+export function setRole(userId: string, role: UserRole): boolean {
+  const current = findUserById(userId);
+  if (!current) return false;
+  if (current.role === 'owner' && role !== 'owner' && countOwners() <= 1) return false;
+  db().query('UPDATE users SET role = ? WHERE id = ?').run(role, userId);
+  return true;
+}
+
+/** Same guard, for the same reason: the last owner cannot be removed either. */
+export function deleteUser(userId: string): boolean {
+  const current = findUserById(userId);
+  if (!current) return false;
+  if (current.role === 'owner' && countOwners() <= 1) return false;
+  // Their sessions go with them. An account that has been removed but whose cookie
+  // still works is not an account that has been removed.
+  db().query('DELETE FROM sessions WHERE user_id = ?').run(userId);
+  db().query('DELETE FROM users WHERE id = ?').run(userId);
+  return true;
 }
 
 export function updateEmail(userId: string, email: string): void {
@@ -49,6 +95,20 @@ export function updateEmail(userId: string, email: string): void {
 
 export function updatePassword(userId: string, passwordHash: string): void {
   db().query('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, userId);
+}
+
+/**
+ * The oldest owner, which is who an API token stands in for.
+ *
+ * Not simply the oldest account. Once there is more than one person here the first one
+ * created can be demoted, and a token that quietly inherited a viewer's access would
+ * break every script on the machine without saying why.
+ */
+export function firstOwner(): User | null {
+  const row = db()
+    .query<UserRow, []>("SELECT * FROM users WHERE role = 'owner' ORDER BY created_at LIMIT 1")
+    .get();
+  return row ? toUser(row) : null;
 }
 
 export function firstUser(): User | null {

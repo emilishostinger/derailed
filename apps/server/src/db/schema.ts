@@ -580,4 +580,20 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN preview_branches INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    id: 21,
+    name: 'more than one person',
+    sql: `
+      -- One admin was right for v1 and wrong the moment a freelancer wants to hand a
+      -- client access, or two friends share a box.
+      --
+      -- The default is 'owner' on purpose: every account that exists before this
+      -- migration was the only account, and quietly demoting somebody out of their
+      -- own server would be the worst possible way to learn this feature shipped.
+      ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'owner';
+
+      -- Who invited whom, so the People list can say where an account came from.
+      ALTER TABLE users ADD COLUMN invited_by TEXT REFERENCES users(id) ON DELETE SET NULL;
+    `,
+  },
 ];

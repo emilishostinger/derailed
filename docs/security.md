@@ -172,3 +172,28 @@ of every page anybody looked at would bury the three lines that matter.
 It is kept for a year and is on the **Settings** page. On a one-person server it is a
 memory aid. The moment a second person has access, it is the difference between a
 conversation and an argument.
+
+## What each person can do
+
+Three roles: an owner does anything, a member runs the apps without being able to delete
+them or change the server, and a viewer changes nothing at all. The full line is in
+[more than one person](people.md).
+
+The check is one middleware in front of every route rather than a note on each one, and
+that direction matters. A per-route check is a list of things somebody remembered; the
+route added next Tuesday is not on it, and nothing fails until it matters. Here a new
+route is covered the moment it exists, and widening access has to be written down on
+purpose.
+
+Two things worth being explicit about, because they are the places a role could be
+walked around:
+
+- **The terminal is closed to viewers.** A prompt inside a container would bypass every
+  other restriction on them at once. Members do get one, and that is not an oversight:
+  they can already deploy whatever code they like into that container.
+- **The list of API tokens is owner-only, reads included.** A token acts as an owner, so
+  the list of them is the list of keys to the machine.
+
+What roles are not is isolation. Everybody here sees every project, and a member can
+deploy to any of them. If two people must not see each other's work, that is two
+servers.

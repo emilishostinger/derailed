@@ -8,7 +8,7 @@ import {
   touchSession,
 } from '../db/repo/sessions.ts';
 import { TOKEN_PREFIX, verifyToken } from '../db/repo/tokens.ts';
-import { findUserById, firstUser } from '../db/repo/users.ts';
+import { findUserById, firstOwner } from '../db/repo/users.ts';
 import { resolveClientIp, resolveHttps } from '../util/net.ts';
 import { forbidden, unauthorized } from './errors.ts';
 
@@ -118,11 +118,14 @@ export function isSameOrigin(request: Request): boolean {
 }
 
 export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
-  // An API token stands in for the admin, so coding agents and scripts can drive
-  // Derailed without a browser session.
+  // An API token stands in for an owner, so coding agents and scripts can drive
+  // Derailed without a browser session. An owner specifically, and not merely the
+  // oldest account: that account can be demoted once other people are here, and a
+  // token that silently inherited a viewer's access would break every script on the
+  // machine with an error about not being allowed to change things.
   const bearer = c.req.header('authorization')?.replace(/^Bearer\s+/i, '');
   if (bearer?.startsWith(TOKEN_PREFIX) && verifyToken(bearer)) {
-    const owner = firstUser();
+    const owner = firstOwner();
     if (!owner) throw unauthorized();
     c.set('user', owner);
     await next();
