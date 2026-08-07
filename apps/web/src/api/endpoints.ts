@@ -574,9 +574,14 @@ export const endpoints = {
       username?: string | null;
       password?: string | null;
       allowFrom?: string[] | null;
+      blockFrom?: string[] | null;
       maintenance?: boolean;
+      /** Set on the second press, after the "that would block you" refusal. */
+      force?: boolean;
     },
   ) => api.put<{ service: Service }>(`/services/${serviceId}/access`, patch),
+  /** The address this browser is reaching the server from, for the "add mine" button. */
+  myAddress: () => api.get<{ address: string }>('/system/my-address').then((r) => r.address),
 
   whyBroken: (deploymentId: string) =>
     api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),

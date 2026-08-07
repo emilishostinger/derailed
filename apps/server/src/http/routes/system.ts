@@ -33,7 +33,7 @@ import { serverStats } from '../../system/stats.ts';
 import { detectServerIp, systemInfo } from '../../system/status.ts';
 import { addSwap, SwapError, swapState } from '../../system/swap.ts';
 import { checkForUpdate } from '../../update.ts';
-import type { AppEnv } from '../auth.ts';
+import { type AppEnv, clientIp } from '../auth.ts';
 import { badRequest, conflict, parseBody } from '../errors.ts';
 
 export const systemRoutes = new Hono<AppEnv>();
@@ -44,6 +44,16 @@ systemRoutes.get('/', async (c) => c.json({ system: await systemInfo() }));
 systemRoutes.get('/update', async (c) => c.json({ update: await checkForUpdate() }));
 
 systemRoutes.get('/stats', async (c) => c.json({ stats: await serverStats() }));
+
+/**
+ * The address you are reading this from.
+ *
+ * Exists so the address list can have an "add mine" button. Everybody knows they want
+ * "only me", and almost nobody knows their own public address; the honest ways to find
+ * out are a search engine and a third-party site, and asking the server you are already
+ * talking to is both easier and more private than either.
+ */
+systemRoutes.get('/my-address', (c) => c.json({ address: clientIp(c) }));
 
 /**
  * Things already on this machine that Derailed could take over.

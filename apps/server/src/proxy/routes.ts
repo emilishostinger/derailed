@@ -48,6 +48,14 @@ export interface AccessSpec {
   basicAuth?: { username: string; hash: string } | null;
   /** Addresses and CIDR ranges. Anything not in the list gets a plain refusal. */
   allowFrom?: string[] | null;
+  /**
+   * Addresses and CIDR ranges turned away outright.
+   *
+   * The opposite question from `allowFrom`, and the one people actually arrive with:
+   * one address hammering the login page, one bot ignoring robots.txt. An allow list
+   * cannot express that without naming every visitor you have ever had.
+   */
+  blockFrom?: string[] | null;
   /** Shows a holding page to everyone, whatever else is set. */
   maintenance?: boolean;
 }
@@ -261,12 +269,40 @@ const MAINTENANCE_BODY = `<!doctype html>
 </main></body></html>`;
 
 /**
+ * Turns a request away, plainly.
+ *
+ * The same refusal for both lists on purpose. Saying "you are blocked" rather than
+ * "this is restricted" tells whoever is on the wrong end which of the two lists they
+ * are on, and the only person that helps is the one you meant to keep out.
+ */
+function refuse(match: unknown): unknown {
+  return {
+    handler: 'subroute',
+    routes: [
+      {
+        match: [match],
+        handle: [
+          {
+            handler: 'static_response',
+            status_code: 403,
+            headers: { 'Content-Type': ['text/plain; charset=utf-8'] },
+            body: 'This site is only available from certain addresses.\n',
+          },
+        ],
+        terminal: true,
+      },
+    ],
+  };
+}
+
+/**
  * The handlers that run before the app sees a request.
  *
  * Order matters and is deliberate. The holding page comes first, because during
- * maintenance nobody should get through whatever else is configured. The address
- * check comes before the password, so somebody who is not allowed to be here is
- * turned away without being invited to guess a password.
+ * maintenance nobody should get through whatever else is configured. Then the block
+ * list, so an explicit refusal wins over an explicit invitation. Then the allow list.
+ * The password comes last, so somebody who is not allowed to be here at all is turned
+ * away without being invited to guess one.
  */
 function accessHandlers(access: AccessSpec | undefined): unknown[] {
   if (!access) return [];
@@ -289,24 +325,15 @@ function accessHandlers(access: AccessSpec | undefined): unknown[] {
     return handlers;
   }
 
+  // Before the allow list, so an explicit block wins over an explicit invitation.
+  // That is the reading that never surprises anybody: a name on the "not welcome"
+  // list is not welcome, whatever else it is also on.
+  if (access.blockFrom?.length) {
+    handlers.push(refuse({ remote_ip: { ranges: access.blockFrom } }));
+  }
+
   if (access.allowFrom?.length) {
-    handlers.push({
-      handler: 'subroute',
-      routes: [
-        {
-          match: [{ not: [{ remote_ip: { ranges: access.allowFrom } }] }],
-          handle: [
-            {
-              handler: 'static_response',
-              status_code: 403,
-              headers: { 'Content-Type': ['text/plain; charset=utf-8'] },
-              body: 'This site is only available from certain addresses.\n',
-            },
-          ],
-          terminal: true,
-        },
-      ],
-    });
+    handlers.push(refuse({ not: [{ remote_ip: { ranges: access.allowFrom } }] }));
   }
 
   if (access.basicAuth) {

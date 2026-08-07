@@ -40,6 +40,7 @@ interface ServiceRow {
   auth_user?: string | null;
   auth_hash?: string | null;
   allow_from?: string | null;
+  block_from?: string | null;
   maintenance?: 0 | 1;
 }
 
@@ -81,6 +82,7 @@ function toService(row: ServiceRow): Service {
       hasPassword: !!row.auth_hash,
       username: row.auth_user ?? null,
       allowFrom: row.allow_from ? (JSON.parse(row.allow_from) as string[]) : [],
+      blockFrom: row.block_from ? (JSON.parse(row.block_from) as string[]) : [],
       maintenance: row.maintenance === 1,
     },
   };
@@ -349,6 +351,7 @@ export async function setAccess(
     username?: string | null;
     password?: string | null;
     allowFrom?: string[] | null;
+    blockFrom?: string[] | null;
     maintenance?: boolean;
   },
 ): Promise<Service | null> {
@@ -372,6 +375,10 @@ export async function setAccess(
   if (patch.allowFrom !== undefined) {
     assignments.push('allow_from = ?');
     values.push(patch.allowFrom?.length ? JSON.stringify(patch.allowFrom) : null);
+  }
+  if (patch.blockFrom !== undefined) {
+    assignments.push('block_from = ?');
+    values.push(patch.blockFrom?.length ? JSON.stringify(patch.blockFrom) : null);
   }
   if (patch.maintenance !== undefined) {
     assignments.push('maintenance = ?');

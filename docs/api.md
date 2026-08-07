@@ -65,7 +65,8 @@ Creating a service:
 | `DELETE /services/:id/files?path=` | Deletes a file, or a folder and everything in it. No undo |
 | `GET /services/:id/mail` · `PUT` | Whether this app may send email |
 | `GET /services/:id/sleep` · `PUT` · `POST /services/:id/wake` | Pause when quiet, and wake it |
-| `PUT /services/:id/access` | Password, address list, maintenance. The password is hashed and never returned |
+| `PUT /services/:id/access` | Password, `allowFrom`, `blockFrom`, maintenance. The password is hashed and never returned. Blocking your own address is refused once; send `force: true` to mean it |
+| `GET /system/my-address` | The address this request arrived from, for the "add mine" button |
 | `POST /services/:id/upload` | `multipart/form-data` with `file`, a zip, up to 200 MB |
 | `PUT /services/:id/repo-token` | `{ token }` for a private repository, or `null` to clear |
 | `GET /services/:id/env` · `PUT` | Environment variables |

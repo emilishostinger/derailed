@@ -73,6 +73,7 @@ export function currentRoutes(): RouteSpec[] {
       access: {
         basicAuth: auth,
         allowFrom: service.access?.allowFrom ?? null,
+        blockFrom: service.access?.blockFrom ?? null,
         maintenance: service.access?.maintenance ?? false,
       },
     });

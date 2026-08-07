@@ -54,7 +54,7 @@ import {
   sleepSettingFor,
   wakeNow,
 } from '../../runtime/sleep.ts';
-import type { AppEnv } from '../auth.ts';
+import { type AppEnv, clientIp } from '../auth.ts';
 import { badRequest, notFound, parseBody } from '../errors.ts';
 
 /**
@@ -80,6 +80,43 @@ function isAddressOrRange(value: string): boolean {
     return bits === undefined || (Number(bits) >= 0 && Number(bits) <= 128);
   }
   return false;
+}
+
+/** An address as a number, or null when it is not v4. */
+function toV4(address: string): number | null {
+  const parts = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(address.trim());
+  if (!parts) return null;
+  let value = 0;
+  for (const part of parts.slice(1)) {
+    const octet = Number(part);
+    if (octet > 255) return null;
+    // Unsigned, because a leading octet above 127 makes the shift go negative.
+    value = (value * 256 + octet) >>> 0;
+  }
+  return value;
+}
+
+/**
+ * Whether an entry in one of the lists covers a particular address.
+ *
+ * Only used to warn somebody they are about to block themselves, so v6 is compared
+ * as text rather than expanded: getting `::ffff:0:0/96` right is a good deal of code
+ * for a warning, and a missed warning is a warning, not a hole.
+ */
+export function coversAddress(entry: string, address: string): boolean {
+  const [range = '', bits] = entry.trim().split('/');
+  if (range === address.trim()) return true;
+
+  const rangeValue = toV4(range);
+  const addressValue = toV4(address);
+  if (rangeValue === null || addressValue === null) return false;
+  if (bits === undefined) return rangeValue === addressValue;
+
+  const width = Number(bits);
+  if (!Number.isInteger(width) || width < 0 || width > 32) return false;
+  if (width === 0) return true;
+  const mask = (0xffffffff << (32 - width)) >>> 0;
+  return (rangeValue & mask) === (addressValue & mask);
 }
 
 export const projectServiceRoutes = new Hono<AppEnv>();
@@ -243,21 +280,37 @@ serviceRoutes.put('/:id/access', async (c) => {
     username?: string | null;
     password?: string | null;
     allowFrom?: string[] | null;
+    blockFrom?: string[] | null;
     maintenance?: boolean;
+    /** Set on the second press, after the "that would block you" refusal. */
+    force?: boolean;
   };
 
   if (typeof body.password === 'string' && body.password.length > 0 && body.password.length < 6) {
     throw badRequest('Use at least six characters.');
   }
 
-  if (body.allowFrom) {
-    for (const entry of body.allowFrom) {
-      if (!isAddressOrRange(entry)) {
-        throw badRequest(
-          `"${entry}" is not an address or a range.`,
-          'Use something like 203.0.113.7, or 203.0.113.0/24 for a whole range.',
-        );
-      }
+  for (const entry of [...(body.allowFrom ?? []), ...(body.blockFrom ?? [])]) {
+    if (!isAddressOrRange(entry)) {
+      throw badRequest(
+        `"${entry}" is not an address or a range.`,
+        'Use something like 203.0.113.7, or 203.0.113.0/24 for a whole range.',
+      );
+    }
+  }
+
+  // Blocking yourself out of your own site is usually a paste of the wrong line, and
+  // the person who did it has to come back to this page to undo it. So it is refused
+  // once, with the reason, and allowed on the second press: somebody blocking a range
+  // their own ISP happens to be in has a real reason and should not be stuck.
+  if (body.blockFrom?.length && body.force !== true) {
+    const mine = clientIp(c);
+    const covering = body.blockFrom.find((entry) => coversAddress(entry, mine));
+    if (covering) {
+      throw badRequest(
+        `That would block you. You are here from ${mine}, which ${covering} covers.`,
+        'Press it again to do it anyway.',
+      );
     }
   }
 

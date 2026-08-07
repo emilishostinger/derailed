@@ -133,6 +133,8 @@ export interface Service {
     hasPassword: boolean;
     username: string | null;
     allowFrom: string[];
+    /** Turned away outright, whatever else says. Checked before `allowFrom`. */
+    blockFrom: string[];
     maintenance: boolean;
   };
 

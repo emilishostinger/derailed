@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { closeDb, initDb } from '../src/db/index.ts';
 import { createProject } from '../src/db/repo/projects.ts';
 import { accessFor, createAppService, findService, setAccess } from '../src/db/repo/services.ts';
+import { coversAddress } from '../src/http/routes/services.ts';
 import { synthesizeCaddyConfig } from '../src/proxy/routes.ts';
 import { loadSecretKey, resetSecretKeyCache } from '../src/util/crypto.ts';
 
@@ -161,5 +162,79 @@ describe('what the proxy is told', () => {
     const handlers = handlersFor({ allowFrom: [] });
     expect(handlers).toHaveLength(1);
     expect(handlers[0]?.handler).toBe('reverse_proxy');
+  });
+
+  test('does not add an empty blocklist either', () => {
+    const handlers = handlersFor({ blockFrom: [] });
+    expect(handlers).toHaveLength(1);
+    expect(handlers[0]?.handler).toBe('reverse_proxy');
+  });
+
+  test('checks the block list before the allow list, so a block wins', () => {
+    // Somebody on both lists is not welcome. That is the reading nobody has to think
+    // about, and the order is the only place it can be expressed.
+    const handlers = handlersFor({
+      allowFrom: ['203.0.113.0/24'],
+      blockFrom: ['203.0.113.9'],
+      basicAuth: { username: 'friend', hash: '$2a$12$abc' },
+    });
+    expect(handlers.map((entry) => entry.handler)).toEqual([
+      'subroute',
+      'subroute',
+      'authentication',
+      'reverse_proxy',
+    ]);
+
+    const blocked = handlers[0] as unknown as {
+      routes: { match: { remote_ip?: { ranges: string[] }; not?: unknown[] }[] }[];
+    };
+    // The first one matches the blocked range directly; the allow list is the `not`.
+    expect(blocked.routes[0]?.match[0]?.remote_ip?.ranges).toEqual(['203.0.113.9']);
+    expect(blocked.routes[0]?.match[0]?.not).toBeUndefined();
+  });
+
+  test('the holding page still beats a block list', () => {
+    const handlers = handlersFor({ maintenance: true, blockFrom: ['203.0.113.9'] });
+    expect(handlers).toHaveLength(1);
+    expect(handlers[0]?.status_code).toBe(503);
+  });
+});
+
+/**
+ * Whether an entry covers a particular address.
+ *
+ * Only used to warn somebody they are about to block themselves out of their own
+ * site, but the arithmetic is the sort that is quietly wrong for a year: a leading
+ * octet above 127 makes an unguarded shift go negative.
+ */
+describe('whether a list entry covers an address', () => {
+  test('matches a bare address exactly', () => {
+    expect(coversAddress('203.0.113.7', '203.0.113.7')).toBe(true);
+    expect(coversAddress('203.0.113.7', '203.0.113.8')).toBe(false);
+  });
+
+  test('matches inside a range and not outside it', () => {
+    expect(coversAddress('203.0.113.0/24', '203.0.113.7')).toBe(true);
+    expect(coversAddress('203.0.113.0/24', '203.0.114.7')).toBe(false);
+    expect(coversAddress('10.0.0.0/8', '10.255.255.255')).toBe(true);
+    expect(coversAddress('10.0.0.0/8', '11.0.0.1')).toBe(false);
+  });
+
+  test('handles addresses above 127, where a signed shift goes wrong', () => {
+    expect(coversAddress('192.168.0.0/16', '192.168.44.9')).toBe(true);
+    expect(coversAddress('192.168.0.0/16', '192.169.44.9')).toBe(false);
+    expect(coversAddress('255.255.255.0/24', '255.255.255.9')).toBe(true);
+  });
+
+  test('a zero-length prefix covers everything, and a full one covers only itself', () => {
+    expect(coversAddress('0.0.0.0/0', '8.8.8.8')).toBe(true);
+    expect(coversAddress('203.0.113.7/32', '203.0.113.7')).toBe(true);
+    expect(coversAddress('203.0.113.7/32', '203.0.113.6')).toBe(false);
+  });
+
+  test('compares v6 as text rather than guessing', () => {
+    // A missed warning is a warning, not a hole, so this is deliberately not clever.
+    expect(coversAddress('2001:db8::1', '2001:db8::1')).toBe(true);
+    expect(coversAddress('2001:db8::/32', '2001:db8::1')).toBe(false);
   });
 });

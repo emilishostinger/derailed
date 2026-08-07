@@ -634,4 +634,18 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_saved_queries_service ON saved_queries(service_id);
     `,
   },
+  {
+    id: 24,
+    name: 'and a list of who is not welcome',
+    sql: `
+      -- The allow list answers "only these people". The question people actually
+      -- arrive with is the opposite one: a single address hammering the login page,
+      -- or one bot ignoring robots.txt. An allow list cannot express that without
+      -- listing every visitor you have ever had.
+      --
+      -- Checked before the allow list, so an explicit block wins. That is the reading
+      -- that never surprises anybody: a name on the "not welcome" list is not welcome.
+      ALTER TABLE services ADD COLUMN block_from TEXT;
+    `,
+  },
 ];

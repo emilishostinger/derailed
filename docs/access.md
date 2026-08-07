@@ -39,6 +39,34 @@ rather than accepted and pushed to the proxy: the proxy rejects a configuration 
 cannot parse *wholesale*, so one bad entry in one app's settings would otherwise take
 every site on the machine down.
 
+**Add mine** fills in the address you are reading the dashboard from. Almost nobody
+knows their own public address, and the usual ways to find out are a search engine and
+a third-party site; asking the server you are already talking to is easier and more
+private than either.
+
+## Never from certain addresses
+
+The opposite list, and the question people usually arrive with: one address hammering
+the login page, one bot ignoring `robots.txt`. An allow list cannot express that
+without naming every visitor you have ever had.
+
+Same format as the allow list, and checked **before** it, so a block wins over an
+invitation. Somebody on both lists is not welcome; that is the reading nobody has to
+think about.
+
+Blocking the address you are browsing from is refused the first time, with the reason,
+and accepted if you press again. It is usually a paste of the wrong line, and the page
+it would lock you out of is the page you would have to come back to in order to undo
+it. But somebody blocking a range their own ISP happens to be in has a real reason, so
+it is a speed bump rather than a wall.
+
+## What is true right now
+
+The top of the tab says what the combination of these settings actually does, in one
+sentence: "Anyone on the internet can see this", or "Visible only from 2 addresses, and
+only with the password". Four settings that interact is four things to hold in your
+head, and the reading that matters is the combination rather than any one switch.
+
 ## Maintenance
 
 A switch that shows a short "back shortly" page instead of the app.
