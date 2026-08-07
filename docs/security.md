@@ -229,3 +229,32 @@ patched.
 
 It says nothing about when. Your apps come back on their own afterwards, and you choose
 the moment.
+
+## What is open to the internet
+
+**Server → What is open to the internet** lists every port this machine is listening
+on, from outside, with a line saying what each one is for:
+
+- **80 and 443** are your websites, and the first is also how certificates renew.
+- **The dashboard's port**, until you give it a domain and it moves behind HTTPS.
+- **22** is SSH, and it says plainly that closing it locks you out of the server.
+- **A published database port** names the database and says to close it on that
+  database's Connection tab.
+- **Anything else** says Derailed did not open it, names the process holding it where
+  the machine will say, and suggests finding out what it is before closing anything.
+
+Ports bound to loopback are left out. They are not reachable from anywhere, and listing
+them buries the three that matter under a dozen that do not.
+
+### Derailed does not change your firewall
+
+It does not enable ufw, write iptables rules or touch firewalld, and that is a decision
+rather than a gap.
+
+A tool that manages a firewall on a remote server has exactly one catastrophic failure
+mode: locking the owner out of the machine it is running on, with no way back in from
+the web page that did it. The question people actually have here is "what is this port
+and do I need it", and that can be answered completely without taking that risk.
+
+Where Derailed opened a port itself, it says where to close it, because that is the one
+case it can be certain about.

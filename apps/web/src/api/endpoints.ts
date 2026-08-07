@@ -620,6 +620,22 @@ export const endpoints = {
   whyBroken: (deploymentId: string) =>
     api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),
 
+  openPorts: () =>
+    api
+      .get<{
+        ports: {
+          ports: {
+            port: number;
+            what: string;
+            needed: boolean;
+            action: string | null;
+            serviceId?: string;
+          }[];
+          readable: boolean;
+        };
+      }>('/system/ports')
+      .then((r) => r.ports),
+
   automaticUpdates: () =>
     api
       .get<{

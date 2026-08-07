@@ -1,6 +1,7 @@
 import { Boxes, Container, HardDrive, Network } from 'lucide-react';
 import { DiskPanel } from '../components/DiskPanel.tsx';
 import { Doctor } from '../components/Doctor.tsx';
+import { OpenPorts } from '../components/OpenPorts.tsx';
 import { ServerStats } from '../components/ServerStats.tsx';
 import { cx } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
@@ -66,6 +67,11 @@ export function Server() {
           <section>
             <p className="eyebrow mb-2.5">Disk</p>
             <DiskPanel />
+          </section>
+
+          <section>
+            <p className="eyebrow mb-2.5">What is open to the internet</p>
+            <OpenPorts />
           </section>
 
           <section>

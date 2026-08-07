@@ -30,6 +30,7 @@ import { recentLogs } from '../../runtime/logtail.ts';
 import { costComparison } from '../../system/cost.ts';
 import { diskReport, freeUpSpace } from '../../system/disk.ts';
 import { runDoctor } from '../../system/doctor.ts';
+import { openPorts } from '../../system/firewall.ts';
 import { otherSoftware } from '../../system/others.ts';
 import { serverStats } from '../../system/stats.ts';
 import { detectServerIp, systemInfo } from '../../system/status.ts';
@@ -156,6 +157,16 @@ systemRoutes.post('/doctor/fix/:action', async (c) => {
 });
 
 systemRoutes.get('/disk', async (c) => c.json({ disk: await diskReport() }));
+
+/**
+ * What this machine is listening on, and what each one is for.
+ *
+ * A description rather than a firewall: Derailed does not enable ufw or write iptables
+ * rules. A tool that manages a firewall on a remote server has one catastrophic
+ * failure mode, which is locking the owner out of the machine it runs on, and the real
+ * question people have is "what is this port and do I need it".
+ */
+systemRoutes.get('/ports', async (c) => c.json({ ports: await openPorts() }));
 
 /**
  * Tidies up. Narrow on purpose: unused images, build scraps and stopped containers
