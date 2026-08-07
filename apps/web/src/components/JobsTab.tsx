@@ -3,7 +3,7 @@ import { Clock, Play, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useToasts } from '../stores/toasts.ts';
-import { cx, ErrorNote, Field, Spinner } from './ui.tsx';
+import { cx, ErrorNote, Field, Reveal, Spinner } from './ui.tsx';
 
 /**
  * Things that run on a schedule.
@@ -262,7 +262,7 @@ function JobRow({
         </div>
       </div>
 
-      {open && (
+      <Reveal open={open}>
         <div className="mt-2.5 space-y-1.5">
           {runs === null ? (
             <Spinner />
@@ -286,7 +286,7 @@ function JobRow({
             ))
           )}
         </div>
-      )}
+      </Reveal>
     </li>
   );
 }

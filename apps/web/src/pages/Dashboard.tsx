@@ -20,7 +20,16 @@ import { DropToHost } from '../components/DropToHost.tsx';
 import { GettingStarted } from '../components/GettingStarted.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { ProjectPreview } from '../components/SitePreview.tsx';
-import { cx, EmptyState, ErrorNote, Field, Modal, Spinner, StatusDot } from '../components/ui.tsx';
+import {
+  cx,
+  EmptyState,
+  ErrorNote,
+  Field,
+  Modal,
+  Reveal,
+  Spinner,
+  StatusDot,
+} from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
 import { useToasts } from '../stores/toasts.ts';
@@ -142,7 +151,7 @@ function AlsoHere() {
         {extra.length > 0 && <span className="text-ink-faint">({extra.length + 1})</span>}
       </button>
 
-      {open && (
+      <Reveal open={open}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <div className="card flex flex-col gap-2 p-4">
             <div className="flex items-center gap-2">
@@ -189,15 +198,15 @@ function AlsoHere() {
             </div>
           ))}
         </div>
-      )}
+      </Reveal>
 
-      {open && (
+      <Reveal open={open}>
         <p className="pt-3 text-[12px] text-ink-faint">
           {extra.length === 0
             ? 'Nothing else is running here. Anything you start outside Derailed shows up in this list.'
             : 'Derailed did not start these and leaves them alone. Take one over and it keeps running exactly as it is, but gains a web address, a certificate and a place in the map.'}
         </p>
-      )}
+      </Reveal>
     </div>
   );
 }

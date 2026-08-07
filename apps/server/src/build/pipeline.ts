@@ -137,6 +137,25 @@ export function activeJobCount(): number {
   return active.size + queue.length;
 }
 
+/**
+ * Abandons everything in flight, and waits for it to actually stop.
+ *
+ * For tests. Every test file shares one process and one database handle, so a deploy
+ * still unwinding when a file finishes reaches for a database the next file has
+ * already closed. That surfaces as an error blamed on a file that did nothing wrong,
+ * and occasionally as a failure. Waiting alone is not enough: a build that has just
+ * started has minutes of work ahead of it, so it has to be told to stop as well.
+ */
+export async function stopAllDeployments(timeoutMs = 30_000): Promise<void> {
+  queue.length = 0;
+  for (const job of active.values()) job.cancel.abort();
+
+  const until = Date.now() + timeoutMs;
+  while (active.size > 0 && Date.now() < until) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 class Cancelled extends Error {}
 
 async function run(job: Job): Promise<void> {

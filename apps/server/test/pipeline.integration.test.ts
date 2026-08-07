@@ -7,7 +7,7 @@ import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readDeploymentLog } from '../src/build/deploylog.ts';
-import { activeJobCount, queueDeployment } from '../src/build/pipeline.ts';
+import { activeJobCount, queueDeployment, stopAllDeployments } from '../src/build/pipeline.ts';
 import { removeUpload, storeUpload } from '../src/build/upload.ts';
 import { initDb } from '../src/db/index.ts';
 import { findDeployment, listDeployments } from '../src/db/repo/deployments.ts';
@@ -104,13 +104,12 @@ suite('deploy pipeline', () => {
 
   afterAll(async () => {
     // A deployment is settled once its status is terminal, but the job around it is
-    // still unwinding for a moment after that. Leaving one running means it reaches
-    // for the database after a later test file has closed it, which prints an error
-    // from a file that did nothing wrong.
-    const until = Date.now() + 30_000;
-    while (activeJobCount() > 0 && Date.now() < until) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+    // still unwinding for a moment after that, and a cancelled one may not have got
+    // as far as starting. Either way, leaving one running means it reaches for the
+    // database after a later test file has closed it, which prints an error from a
+    // file that did nothing wrong and occasionally fails it.
+    await stopAllDeployments();
+    expect(activeJobCount()).toBe(0);
 
     const containers = await listContainers(labelFilter({ [LABELS.project]: projectId })).catch(
       () => [],

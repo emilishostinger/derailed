@@ -2,7 +2,7 @@ import type { CostComparison } from '@derailed/shared';
 import { ChevronDown, PiggyBank } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
-import { cx } from './ui.tsx';
+import { cx, Reveal } from './ui.tsx';
 
 /**
  * What all this would cost somewhere that sends a bill.
@@ -44,7 +44,7 @@ export function CostCounter() {
         />
       </button>
 
-      {open && (
+      <Reveal open={open}>
         <div className="border-t border-line px-4 py-3">
           <ul className="divide-y divide-line">
             {cost.elsewhere.map((entry) => (
@@ -68,7 +68,7 @@ export function CostCounter() {
             higher than these.
           </p>
         </div>
-      )}
+      </Reveal>
     </div>
   );
 }

@@ -593,6 +593,36 @@ h3 {
 }
 
 /* Indeterminate progress line shown along the top of a deploying card. */
+/* A section that unfolds rather than appearing.
+   
+   A grid row animates cleanly from 0fr to 1fr, so the content decides its own height
+   and nothing has to be measured in JavaScript, re-measured when it changes, or
+   hardcoded and then wrong.
+   
+   Written here rather than as Tailwind utilities because `transition-[a,b]` does not
+   survive the arbitrary-value parser: the comma silently produced a rule that
+   transitioned `scrollbar-color`, so the panel snapped open and looked exactly like
+   having written no transition at all. */
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.2s var(--ease-out),
+    opacity 0.2s var(--ease-out);
+}
+
+.reveal[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* The row is what gets squashed, so the clipping belongs here rather than on the
+   content, which would cut off its own focus rings. */
+.reveal > * {
+  overflow: hidden;
+}
+
 @keyframes track-slide {
   from {
     transform: translateX(-100%);

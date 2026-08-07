@@ -11,7 +11,7 @@ import {
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { Drill, Offsite } from '../components/Offsite.tsx';
-import { cx, EmptyState, ErrorNote, Modal, Select, Spinner } from '../components/ui.tsx';
+import { cx, EmptyState, ErrorNote, Modal, Reveal, Select, Spinner } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { formatBytes, PageHeader } from './Layout.tsx';
 
@@ -246,7 +246,7 @@ function ProjectBackups({
         )}
       </button>
 
-      {open && (
+      <Reveal open={open}>
         <div className="border-t border-line px-4 py-3.5">
           {onSchedule && (
             <div className="mb-4">
@@ -313,7 +313,7 @@ function ProjectBackups({
             </div>
           )}
         </div>
-      )}
+      </Reveal>
     </div>
   );
 }

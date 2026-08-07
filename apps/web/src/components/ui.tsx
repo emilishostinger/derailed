@@ -129,6 +129,31 @@ export function Switch({
   );
 }
 
+/**
+ * An expanding section that unfolds instead of appearing.
+ *
+ * The grid trick rather than a measured height: a grid row animates cleanly from `0fr`
+ * to `1fr`, so the content decides its own height and nothing has to be measured in
+ * JavaScript, re-measured when it changes, or hardcoded and then wrong. The rule
+ * itself lives in `styles.css`, because `transition-[a,b]` does not survive Tailwind's
+ * arbitrary-value parser and quietly produced a panel that snapped.
+ *
+ * Kept deliberately short and small. The point is a hint that something unfolded from
+ * the row you pressed, not a performance: a long ease on every panel in an app is the
+ * thing that makes software feel slow rather than smooth, and it is worse the tenth
+ * time you see it than the first.
+ *
+ * Nothing is needed for reduced motion here. The global rule in `styles.css` already
+ * flattens every transition in the app for anybody who has asked for that.
+ */
+export function Reveal({ open, children }: { open: boolean; children: ReactNode }) {
+  return (
+    <div className="reveal" data-open={open}>
+      <div>{children}</div>
+    </div>
+  );
+}
+
 export interface SelectOption<T extends string> {
   value: T;
   label: string;
