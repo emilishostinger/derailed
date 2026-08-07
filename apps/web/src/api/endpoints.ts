@@ -447,6 +447,19 @@ export const endpoints = {
       .then((r) => r.contents),
   writeFile: (serviceId: string, path: string, contents: string) =>
     api.put<{ ok: true }>(`/services/${serviceId}/files`, { path, contents }),
+  newFolder: (serviceId: string, path: string, name: string) =>
+    api.post<{ ok: true }>(`/services/${serviceId}/files/folder`, { path, name }),
+  renameFile: (serviceId: string, path: string, name: string) =>
+    api.post<{ ok: true }>(`/services/${serviceId}/files/rename`, { path, name }),
+  deleteFile: (serviceId: string, path: string) =>
+    api.delete<{ ok: true }>(`/services/${serviceId}/files?path=${encodeURIComponent(path)}`),
+  uploadFile: (serviceId: string, path: string, file: File) =>
+    api.putFile<{ ok: true }>(
+      `/services/${serviceId}/files/upload?path=${encodeURIComponent(path)}&name=${encodeURIComponent(file.name)}`,
+      file,
+    ),
+  downloadFileUrl: (serviceId: string, path: string) =>
+    `/api/services/${serviceId}/files/download?path=${encodeURIComponent(path)}`,
 
   appMail: (serviceId: string) =>
     api.get<{ enabled: boolean; available: boolean }>(`/services/${serviceId}/mail`),

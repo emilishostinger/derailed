@@ -31,7 +31,17 @@ import { LABELS, labelFilter } from '../../docker/labels.ts';
 import { publish } from '../../events/bus.ts';
 import { AppMailError, appCanSendMail, mailCredentials, setAppMail } from '../../mail/appmail.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
-import { listFiles, readFile, storageRoots, writeFile } from '../../runtime/files.ts';
+import {
+  deleteEntry,
+  downloadFile,
+  listFiles,
+  makeFolder,
+  readFile,
+  renameEntry,
+  storageRoots,
+  uploadInto,
+  writeFile,
+} from '../../runtime/files.ts';
 import { followService, recentLogs } from '../../runtime/logtail.ts';
 import { historyFor } from '../../runtime/metrics.ts';
 import { emitProject, emitService, presentService } from '../../runtime/present.ts';
@@ -482,6 +492,124 @@ serviceRoutes.put('/:id/files', async (c) => {
     throw badRequest(err instanceof Error ? err.message : 'That file could not be saved.');
   }
   return c.json({ ok: true });
+});
+
+/**
+ * The rest of what a file browser is for.
+ *
+ * Reading and editing were here already, which covers looking at a config file and
+ * covers nothing else. Getting a theme in, getting a database dump out, and clearing
+ * up afterwards are the reasons people open this tab at all.
+ */
+serviceRoutes.post('/:id/files/folder', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  if (!body.path) throw badRequest('Which folder should this go in?');
+  if (!body.name) throw badRequest('What should the folder be called?');
+
+  try {
+    await makeFolder(service.id, body.path, body.name);
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That folder could not be created.');
+  }
+  return c.json({ ok: true }, 201);
+});
+
+serviceRoutes.post('/:id/files/rename', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  if (!body.path) throw badRequest('Which one?');
+  if (!body.name) throw badRequest('What should it be called?');
+
+  try {
+    await renameEntry(service.id, body.path, body.name);
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That could not be renamed.');
+  }
+  return c.json({ ok: true });
+});
+
+serviceRoutes.delete('/:id/files', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  const path = c.req.query('path');
+  if (!path) throw badRequest('Which one?');
+
+  try {
+    await deleteEntry(service.id, path);
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That could not be deleted.');
+  }
+  return c.json({ ok: true });
+});
+
+/**
+ * An upload, sent as the request body rather than as a form.
+ *
+ * Multipart would mean `formData()`, and `formData()` reads the entire upload into
+ * memory before anything has looked at it, including the check that it is not too
+ * large, which by then has nothing left to prevent. The name and the destination are
+ * small enough to travel in the query string, which leaves the body as just the file.
+ */
+serviceRoutes.post('/:id/files/upload', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  const path = c.req.query('path');
+  const name = c.req.query('name');
+  if (!path) throw badRequest('Which folder should this go in?');
+  if (!name) throw badRequest('What is this file called?');
+
+  const size = Number(c.req.header('content-length') ?? Number.NaN);
+  if (!Number.isFinite(size) || size < 0) {
+    throw badRequest("That upload didn't say how big it is.", 'Try it again.');
+  }
+  if (size > MAX_UPLOAD_BYTES) {
+    throw badRequest(
+      `That file is ${Math.round(size / 1024 / 1024)} MB, which is bigger than Derailed accepts.`,
+      `The limit is ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.`,
+    );
+  }
+
+  const body = c.req.raw.body;
+  if (!body) throw badRequest('No file arrived.');
+
+  try {
+    await uploadInto(service.id, path, name, size, body);
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That file could not be uploaded.');
+  }
+  return c.json({ ok: true }, 201);
+});
+
+/** Straight through from the container to the browser, without a copy in between. */
+serviceRoutes.get('/:id/files/download', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  const path = c.req.query('path');
+  if (!path) throw badRequest('Which file?');
+
+  let file: Awaited<ReturnType<typeof downloadFile>>;
+  try {
+    file = await downloadFile(service.id, path);
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : 'That file could not be downloaded.');
+  }
+
+  return new Response(file.body, {
+    headers: {
+      'content-type': 'application/octet-stream',
+      'content-length': String(file.size),
+      // The name is quoted and its quotes and backslashes escaped. It came off a
+      // path that has been proved to sit inside this app's storage, but a header is
+      // a different grammar from a path and gets its own escaping.
+      'content-disposition': `attachment; filename="${file.name.replace(/["\\]/g, '\\$&')}"`,
+    },
+  });
 });
 
 /**

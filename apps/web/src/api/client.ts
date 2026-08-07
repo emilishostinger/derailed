@@ -77,8 +77,42 @@ async function upload<T>(path: string, form: FormData): Promise<T> {
   return payload as T;
 }
 
+/**
+ * One file as the whole request body.
+ *
+ * Multipart is the usual shape, but the server reads this one straight into the
+ * container as it arrives, and a multipart body has to be parsed in full before the
+ * file inside it can be found. Everything that isn't the bytes goes in the query
+ * string instead.
+ */
+async function put<T>(path: string, file: Blob): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'x-requested-with': 'derailed', 'content-type': 'application/octet-stream' },
+    body: file,
+  }).catch(() => null);
+
+  if (!response) {
+    throw new ApiError(0, 'offline', "Can't reach your server.", 'Check that Derailed is running.');
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = (payload as { error?: { code: string; message: string; hint?: string } })?.error;
+    throw new ApiError(
+      response.status,
+      error?.code ?? 'server_error',
+      error?.message ?? 'That upload failed.',
+      error?.hint,
+    );
+  }
+  return payload as T;
+}
+
 export const api = {
   upload,
+  putFile: put,
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body ?? {}),

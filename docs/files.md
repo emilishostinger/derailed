@@ -2,12 +2,12 @@
 
 ## Browsing an app's files
 
-Every app with storage has a **Files** tab: browse it, open a text file, edit it, save
-it.
+Every app with storage has a **Files** tab: browse it, upload, download, rename, delete,
+make a folder, and open a text file to edit it.
 
 For anybody who came from cPanel or Plesk this is the first thing they will look for,
 and it is the last real reason to open a terminal for a WordPress site: a theme to
-check, an `uploads` folder to look inside, a config file to read.
+upload, an `uploads` folder to look inside, a config file to read.
 
 ### What it can reach
 
@@ -28,6 +28,38 @@ put on a page.
 
 Saving writes to a temporary file and moves it into place, so a failure half way
 through leaves the original rather than a truncated one.
+
+### Uploading and downloading
+
+Drag files onto the list, or use **Upload**. Both work; a file browser whose only route
+to uploading is a drag is one that half the people using it will think cannot upload.
+Uploads go one at a time so the count means something, and up to 200 MB each.
+
+An upload **replaces** a file of the same name. That is what somebody re-uploading a
+corrected file means, and the alternative is a folder full of `style (2).css`.
+
+Uploaded files and new folders are given the **same owner as the folder they land in**.
+This matters more than it sounds: a theme that lands owned by `root` is a theme
+WordPress cannot then write to, and nothing on the page would say why.
+
+**Download** on a file streams it straight out of the container. Nothing is held on the
+server on the way through, so a large database dump downloads fine, and the bytes are
+the bytes: a PNG comes back identical, which it would not if anything on the path
+treated it as text.
+
+### Renaming and deleting
+
+Both are on the `⋯` menu at the end of a row, and on right-click. Renaming stays in the
+same folder. Deleting a folder takes everything in it.
+
+**Files have no undo.** Apps, databases and projects go to the trash and can be put back
+for seven days; a file inside a running container has nowhere to go, so the confirmation
+says so plainly rather than implying an undo that the rest of Derailed has trained you
+to expect.
+
+The storage folder itself cannot be renamed or deleted here. It is a mount point, and
+removing it would leave the app pointed at a folder that is no longer there. Remove
+storage on the **Storage** tab, where it is clear that the data goes with it.
 
 ## Letting an app send email
 
