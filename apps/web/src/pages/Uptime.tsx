@@ -35,6 +35,9 @@ export function Uptime() {
   // Built from where the dashboard is actually being served, so it is right whether
   // this is a domain, an IP, or a tunnel somebody set up themselves.
   const statusUrl = `${window.location.origin}/status`;
+  // Null means "decide by kind": bought addresses are shown, automatic ones are not,
+  // because an automatic one has the server's IP in it.
+  const onPage = (domain: Domain) => domain.onStatusPage ?? domain.kind === 'custom';
   const [error, setError] = useState<unknown>(null);
   const push = useToasts((s) => s.push);
 
@@ -126,6 +129,52 @@ export function Uptime() {
                       />
                     </Field>
                   </div>
+                  {/* Which addresses actually appear, and why some do not.
+                      Switching the page on and finding it empty, with nothing
+                      saying why, was the whole of this feature's reputation. */}
+                  <div>
+                    <p className="eyebrow mb-1.5">What is on it</p>
+                    <ul className="space-y-1.5">
+                      {sites.map((site) => (
+                        <li key={site.domain.id} className="flex items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={onPage(site.domain)}
+                            id={`sp-${site.domain.id}`}
+                            onChange={async (event) => {
+                              const show = event.target.checked;
+                              try {
+                                await endpoints.setDomainOnStatusPage(site.domain.id, show);
+                                load();
+                              } catch (err) {
+                                setError(err);
+                              }
+                            }}
+                          />
+                          <label htmlFor={`sp-${site.domain.id}`} className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] text-ink">
+                              {site.domain.hostname}
+                            </span>
+                            {site.domain.kind === 'generated' && (
+                              <span className="block text-[11px] text-warn">
+                                This is an automatic address, so it has this server's IP written
+                                into it. Publishing it tells anyone who reads the page where the
+                                machine is.
+                              </span>
+                            )}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    {sites.every((site) => !onPage(site.domain)) && (
+                      <p className="mt-2 text-[12px] text-warn">
+                        Nothing is ticked, so the page is empty. Tick an address above to put it on
+                        there.
+                      </p>
+                    )}
+                  </div>
+
                   {/* The address, said out loud. Switching this on used to leave you
                       with a toggle, a title box, and no idea what to send anybody:
                       the only link went to the JSON, which is not a thing you send a

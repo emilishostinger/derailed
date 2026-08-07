@@ -350,6 +350,9 @@ export const endpoints = {
     api.put<{ person: User }>(`/people/${id}/role`, { role }),
   removePerson: (id: string) => api.delete<{ ok: true }>(`/people/${id}`),
 
+  setDomainOnStatusPage: (domainId: string, show: boolean | null) =>
+    api.put<{ domain: Domain }>(`/uptime/${domainId}/status-page`, { show }),
+
   adoptable: () =>
     api
       .get<{

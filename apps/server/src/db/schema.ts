@@ -596,4 +596,21 @@ export const migrations: Migration[] = [
       ALTER TABLE users ADD COLUMN invited_by TEXT REFERENCES users(id) ON DELETE SET NULL;
     `,
   },
+  {
+    id: 22,
+    name: 'choose what the status page shows',
+    sql: `
+      -- Which addresses appear on the public status page.
+      --
+      -- NULL means "decide by kind", which is what every existing domain gets: the
+      -- ones you bought are shown, the automatic ones are not. That default is not
+      -- arbitrary. An automatic address has the server's IP written into it, so
+      -- publishing one tells the internet where the machine is.
+      --
+      -- It was also the reason people switched the status page on and got an empty
+      -- page with no explanation, so it is now a choice rather than a rule: 1 or 0
+      -- here overrides the default, and the screen says what the trade is.
+      ALTER TABLE domains ADD COLUMN on_status_page INTEGER;
+    `,
+  },
 ];

@@ -83,7 +83,10 @@ const OWNER_ONLY: Rule[] = [
     why: 'Only an owner can change how the server sends email.',
   },
   {
-    path: /^\/uptime\/status-page$/,
+    // Both the page itself and which addresses appear on it. Publishing an automatic
+    // address discloses the server's IP, so it is the same decision as publishing the
+    // page at all.
+    path: /^\/uptime\/(status-page|[^/]+\/status-page)$/,
     methods: ['PUT'],
     why: 'Only an owner can publish a status page, because it is visible to anyone.',
   },

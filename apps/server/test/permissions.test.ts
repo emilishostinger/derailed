@@ -130,6 +130,9 @@ describe('a member', () => {
       ['PUT', '/api/backups/offsite'],
       ['POST', '/api/backups/move/export'],
       ['PUT', '/api/uptime/status-page'],
+      // Choosing which addresses appear is the same decision as publishing the page:
+      // an automatic address has the server's IP in it.
+      ['PUT', '/api/uptime/d1/status-page'],
     ] as const) {
       expect(mayCall('member', method, path).ok).toBe(false);
     }

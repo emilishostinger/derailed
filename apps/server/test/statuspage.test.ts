@@ -10,7 +10,7 @@ import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { closeDb, initDb } from '../src/db/index.ts';
-import { createDomain } from '../src/db/repo/domains.ts';
+import { createDomain, isOnStatusPage, setOnStatusPage } from '../src/db/repo/domains.ts';
 import { createProject } from '../src/db/repo/projects.ts';
 import { createAppService } from '../src/db/repo/services.ts';
 import { SETTINGS, setBoolSetting, setSetting } from '../src/db/repo/settings.ts';
@@ -20,6 +20,7 @@ import { loadSecretKey } from '../src/util/crypto.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'derailed-statuspage-'));
 let app: ReturnType<typeof createApp>;
+let service = '';
 
 const PROJECT = 'Confidential Client Work';
 const SERVICE = 'internal-billing-api';
@@ -30,13 +31,14 @@ beforeAll(() => {
   app = createApp();
 
   const project = createProject(PROJECT);
-  const service = createAppService({
+  const created = createAppService({
     projectId: project.id,
     name: SERVICE,
     repoUrl: null,
     branch: null,
   });
-  createDomain(service.id, 'shop.example.com', 'custom', 'ok', 'active', null);
+  service = created.id;
+  createDomain(service, 'shop.example.com', 'custom', 'ok', 'active', null);
 });
 
 afterAll(async () => {
@@ -118,6 +120,62 @@ describe('what it gives away', () => {
     });
     expect(html).not.toContain('<script>alert');
     expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+describe('which addresses appear', () => {
+  test('bought ones by default, automatic ones not', () => {
+    // An automatic address has the server's IP written into it, so publishing one
+    // tells anyone reading the page where the machine lives.
+    const bought = createDomain(service, 'bought.example.com', 'custom', 'ok', 'active', null);
+    const automatic = createDomain(
+      service,
+      'app.203-0-113-7.sslip.io',
+      'generated',
+      'ok',
+      'active',
+      null,
+    );
+
+    expect(isOnStatusPage(bought)).toBe(true);
+    expect(isOnStatusPage(automatic)).toBe(false);
+  });
+
+  test('but either can be overridden, which is the point', () => {
+    // Switching the page on and finding it empty, with nothing saying why, was the
+    // whole of this feature's reputation. Somebody on automatic addresses can now
+    // publish them knowing what it costs.
+    const automatic = createDomain(
+      service,
+      'other.203-0-113-7.sslip.io',
+      'generated',
+      'ok',
+      'active',
+      null,
+    );
+    expect(isOnStatusPage(setOnStatusPage(automatic.id, true)!)).toBe(true);
+
+    const bought = createDomain(service, 'private.example.com', 'custom', 'ok', 'active', null);
+    expect(isOnStatusPage(setOnStatusPage(bought.id, false)!)).toBe(false);
+
+    // And back to deciding by kind.
+    expect(isOnStatusPage(setOnStatusPage(bought.id, null)!)).toBe(true);
+  });
+
+  test('an opted-in automatic address really does reach the page', async () => {
+    setBoolSetting(SETTINGS.statusPageEnabled, true);
+    const automatic = createDomain(
+      service,
+      'shown.203-0-113-7.sslip.io',
+      'generated',
+      'ok',
+      'active',
+      null,
+    );
+
+    expect(await (await app.request('/status')).text()).not.toContain('shown.203-0-113-7');
+    setOnStatusPage(automatic.id, true);
+    expect(await (await app.request('/status')).text()).toContain('shown.203-0-113-7');
   });
 });
 

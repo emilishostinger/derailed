@@ -195,6 +195,12 @@ export interface Link {
 }
 
 export interface Domain {
+  /**
+   * Whether it appears on the public status page. Null means decide by kind: the
+   * ones you bought are shown, the automatic ones are not, because an automatic
+   * address has the server's IP written into it.
+   */
+  onStatusPage?: boolean | null;
   id: string;
   /** Null until the domain is pointed at one of your apps. */
   serviceId: string | null;

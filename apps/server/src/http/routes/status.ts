@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { allDomains, findDomain } from '../../db/repo/domains.ts';
+import { allDomains, findDomain, isOnStatusPage, setOnStatusPage } from '../../db/repo/domains.ts';
 import { findService } from '../../db/repo/services.ts';
 import {
   getBoolSetting,
@@ -14,6 +14,21 @@ import { badRequest, notFound } from '../errors.ts';
 
 /** Behind the session, like everything else. The public half is mounted separately. */
 export const uptimeRoutes = new Hono<AppEnv>();
+
+/**
+ * Whether one address is published.
+ *
+ * `null` puts it back to the default for its kind. Bought domains are published and
+ * automatic ones are not, because an automatic address has the server's IP written
+ * into it and publishing one tells the internet where the machine lives.
+ */
+uptimeRoutes.put('/:id/status-page', async (c) => {
+  const domain = findDomain(c.req.param('id'));
+  if (!domain) throw notFound('That address');
+  const body = (await c.req.json().catch(() => ({}))) as { show?: boolean | null };
+  const show = body.show === null || body.show === undefined ? null : body.show === true;
+  return c.json({ domain: setOnStatusPage(domain.id, show) });
+});
 
 uptimeRoutes.get('/', (c) =>
   c.json({
@@ -85,7 +100,7 @@ export interface PublicStatus {
  */
 export function publicStatus(): PublicStatus {
   const sites = allDomains()
-    .filter((domain) => domain.serviceId && !domain.redirectTo && domain.kind === 'custom')
+    .filter((domain) => domain.serviceId && !domain.redirectTo && isOnStatusPage(domain))
     .map((domain) => {
       const uptime = summaryFor(domain.id);
       return {

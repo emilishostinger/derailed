@@ -57,8 +57,19 @@ It does **not** say anything about your projects, your apps, your versions, how 
 of anything you run, or why something failed. A failure reason can name an upstream, a
 port or a container, and none of that belongs on a page anybody can read.
 
-Only domains you added yourself appear. The automatic addresses are left off: they are
-working URLs, not ones you would put on a status page.
+## Which addresses appear
+
+Domains you added yourself, and not the automatic ones. That default is not tidiness:
+an automatic address has this server's IP written into it, so publishing one tells
+anyone reading the page where the machine lives.
+
+It is a default rather than a rule. The Uptime screen lists every address with a tick
+box, so you can put an automatic one on there if you would rather have a working status
+page than a hidden IP, and take a bought one off if it is not for the public. The
+warning is on the screen next to the ones that disclose an address.
+
+If nothing is ticked, the screen says so, rather than leaving you with a published page
+that is silently empty.
 
 ## Alerts
 

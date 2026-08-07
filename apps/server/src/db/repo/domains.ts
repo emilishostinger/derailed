@@ -12,6 +12,7 @@ interface DomainRow {
   last_checked_at: number | null;
   created_at: number;
   redirect_to?: string | null;
+  on_status_page?: number | null;
   path_prefix?: string | null;
 }
 
@@ -26,7 +27,33 @@ const toDomain = (row: DomainRow): Domain => ({
   createdAt: row.created_at,
   redirectTo: row.redirect_to ?? null,
   pathPrefix: row.path_prefix ?? null,
+  onStatusPage:
+    row.on_status_page === null || row.on_status_page === undefined
+      ? null
+      : row.on_status_page === 1,
 });
+
+/**
+ * Whether an address is published on the status page.
+ *
+ * Null puts it back to deciding by kind, which is the sane default and the one every
+ * domain starts with.
+ */
+export function setOnStatusPage(id: string, show: boolean | null): Domain | null {
+  db()
+    .query('UPDATE domains SET on_status_page = ? WHERE id = ?')
+    .run(show === null ? null : show ? 1 : 0, id);
+  return findDomain(id);
+}
+
+/** The default when nobody has said either way. */
+export function shownByDefault(domain: Domain): boolean {
+  return domain.kind === 'custom';
+}
+
+export function isOnStatusPage(domain: Domain): boolean {
+  return domain.onStatusPage ?? shownByDefault(domain);
+}
 
 /**
  * Makes one name redirect to another, or stops it.
