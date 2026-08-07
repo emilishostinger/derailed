@@ -620,6 +620,29 @@ export const endpoints = {
   whyBroken: (deploymentId: string) =>
     api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),
 
+  serverTraffic: (range: '24h' | '7d' | '30d') =>
+    api
+      .get<{
+        traffic: {
+          range: string;
+          totals: {
+            requests: number;
+            visitors: number;
+            bots: number;
+            bytes: number;
+            avgMs: number;
+          };
+          live: number;
+          byService: { serviceId: string; name: string; requests: number; visitors: number }[];
+        };
+      }>(`/system/traffic?range=${range}`)
+      .then((r) => r.traffic),
+
+  serverLogs: () =>
+    api
+      .get<{ lines: (LogLine & { serviceId: string; serviceName: string })[] }>('/system/logs')
+      .then((r) => r.lines),
+
   openPorts: () =>
     api
       .get<{

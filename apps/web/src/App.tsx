@@ -2,12 +2,14 @@ import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { FullPageLoader } from './components/ui.tsx';
 import { Agents } from './pages/Agents.tsx';
+import { Analytics } from './pages/Analytics.tsx';
 import { Backups } from './pages/Backups.tsx';
 import { Dashboard } from './pages/Dashboard.tsx';
 import { Domains } from './pages/Domains.tsx';
 import { Help } from './pages/Help.tsx';
 import { Layout } from './pages/Layout.tsx';
 import { Login } from './pages/Login.tsx';
+import { Logs } from './pages/Logs.tsx';
 import { Onboarding } from './pages/Onboarding.tsx';
 import { ProjectPage } from './pages/Project.tsx';
 import { Server } from './pages/Server.tsx';
@@ -37,6 +39,8 @@ export function App() {
           <Route path="/p/:slug" element={<ProjectPage />} />
           <Route path="/domains" element={<Domains />} />
           <Route path="/server" element={<Server />} />
+          <Route path="/logs" element={<Logs />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/updates" element={<Updates />} />
           <Route path="/backups" element={<Backups />} />
           <Route path="/trash" element={<Trash />} />

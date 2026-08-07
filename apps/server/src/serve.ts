@@ -12,6 +12,7 @@ import { initDb } from './db/index.ts';
 import { pruneExpiredSessions } from './db/repo/sessions.ts';
 import { publish } from './events/bus.ts';
 import { createApp } from './http/app.ts';
+import { pruneAudit } from './http/audit.ts';
 import { isSameOrigin, userFromRequest } from './http/auth.ts';
 import { socketHandlers } from './http/sockets.ts';
 import { startJobs, stopJobs } from './jobs/run.ts';
@@ -107,6 +108,12 @@ export async function serve(): Promise<void> {
     () => {
       void pruneOldDeployments().catch(() => undefined);
       pruneMetrics();
+      // Both of these used to happen once, at boot, which is fine for a machine that
+      // is restarted often and useless for one that is not. `traffic_live` is a row
+      // per visitor per minute and is the fastest-growing table here; the audit log
+      // had a prune written for it that nothing ever called.
+      pruneTraffic();
+      pruneAudit();
     },
     6 * 60 * 60 * 1000,
   );

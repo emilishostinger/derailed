@@ -3,6 +3,7 @@ import {
   Activity,
   Archive,
   ArrowUpCircle,
+  BarChart3,
   BookOpen,
   Bot,
   Boxes,
@@ -15,6 +16,7 @@ import {
   Moon,
   Plus,
   RotateCw,
+  ScrollText,
   Search,
   Settings2,
   ShieldAlert,
@@ -433,6 +435,15 @@ function Sidebar() {
         <NavGroup label="Your server">
           <NavItem to="/server" icon={<Activity className="h-4 w-4" />}>
             Server
+          </NavItem>
+          {/* Both of these were per-app tabs first, which answers "how is this app
+              doing" and not "what is this machine doing", and the second question is
+              the one you ask when something is wrong and you do not yet know what. */}
+          <NavItem to="/logs" icon={<ScrollText className="h-4 w-4" />}>
+            Output
+          </NavItem>
+          <NavItem to="/analytics" icon={<BarChart3 className="h-4 w-4" />}>
+            Visitors
           </NavItem>
           <NavItem to="/backups" icon={<Archive className="h-4 w-4" />}>
             Backups

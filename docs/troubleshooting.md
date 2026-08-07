@@ -247,3 +247,35 @@ Open an issue with:
 - `journalctl -u derailed -n 100 --no-pager`
 - the failed deploy's log, if that's the problem
 - your OS and architecture (`uname -a`)
+
+## Something on this server is complaining and I do not know which
+
+**Output** in the sidebar is every app's output in one place, live, with the app's name
+on each line. Filter to one app with the buttons along the top, or search across all of
+them.
+
+This is the page for "something is wrong and I do not yet know where". The per-app Logs
+tab answers "how is this app doing", which is a different question and the wrong one
+when you do not know which app to open.
+
+Apps with the same name are labelled with their project and slug, so two called
+`index.html` are still two different buttons.
+
+### What gets cleaned up, and when
+
+Nothing here grows without a bound, and all of it is swept every six hours:
+
+| | Kept |
+| --- | --- |
+| Build logs and images | The last 10 deploys per app |
+| Visitor figures | 90 days |
+| Live visitor rows | One hour |
+| Processor and memory history | 30 days |
+| Scheduled job runs | The last few per job |
+| Database copies | 48 per database |
+| The audit log | 90 days |
+| Container output | 10 MB per app, three files |
+
+Two of those used to be swept only when Derailed started, which is fine for a machine
+that is restarted often and useless for one that is not. A server that stays up for
+three months now tidies up 360 times rather than once.

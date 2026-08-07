@@ -90,9 +90,9 @@ days are kept, so it would quietly become "against whatever is left".
 **Here now** counts different people in the last five minutes, kept by the minute and
 swept away after an hour.
 
-**The whole server** is at `GET /system/traffic`: every app added up, with a
-per-app breakdown, for when the question is "is this machine busy" rather than "how is
-this app doing".
+**The whole server** has its own page: **Visitors** in the sidebar. Every app added up,
+with a per-app breakdown, for when the question is "is this machine busy" rather than
+"how is this app doing". Also at `GET /system/traffic`.
 
 ### One number that is an upper bound, on purpose
 
