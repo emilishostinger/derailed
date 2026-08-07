@@ -3,6 +3,29 @@
 Four ways to get something running: a repository, a zip, a Docker image, or a
 ready-made app from the [catalogue](apps.md).
 
+## Drag your project in
+
+Drag the folder your project lives in onto the dashboard. Not a zip of it, not a
+repository, just the folder. A zip works too if that is what you have.
+
+It works for the things people actually write:
+
+| | |
+| --- | --- |
+| **Node** | A `package.json` is enough. Your `start` script is used, and `PORT` is set for you |
+| **Python** | A `requirements.txt`, `pyproject.toml` or `Pipfile`. Flask, Django, FastAPI |
+| **PHP** | Including WordPress and anything else with an `index.php` |
+| **A folder of HTML** | Served as a static site, no build at all |
+
+No Dockerfile. Derailed reads the folder, works out what it is, says so in a sentence
+before it starts, and builds it.
+
+`node_modules`, `.git`, `.venv`, `__pycache__`, `dist`, `build` and friends are skipped
+on the way up, so you do not have to tidy up first and the upload stays small.
+
+If it guesses wrong, the app's **Settings** tab lets you say what it is instead.
+
+
 ## From a GitHub repository
 
 Paste the link. Derailed clones it, works out how to build it, and tells you what it

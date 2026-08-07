@@ -1,5 +1,5 @@
 import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { paths } from '../config.ts';
 import { FriendlyError } from './git.ts';
 import { extractZip } from './zip.ts';
@@ -57,6 +57,113 @@ export async function storeUpload(serviceId: string, file: File): Promise<{ file
   await rm(staging, { recursive: true, force: true }).catch(() => undefined);
 
   return { files };
+}
+
+/**
+ * Folders that are somebody else's build output, never somebody's source.
+ *
+ * Skipped on the way in rather than refused, because the person dragging a folder in
+ * has a `node_modules` in it and should not have to know that. It is also the
+ * difference between a 400 kilobyte upload and a 300 megabyte one.
+ */
+const SKIP = new Set([
+  'node_modules',
+  '.git',
+  '.venv',
+  'venv',
+  '__pycache__',
+  '.next',
+  '.nuxt',
+  'dist',
+  'build',
+  'target',
+  '.DS_Store',
+  '.pytest_cache',
+  '.mypy_cache',
+]);
+
+export function isSkipped(relativePath: string): boolean {
+  return relativePath.split('/').some((part) => SKIP.has(part));
+}
+
+/**
+ * Where a dropped file is allowed to land.
+ *
+ * The path comes from a browser and is therefore a request, not an instruction. A
+ * `..` in it, an absolute path, or a null byte would each write outside the folder
+ * this app is allowed to touch.
+ */
+export function safeRelativePath(raw: string): string | null {
+  const path = raw.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!path || path.includes('\0')) return null;
+  const parts = path.split('/').filter((part) => part && part !== '.');
+  if (parts.some((part) => part === '..')) return null;
+  if (!parts.length) return null;
+  return parts.join('/');
+}
+
+/**
+ * A folder, dragged in as it sits on somebody's disk.
+ *
+ * The zip route exists because it always has, and because a zip is what you get when
+ * somebody downloads their own project. But nobody keeps their work as a zip, and
+ * "compress this first" is a step that only exists because the software asked for it.
+ */
+export async function storeFolder(
+  serviceId: string,
+  files: { path: string; file: File }[],
+): Promise<{ files: number }> {
+  const wanted = files
+    .map((entry) => ({ ...entry, path: safeRelativePath(entry.path) }))
+    .filter((entry): entry is { path: string; file: File } => !!entry.path)
+    .filter((entry) => !isSkipped(entry.path));
+
+  if (!wanted.length) {
+    throw new FriendlyError(
+      'That folder had nothing in it that Derailed can use.',
+      'Drop the folder that has your code in it, not the one above it.',
+    );
+  }
+
+  const total = wanted.reduce((sum, entry) => sum + entry.file.size, 0);
+  if (total > MAX_UPLOAD_BYTES) {
+    throw new FriendlyError(
+      `That folder is ${Math.round(total / 1024 / 1024)} MB, which is bigger than Derailed accepts.`,
+      'Build output and dependency folders are already skipped, so this is a lot of source.',
+    );
+  }
+
+  const target = uploadDir(serviceId);
+  const staging = `${target}.incoming`;
+  await rm(staging, { recursive: true, force: true });
+  await mkdir(staging, { recursive: true });
+
+  try {
+    for (const entry of wanted) {
+      const destination = join(staging, entry.path);
+      // Belt and braces. `safeRelativePath` already refused anything that could get
+      // out, and this refuses anything that somehow did.
+      if (!destination.startsWith(`${staging}/`)) continue;
+      await mkdir(dirname(destination), { recursive: true });
+      await Bun.write(destination, entry.file);
+    }
+  } catch (err) {
+    await rm(staging, { recursive: true, force: true });
+    throw err;
+  }
+
+  const unwrapped = await unwrapSingleDirectory(staging);
+  const count = await countFiles(unwrapped);
+  if (count === 0) {
+    await rm(staging, { recursive: true, force: true });
+    throw new FriendlyError('That folder was empty.');
+  }
+
+  await rm(target, { recursive: true, force: true });
+  await rename(unwrapped, target);
+  await rm(staging, { recursive: true, force: true }).catch(() => undefined);
+
+  return { files: count };
 }
 
 export async function hasUpload(serviceId: string): Promise<boolean> {

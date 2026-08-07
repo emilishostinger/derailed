@@ -2,6 +2,7 @@ import { CloudUpload, FolderPlus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
+import { type DroppedFile, readDroppedFolder } from '../lib/dropfiles.ts';
 import { useProjects } from '../stores/projects.ts';
 import { cx, ErrorNote, Modal, Spinner } from './ui.tsx';
 
@@ -25,7 +26,8 @@ export function DropToHost({ into }: { into?: { id: string; name: string; slug: 
   const navigate = useNavigate();
 
   const [dragging, setDragging] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  // Either a zip somebody downloaded, or a folder as it sits on their disk.
+  const [drop, setDrop] = useState<Drop | null>(null);
   const [rejected, setRejected] = useState<string | null>(null);
   // `dragleave` fires when the pointer crosses into a child, so the overlay would
   // flicker on every element it passed over. Counting enter and leave is the fix.
@@ -55,14 +57,28 @@ export function DropToHost({ into }: { into?: { id: string; name: string; slug: 
       depth.current = 0;
       setDragging(false);
 
-      const dropped = event.dataTransfer?.files?.[0];
-      if (!dropped) return;
-      if (!dropped.name.toLowerCase().endsWith('.zip')) {
-        setRejected(dropped.name);
-        return;
-      }
-      setRejected(null);
-      setFile(dropped);
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+
+      // A folder first, because that is how work actually sits on somebody's disk.
+      // "Compress this first" was a step that only ever existed because the software
+      // asked for it.
+      void readDroppedFolder(transfer).then((folder) => {
+        if (folder?.length) {
+          setRejected(null);
+          setDrop({ kind: 'folder', files: folder });
+          return;
+        }
+
+        const dropped = transfer.files?.[0];
+        if (!dropped) return;
+        if (!dropped.name.toLowerCase().endsWith('.zip')) {
+          setRejected(dropped.name);
+          return;
+        }
+        setRejected(null);
+        setDrop({ kind: 'zip', file: dropped });
+      });
     };
 
     window.addEventListener('dragenter', onEnter);
@@ -87,21 +103,25 @@ export function DropToHost({ into }: { into?: { id: string; name: string; slug: 
               {into ? `Drop it into ${into.name}` : 'Drop it anywhere'}
             </p>
             <p className="mt-1 text-[13px] text-ink-muted">
-              A zip of your site goes online in about a minute.
+              A folder or a zip. Node, Python, PHP, or a folder of HTML.
+            </p>
+            <p className="mt-0.5 text-[12px] text-ink-faint">
+              No Dockerfile needed. node_modules and build folders are skipped.
             </p>
           </div>
         </div>
       )}
 
       {rejected && (
-        <Modal title="That needs to be a zip" onClose={() => setRejected(null)}>
+        <Modal title="Drop a folder, or a zip" onClose={() => setRejected(null)}>
           <p className="text-[13px] text-ink">
-            <span className="font-medium">{rejected}</span> isn't a .zip file, so there is nothing
-            to unpack.
+            <span className="font-medium">{rejected}</span> is a single file, so there is no project
+            in it to build.
           </p>
           <p className="hint mt-2">
-            Right-click the folder your site lives in and compress it, then drop that. Leave out
-            node_modules if it has one.
+            Drag the whole folder your project lives in, or a .zip of it. Anything inside
+            node_modules or a build folder is skipped on the way, so you do not have to tidy up
+            first.
           </p>
           <div className="mt-4 flex justify-end">
             <button type="button" className="btn-primary" onClick={() => setRejected(null)}>
@@ -111,16 +131,16 @@ export function DropToHost({ into }: { into?: { id: string; name: string; slug: 
         </Modal>
       )}
 
-      {file && (
+      {drop && (
         <PlaceIt
-          file={file}
+          drop={drop}
           // Inside a project there is nothing to choose between, so the list is not
           // offered: `PlaceIt` treats a single known destination as already decided.
           projects={into ? [into] : projects}
           decided={!!into}
-          onClose={() => setFile(null)}
+          onClose={() => setDrop(null)}
           onDone={async (slug) => {
-            setFile(null);
+            setDrop(null);
             await load();
             navigate(`/p/${slug}`);
           }}
@@ -130,22 +150,40 @@ export function DropToHost({ into }: { into?: { id: string; name: string; slug: 
   );
 }
 
+type Drop = { kind: 'zip'; file: File } | { kind: 'folder'; files: DroppedFile[] };
+
+/** What to call the app: the folder's name, or the zip's without its extension. */
+function nameOf(drop: Drop): string {
+  if (drop.kind === 'zip') {
+    return drop.file.name.replace(/\.zip$/i, '').replace(/[_\s]+/g, '-');
+  }
+  // Every path is relative to the folder that was dropped, so the folder's own name
+  // is not in them. The first segment is only a name when there is a subfolder.
+  return 'site';
+}
+
+function sizeOf(drop: Drop): number {
+  return drop.kind === 'zip'
+    ? drop.file.size
+    : drop.files.reduce((sum, entry) => sum + entry.file.size, 0);
+}
+
 /** The one question that cannot be guessed: which project this belongs to. */
 function PlaceIt({
-  file,
+  drop,
   projects,
   decided,
   onClose,
   onDone,
 }: {
-  file: File;
+  drop: Drop;
   projects: { id: string; name: string; slug: string }[];
   /** The destination is already known, so do not ask. */
   decided?: boolean;
   onClose: () => void;
   onDone: (slug: string) => void | Promise<void>;
 }) {
-  const suggested = file.name.replace(/\.zip$/i, '').replace(/[_\s]+/g, '-');
+  const suggested = nameOf(drop);
   const [name, setName] = useState(suggested);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -170,7 +208,9 @@ function PlaceIt({
       const service = await endpoints.createUploadApp(project.id, label);
       madeService = service.id;
 
-      await endpoints.uploadFiles(service.id, file);
+      await (drop.kind === 'folder'
+        ? endpoints.uploadFolder(service.id, drop.files)
+        : endpoints.uploadFiles(service.id, drop.file));
       await onDone(project.slug);
     } catch (err) {
       if (madeService) await endpoints.deleteService(madeService).catch(() => undefined);
@@ -189,12 +229,16 @@ function PlaceIt({
   }, []);
 
   const settled = decided || projects.length === 0;
-  const megabytes = (file.size / 1024 / 1024).toFixed(1);
+  const megabytes = (sizeOf(drop) / 1024 / 1024).toFixed(1);
 
   return (
     <Modal
       title={settled ? 'Putting it online' : 'Where should it live?'}
-      subtitle={`${file.name} · ${megabytes} MB`}
+      subtitle={
+        drop.kind === 'folder'
+          ? `${suggested} · ${drop.files.length} files · ${megabytes} MB`
+          : `${drop.file.name} · ${megabytes} MB`
+      }
       onClose={busy ? () => undefined : onClose}
     >
       {settled ? (

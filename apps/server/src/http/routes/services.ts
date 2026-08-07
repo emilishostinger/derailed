@@ -6,7 +6,7 @@ import { queueDeployment } from '../../build/pipeline.ts';
 import { previewsEnabled, previewsFor, setPreviews, syncPreviews } from '../../build/previews.ts';
 import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
-import { MAX_UPLOAD_BYTES, storeUpload } from '../../build/upload.ts';
+import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.ts';
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
 import { listDomains } from '../../db/repo/domains.ts';
 import { listEnv, replaceUserEnv } from '../../db/repo/env.ts';
@@ -351,12 +351,30 @@ serviceRoutes.post('/:id/upload', async (c) => {
   }
 
   const form = await c.req.formData().catch(() => null);
-  const file = form?.get('file');
-  if (!(file instanceof File)) {
-    throw badRequest('No file arrived.', 'Drag a .zip of your project onto the app.');
-  }
 
-  const { files } = await storeUpload(service.id, file);
+  // Two shapes arrive here. A single `file` is a zip, which is what you get when
+  // somebody downloads their own project. Repeated `files` are a folder dragged in
+  // exactly as it sits on their disk, each one named with its path inside that folder,
+  // which is the shape people actually have their work in.
+  const folder = (form?.getAll('files') ?? []).filter(
+    (entry): entry is File => entry instanceof File,
+  );
+
+  let files: number;
+  if (folder.length) {
+    files = (
+      await storeFolder(
+        service.id,
+        folder.map((file) => ({ path: file.name, file })),
+      )
+    ).files;
+  } else {
+    const file = form?.get('file');
+    if (!(file instanceof File)) {
+      throw badRequest('No files arrived.', 'Drag your project folder, or a .zip of it.');
+    }
+    files = (await storeUpload(service.id, file)).files;
+  }
   // A repository app that gets files dropped on it becomes an upload app.
   if (service.source !== 'upload') updateService(service.id, { source: 'upload' });
 
