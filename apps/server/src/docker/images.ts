@@ -116,6 +116,14 @@ export interface BuildOptions {
   buildArgs?: Record<string, string>;
   labels?: Record<string, string>;
   target?: string;
+  /**
+   * An image whose layers may be reused, on top of whatever is already in the local
+   * cache. Named explicitly because the automatic cache only follows a build's own
+   * parent chain, and that chain is broken by the very thing Derailed does after
+   * every deploy: prune the images nothing is running. Without this, the second
+   * deploy of an unchanged project reinstalls every dependency from scratch.
+   */
+  cacheFrom?: string;
   onLine?: (line: string, stream: 'build' | 'system') => void;
   signal?: AbortSignal;
 }
@@ -146,6 +154,7 @@ export async function buildImage(options: BuildOptions): Promise<void> {
       target: options.target,
       buildargs: options.buildArgs ? JSON.stringify(options.buildArgs) : undefined,
       labels: options.labels ? JSON.stringify(options.labels) : undefined,
+      cachefrom: options.cacheFrom ? JSON.stringify([options.cacheFrom]) : undefined,
     },
     headers: { 'content-type': 'application/x-tar' },
     body: options.context as RequestInit['body'],

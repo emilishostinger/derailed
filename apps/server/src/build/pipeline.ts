@@ -44,7 +44,25 @@ import { detectSite, writeSiteDockerfile } from './site.ts';
 import { createTarContext } from './tar.ts';
 import { hasUpload, uploadDir } from './upload.ts';
 
-const GLOBAL_CONCURRENCY = 2;
+/**
+ * How many builds may run at once, from how much machine there is.
+ *
+ * Two was a constant, and on the servers this is aimed at it was the wrong one. A
+ * build is the hungriest thing Derailed ever does, and two of them on a single core
+ * do not take half as long each: they take longer than running one after the other,
+ * because they spend the time fighting over the core and the disk. On a $5 box that
+ * is the difference between a deploy that finishes and one that is killed for running
+ * out of memory half way through.
+ *
+ * One per core, less one for everything else the machine is doing, and never more
+ * than three however big the box: past that the disk is the limit and more builders
+ * only means more contention for it.
+ */
+export function buildConcurrency(cores = navigator.hardwareConcurrency || 1): number {
+  return Math.max(1, Math.min(3, cores - 1));
+}
+
+const GLOBAL_CONCURRENCY = buildConcurrency();
 const HEALTH_TIMEOUT_MS = 60_000;
 const OLD_CONTAINER_GRACE_S = 10;
 
@@ -292,10 +310,16 @@ async function run(job: Job): Promise<void> {
     const context = await createTarContext(buildDir);
     log.write('Building…');
     try {
+      // The image this app is running now, offered to the builder as a source of
+      // layers. Otherwise a deploy that changed one line reinstalls every dependency,
+      // because pruning after the last deploy took the parent chain with it.
+      const previousImage = runningDeployment(service.id)?.imageTag ?? undefined;
+
       await buildImage({
         context: context.stream,
         tag: imageTag,
         dockerfile,
+        cacheFrom: previousImage,
         buildArgs: userEnv,
         labels: managedLabels({
           projectId: project.id,

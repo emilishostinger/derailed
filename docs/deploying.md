@@ -204,6 +204,31 @@ Shared variables appear on each app's Variables tab under **Set for you**, greye
 the tab still answers the question it exists to answer: what will actually be set when
 this runs.
 
+## Builds, and the machine they run on
+
+**Two builds do not run at once on a small server.** How many are allowed is worked
+out from the machine: one per core, less one for everything else it is doing, and
+never more than three however big the box.
+
+On a single-core server that means one. Two builds there do not take half as long
+each; they take longer than running them one after the other, because the time goes on
+fighting over the core and the disk rather than on work. On a $5 box it is the
+difference between a deploy that finishes and one killed for running out of memory
+half way through. Past three the disk is the limit anyway, and more builders only means
+more of them waiting on it.
+
+A newer deploy of the same app still replaces an older one rather than queueing behind
+it, which is unchanged.
+
+**Layers are reused between deploys.** The image your app is running from is offered to
+the builder as a source of layers, so a deploy that changed one line does not reinstall
+every dependency.
+
+That has to be named explicitly, because Docker's automatic cache only follows a
+build's own parent chain, and Derailed breaks that chain itself: tidying up after a
+deploy removes every image nothing is running. The image that *is* running is the one
+image never pruned, which is why it is the one offered.
+
 ## When a build fails
 
 The error is translated into what happened and what to do next, with the last lines of
