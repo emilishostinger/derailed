@@ -16,7 +16,7 @@ import { dockerFetch } from './client.ts';
 
 const BLOCK = 512;
 
-/** Octal, NUL-terminated, right-aligned in `width` — how tar stores a number. */
+/** Octal, NUL-terminated, right-aligned in `width`, which is how tar stores a number. */
 function octal(value: number, width: number): string {
   return `${value
     .toString(8)
@@ -54,7 +54,7 @@ export function tarHeader(
   // The checksum is computed with its own field read as eight spaces, then written
   // into that field afterwards. A rule that only makes sense once you have seen it.
   block.fill(0x20, 148, 156);
-  block[156] = 0x30; // typeflag '0' — a regular file
+  block[156] = 0x30; // typeflag '0', a regular file
   put('ustar\0', 257, 6);
   put('00', 263, 2);
 

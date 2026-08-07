@@ -1,11 +1,31 @@
 import { schemas } from '@derailed/shared';
 import { Hono } from 'hono';
-import { canBrowse, listTables, readTable, runQuery } from '../../catalog/browse.ts';
+import {
+  browseKeys,
+  browseKind,
+  canBrowse,
+  getDocument,
+  getKey,
+  listTables,
+  putDocument,
+  putKey,
+  readTable,
+  removeDocument,
+  removeKey,
+  runQuery,
+  updateCell,
+} from '../../catalog/browse.ts';
 import { connectionUrl, credentialsFor, startDatabaseContainer } from '../../catalog/create.ts';
 import { DATABASE_ENGINES, findEngine } from '../../catalog/databases.ts';
 import { connectServices, disconnectServices, refreshLinksTo } from '../../catalog/links.ts';
 import { listLinks } from '../../db/repo/links.ts';
 import { findProject } from '../../db/repo/projects.ts';
+import {
+  deleteSavedQuery,
+  findSavedQuery,
+  listSavedQueries,
+  saveQuery,
+} from '../../db/repo/queries.ts';
 import { findService, updateService } from '../../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../../db/repo/settings.ts';
 import { destroyContainer, listContainers } from '../../docker/containers.ts';
@@ -23,8 +43,9 @@ export const catalogRoutes = new Hono<AppEnv>();
  */
 export const browseRoutes = new Hono<AppEnv>();
 
-browseRoutes.get('/:id/tables', async (c) => {
-  const service = findService(c.req.param('id'));
+/** The one thing every screen here needs first: a database Derailed can actually read. */
+function browsable(id: string) {
+  const service = findService(id);
   if (!service) throw notFound('That database');
   if (!canBrowse(service.dbEngine)) {
     throw badRequest(
@@ -32,37 +53,192 @@ browseRoutes.get('/:id/tables', async (c) => {
       "Its Terminal tab has the engine's own client on it.",
     );
   }
-  return c.json({ tables: await listTables(service.id) });
+  return service;
+}
+
+/** Every route here says what the engine said, rather than a house error over the top. */
+async function speaking<T>(work: () => Promise<T>, fallback: string): Promise<T> {
+  try {
+    return await work();
+  } catch (err) {
+    throw badRequest(err instanceof Error ? err.message : fallback);
+  }
+}
+
+browseRoutes.get('/:id/tables', async (c) => {
+  const service = browsable(c.req.param('id'));
+  return c.json({
+    kind: browseKind(service.dbEngine),
+    tables: await speaking(() => listTables(service.id), 'That database could not be read.'),
+  });
 });
 
 browseRoutes.get('/:id/tables/:table', async (c) => {
-  const service = findService(c.req.param('id'));
-  if (!service) throw notFound('That database');
-  try {
-    return c.json({
-      result: await readTable(
+  const service = browsable(c.req.param('id'));
+  return c.json({
+    result: await speaking(
+      () =>
+        readTable(
+          service.id,
+          c.req.param('table'),
+          Number(c.req.query('limit') ?? 100) || 100,
+          Number(c.req.query('offset') ?? 0) || 0,
+        ),
+      'That did not work.',
+    ),
+  });
+});
+
+/**
+ * Changes one cell.
+ *
+ * A `null` value is a real null rather than a missing field, which is why the body is
+ * checked for the key being present rather than for the value being truthy. Clearing
+ * a cell to empty and clearing it to null are different things, and a screen that
+ * cannot express both is a screen people stop trusting.
+ */
+browseRoutes.put('/:id/tables/:table/cell', async (c) => {
+  const service = browsable(c.req.param('id'));
+  const body = (await c.req.json().catch(() => ({}))) as {
+    key?: Record<string, string | null>;
+    column?: string;
+    value?: string | null;
+  };
+  if (!body.key || typeof body.key !== 'object') throw badRequest('Which row?');
+  if (!body.column) throw badRequest('Which column?');
+  if (!('value' in body)) throw badRequest('There is nothing to save.');
+
+  await speaking(
+    () =>
+      updateCell(
         service.id,
         c.req.param('table'),
-        Number(c.req.query('limit') ?? 100) || 100,
-        Number(c.req.query('offset') ?? 0) || 0,
+        body.key ?? {},
+        body.column ?? '',
+        body.value ?? null,
       ),
-    });
-  } catch (err) {
-    throw badRequest(err instanceof Error ? err.message : 'That did not work.');
-  }
+    'That change could not be saved.',
+  );
+  return c.json({ ok: true });
 });
 
 browseRoutes.post('/:id/query', async (c) => {
+  const service = browsable(c.req.param('id'));
+  const body = (await c.req.json().catch(() => ({}))) as { sql?: string; body?: string };
+  // `sql` is what this was called when only three engines could be browsed. Kept so an
+  // older client, or a script somebody wrote against it, still works.
+  const statement = (body.body ?? body.sql ?? '').trim();
+  if (!statement) throw badRequest('There is nothing to run.');
+
+  return c.json({
+    result: await speaking(() => runQuery(service.id, statement), 'That did not work.'),
+  });
+});
+
+/** One document, as the JSON somebody would edit. MongoDB only. */
+browseRoutes.get('/:id/collections/:name/:documentId', async (c) => {
+  const service = browsable(c.req.param('id'));
+  return c.json({
+    document: await speaking(
+      () => getDocument(service.id, c.req.param('name'), c.req.param('documentId')),
+      'That document could not be read.',
+    ),
+  });
+});
+
+browseRoutes.put('/:id/collections/:name/:documentId', async (c) => {
+  const service = browsable(c.req.param('id'));
+  const body = (await c.req.json().catch(() => ({}))) as { document?: string };
+  if (typeof body.document !== 'string') throw badRequest('There is nothing to save.');
+
+  await speaking(
+    () =>
+      putDocument(service.id, c.req.param('name'), c.req.param('documentId'), body.document ?? ''),
+    'That document could not be saved.',
+  );
+  return c.json({ ok: true });
+});
+
+browseRoutes.delete('/:id/collections/:name/:documentId', async (c) => {
+  const service = browsable(c.req.param('id'));
+  await speaking(
+    () => removeDocument(service.id, c.req.param('name'), c.req.param('documentId')),
+    'That document could not be deleted.',
+  );
+  return c.json({ ok: true });
+});
+
+/**
+ * Keys, for Redis and Valkey.
+ *
+ * Paged by cursor rather than by offset, because that is what `SCAN` gives and
+ * pretending otherwise would mean `KEYS *`, which blocks the server for as long as it
+ * takes to walk every key. A browsing screen should not be able to take a site down.
+ */
+browseRoutes.get('/:id/keys', async (c) => {
+  const service = browsable(c.req.param('id'));
+  return c.json({
+    page: await speaking(
+      () => browseKeys(service.id, c.req.query('pattern') ?? '*', c.req.query('cursor') ?? '0'),
+      'Those keys could not be read.',
+    ),
+  });
+});
+
+browseRoutes.get('/:id/keys/value', async (c) => {
+  const service = browsable(c.req.param('id'));
+  const key = c.req.query('key');
+  if (!key) throw badRequest('Which key?');
+  return c.json({
+    value: await speaking(() => getKey(service.id, key), 'That key could not be read.'),
+  });
+});
+
+browseRoutes.put('/:id/keys/value', async (c) => {
+  const service = browsable(c.req.param('id'));
+  const body = (await c.req.json().catch(() => ({}))) as { key?: string; value?: string };
+  if (!body.key) throw badRequest('Which key?');
+  if (typeof body.value !== 'string') throw badRequest('There is nothing to save.');
+
+  await speaking(
+    () => putKey(service.id, body.key ?? '', body.value ?? ''),
+    'That key could not be saved.',
+  );
+  return c.json({ ok: true });
+});
+
+browseRoutes.delete('/:id/keys', async (c) => {
+  const service = browsable(c.req.param('id'));
+  const key = c.req.query('key');
+  if (!key) throw badRequest('Which key?');
+  await speaking(() => removeKey(service.id, key), 'That key could not be deleted.');
+  return c.json({ ok: true });
+});
+
+/** Queries worth keeping, against this database. */
+browseRoutes.get('/:id/queries', (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That database');
-  const body = (await c.req.json().catch(() => ({}))) as { sql?: string };
-  if (!body.sql?.trim()) throw badRequest('There is no query to run.');
+  return c.json({ queries: listSavedQueries(service.id) });
+});
 
-  try {
-    return c.json({ result: await runQuery(service.id, body.sql) });
-  } catch (err) {
-    throw badRequest(err instanceof Error ? err.message : 'That query did not work.');
-  }
+browseRoutes.post('/:id/queries', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+  const body = (await c.req.json().catch(() => ({}))) as { name?: string; body?: string };
+  const name = body.name?.trim();
+  if (!name) throw badRequest('What should this be called?');
+  if (name.length > 80) throw badRequest('That name is too long. Eighty characters is the limit.');
+  if (!body.body?.trim()) throw badRequest('There is nothing to save.');
+
+  return c.json({ query: saveQuery(service.id, name, body.body) }, 201);
+});
+
+browseRoutes.delete('/:id/queries/:queryId', (c) => {
+  const query = findSavedQuery(c.req.param('queryId'));
+  if (!query || query.serviceId !== c.req.param('id')) throw notFound('That saved query');
+  deleteSavedQuery(query.id);
+  return c.json({ ok: true });
 });
 
 export const connectionRoutes = new Hono<AppEnv>();

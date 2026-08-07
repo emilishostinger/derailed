@@ -2,6 +2,7 @@ import type {
   AlertChannel,
   AlertEventKind,
   AlertSettings,
+  BrowseKind,
   CostComparison,
   DeployDiff,
   Deployment,
@@ -17,12 +18,15 @@ import type {
   FreeDomain,
   Job,
   JobRun,
+  KeyPage,
+  KeyValue,
   LogLine,
   MetricsHistory,
   OffsiteSettings,
   OffsiteStatus,
   Project,
   QueryResult,
+  SavedQuery,
   Service,
   SwapState,
   TableSummary,
@@ -470,15 +474,69 @@ export const endpoints = {
     api.put<{ domain: Domain }>(`/domains/${domainId}/path`, { pathPrefix }),
 
   tables: (serviceId: string) =>
-    api.get<{ tables: TableSummary[] }>(`/services/${serviceId}/tables`).then((r) => r.tables),
-  readTable: (serviceId: string, table: string) =>
+    api.get<{ kind: BrowseKind; tables: TableSummary[] }>(`/services/${serviceId}/tables`),
+  readTable: (serviceId: string, table: string, limit = 100, offset = 0) =>
     api
-      .get<{ result: QueryResult }>(`/services/${serviceId}/tables/${encodeURIComponent(table)}`)
+      .get<{ result: QueryResult }>(
+        `/services/${serviceId}/tables/${encodeURIComponent(table)}?limit=${limit}&offset=${offset}`,
+      )
       .then((r) => r.result),
-  runQuery: (serviceId: string, sql: string) =>
+  updateCell: (
+    serviceId: string,
+    table: string,
+    key: Record<string, string | null>,
+    column: string,
+    value: string | null,
+  ) =>
+    api.put<{ ok: true }>(`/services/${serviceId}/tables/${encodeURIComponent(table)}/cell`, {
+      key,
+      column,
+      value,
+    }),
+  runQuery: (serviceId: string, body: string) =>
     api
-      .post<{ result: QueryResult }>(`/services/${serviceId}/query`, { sql })
+      .post<{ result: QueryResult }>(`/services/${serviceId}/query`, { body })
       .then((r) => r.result),
+
+  readDocument: (serviceId: string, collection: string, documentId: string) =>
+    api
+      .get<{ document: string }>(
+        `/services/${serviceId}/collections/${encodeURIComponent(collection)}/${encodeURIComponent(documentId)}`,
+      )
+      .then((r) => r.document),
+  saveDocument: (serviceId: string, collection: string, documentId: string, document: string) =>
+    api.put<{ ok: true }>(
+      `/services/${serviceId}/collections/${encodeURIComponent(collection)}/${encodeURIComponent(documentId)}`,
+      { document },
+    ),
+  deleteDocument: (serviceId: string, collection: string, documentId: string) =>
+    api.delete<{ ok: true }>(
+      `/services/${serviceId}/collections/${encodeURIComponent(collection)}/${encodeURIComponent(documentId)}`,
+    ),
+
+  browseKeys: (serviceId: string, pattern: string, cursor: string) =>
+    api
+      .get<{ page: KeyPage }>(
+        `/services/${serviceId}/keys?pattern=${encodeURIComponent(pattern)}&cursor=${encodeURIComponent(cursor)}`,
+      )
+      .then((r) => r.page),
+  readKey: (serviceId: string, key: string) =>
+    api
+      .get<{ value: KeyValue }>(`/services/${serviceId}/keys/value?key=${encodeURIComponent(key)}`)
+      .then((r) => r.value),
+  saveKey: (serviceId: string, key: string, value: string) =>
+    api.put<{ ok: true }>(`/services/${serviceId}/keys/value`, { key, value }),
+  deleteKey: (serviceId: string, key: string) =>
+    api.delete<{ ok: true }>(`/services/${serviceId}/keys?key=${encodeURIComponent(key)}`),
+
+  savedQueries: (serviceId: string) =>
+    api.get<{ queries: SavedQuery[] }>(`/services/${serviceId}/queries`).then((r) => r.queries),
+  saveNamedQuery: (serviceId: string, name: string, body: string) =>
+    api
+      .post<{ query: SavedQuery }>(`/services/${serviceId}/queries`, { name, body })
+      .then((r) => r.query),
+  deleteSavedQuery: (serviceId: string, queryId: string) =>
+    api.delete<{ ok: true }>(`/services/${serviceId}/queries/${queryId}`),
 
   metrics: (serviceId: string, range: '24h' | '7d' | '30d') =>
     api

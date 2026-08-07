@@ -532,7 +532,16 @@ export interface DeployDiff {
   summary: string;
 }
 
-/** One table inside a database, for the Browse tab. */
+/**
+ * What sort of thing is inside a database.
+ *
+ * The Browse tab is one screen for six engines, but three of them keep rows, one
+ * keeps documents and two keep keys. Pretending those are the same thing produces a
+ * screen that is wrong for all of them, so the shape is named and the screen adapts.
+ */
+export type BrowseKind = 'sql' | 'documents' | 'keys';
+
+/** One table, collection or key namespace inside a database, for the Browse tab. */
 export interface TableSummary {
   name: string;
   /** An estimate, from the engine's own statistics, and said to be one. */
@@ -541,10 +550,56 @@ export interface TableSummary {
 
 export interface QueryResult {
   columns: string[];
-  rows: string[][];
+  /** `null` is the database's null, which is not the same as an empty string. */
+  rows: (string | null)[][];
   truncated: boolean;
-  /** Always true today. The query box only runs statements that read. */
+  /** Whether this result can be edited in place. A query's results never can. */
   readOnly: boolean;
+  /**
+   * The columns that identify a row, so an edit knows which one it means. Empty when
+   * the table has no primary key, which is why `readOnlyReason` exists.
+   */
+  primaryKey?: string[];
+  /** Said on the page when editing is off, instead of cells that silently do nothing. */
+  readOnlyReason?: string | null;
+  /** How many rows there are altogether, when the engine can say without a scan. */
+  total?: number | null;
+}
+
+/** One key in Redis or Valkey. */
+export interface KeyEntry {
+  name: string;
+  /** `string`, `list`, `hash`, `set`, `zset`, `stream`. */
+  type: string;
+  /** Seconds until it expires, or null when it does not. */
+  expiresIn: number | null;
+}
+
+/** A page of keys. `cursor` is where to carry on from, or null at the end. */
+export interface KeyPage {
+  keys: KeyEntry[];
+  cursor: string | null;
+}
+
+/** What one key holds, rendered for looking at. */
+export interface KeyValue {
+  key: string;
+  type: string;
+  expiresIn: number | null;
+  /** Pairs for a hash or a sorted set, single values for everything else. */
+  entries: { field: string | null; value: string }[];
+  truncated: boolean;
+  /** Only a plain string can be edited here; the rest say why not. */
+  editable: boolean;
+}
+
+/** A query somebody wanted to keep, against one database. */
+export interface SavedQuery {
+  id: string;
+  serviceId: string;
+  name: string;
+  body: string;
+  createdAt: number;
 }
 
 /** One thing in an app's storage, for the Files tab. */

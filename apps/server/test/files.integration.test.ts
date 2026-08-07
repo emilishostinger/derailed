@@ -112,7 +112,13 @@ suite('files in a real container', () => {
   }, 60_000);
 
   test('an upload lands owned by whoever owns the folder', async () => {
-    await uploadInto(serviceId, STORAGE, 'owned.txt', 5, streamOf(new TextEncoder().encode('hello')));
+    await uploadInto(
+      serviceId,
+      STORAGE,
+      'owned.txt',
+      5,
+      streamOf(new TextEncoder().encode('hello')),
+    );
 
     // Uploaded as root would be 0:0, and a PHP app could not then write to it.
     const { stdout } = Bun.spawnSync([

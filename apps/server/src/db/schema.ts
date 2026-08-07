@@ -613,4 +613,25 @@ export const migrations: Migration[] = [
       ALTER TABLE domains ADD COLUMN on_status_page INTEGER;
     `,
   },
+  {
+    id: 23,
+    name: 'queries worth keeping',
+    sql: `
+      -- The query box was a box you typed into and then lost. The query somebody
+      -- actually wants is the same three every time: how many signups today, which
+      -- orders are stuck, what did that job write. Retyping them from memory is the
+      -- reason people give up and install a client instead.
+      --
+      -- Kept per database rather than per person: the useful queries are about the
+      -- shape of the data, and a second owner arriving should find them already there.
+      CREATE TABLE saved_queries (
+        id         TEXT PRIMARY KEY,
+        service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        name       TEXT NOT NULL,
+        body       TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_saved_queries_service ON saved_queries(service_id);
+    `,
+  },
 ];

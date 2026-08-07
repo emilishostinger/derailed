@@ -71,9 +71,15 @@ Creating a service:
 | `GET /services/:id/env` · `PUT` | Environment variables |
 | `GET /services/:id/traffic?range=24h\|7d\|30d` | Visitor figures |
 | `GET /services/:id/connection` | Database credentials and ready-made commands |
-| `GET /services/:id/tables` | The tables in a database, with rough row counts |
-| `GET /services/:id/tables/:table` | A page of one table |
-| `POST /services/:id/query` | `{ sql }`. Statements that read, and nothing else |
+| `GET /services/:id/tables` | `{ kind, tables }`. `kind` is `sql`, `documents` or `keys`, and decides which of the rest apply |
+| `GET /services/:id/tables/:table?limit=&offset=` | A page of one table or collection, with `primaryKey` and a total |
+| `PUT /services/:id/tables/:table/cell` | `{ key, column, value }`. One cell. `value: null` is a real null |
+| `POST /services/:id/query` | `{ body }`. Reads only, per engine. `{ sql }` still works |
+| `GET · PUT · DELETE /services/:id/collections/:name/:documentId` | One MongoDB document, as JSON. `PUT` replaces it whole |
+| `GET /services/:id/keys?pattern=&cursor=` | A slice of keys with type and expiry. Cursor-paged, because it is `SCAN` |
+| `GET · PUT /services/:id/keys/value` | One key. Only a plain string can be written |
+| `DELETE /services/:id/keys?key=` | Deletes a key |
+| `GET · POST /services/:id/queries` · `DELETE /services/:id/queries/:queryId` | Queries kept against this database |
 | `GET /services/:id/links` | What this app is connected to |
 | `GET /services/:id/volumes` · `POST` | Storage |
 | `GET /services/:id/domains` · `POST` | Its addresses |

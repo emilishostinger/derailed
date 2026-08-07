@@ -89,27 +89,99 @@ you to type the name first.
 
 ## Looking inside
 
-Every SQL database has a **Browse** tab: the tables, roughly how many rows each has,
-and the first hundred rows of whichever one you pick.
+Every database has a **Browse** tab. All six of them.
 
-There is also a box for asking a question:
+Three of these engines keep rows, one keeps documents and two keep keys, and pretending
+those are the same thing produces a screen that is wrong for all of them. So the
+questions are the same and the shape of the answer changes.
+
+### Tables (PostgreSQL, MySQL, MariaDB)
+
+The tables, roughly how many rows each has, and a page of whichever one you pick, fifty
+at a time with a count of the whole.
+
+**Click a cell to change it.** Enter saves, Escape leaves it alone, and there is a
+`Set to null` for when empty is not what you mean. Only the cell you edited is written,
+so a timestamp your application maintains is not quietly rewritten alongside it.
+
+Editing needs a primary key, because without one there is no way to say which row you
+mean. A table without one is shown and says so rather than offering an edit that would
+change an unknown number of rows.
+
+Pages are ordered by that primary key. Without an order a database returns rows in
+whatever order it finds them, which is not stable: on PostgreSQL an edited row
+physically moves to the end of the table, so it would vanish from the page you were
+looking at and reappear on the last one.
+
+A null and an empty string are shown differently, because the difference is usually the
+thing you opened this screen to check.
+
+### Documents (MongoDB)
+
+The collections, and a page of documents flattened into a grid: the columns are the
+field names that appear on that page, and a document without one is blank rather than
+empty. Nested objects and arrays are shown as their JSON, because a document five levels
+deep expanded into columns is a table hundreds wide and less readable than the JSON was.
+
+Click an `_id` to open that document as JSON and edit it. It is saved whole, so a field
+you delete in the editor really goes.
+
+### Keys (Redis, Valkey)
+
+A key browser: the keys, what type each one holds, and how long until it expires. Filter
+with a pattern like `session:*`.
+
+Open one to see what is in it. A plain string can be edited in place, keeping whatever
+expiry it already had. A list, hash, set or sorted set is shown but not edited, because
+changing one member through a text box is a way to lose its position or its score.
+
+Keys are walked with `SCAN`, a slice at a time. Never `KEYS *`, which blocks the server
+for as long as it takes to walk every key: a screen whose whole purpose is looking
+should not be able to take a site down.
+
+### Asking a question
+
+Every kind has a box:
 
 ```sql
 select count(*) from users where created_at > '2026-01-01'
 ```
+```js
+db.orders.find({ status: "pending" })
+```
+```
+hgetall session:abc
+```
 
-**It only runs statements that read.** `select`, `show`, `describe`, `explain` and
-`with`, and nothing else. That is an allowlist of first words rather than a search for
-dangerous ones, because a denylist is a guess about every way somebody could write
-`DROP`, and being wrong once means losing a database. A second statement smuggled in
-after a semicolon is refused for the same reason.
+**It only runs things that read.** For SQL that is `select`, `show`, `describe`,
+`explain` and `with`. For MongoDB, `find`, `findOne`, `aggregate`, `countDocuments` and
+their relatives. For Redis and Valkey, an allowlist of reading commands.
 
-To change data, use the **Terminal** tab, where the engine's own client is one command
-away and it is obvious what you are doing.
+Each is an allowlist rather than a search for dangerous ones, because a denylist is a
+guess about every way somebody could write `DROP`, and being wrong once means losing a
+database. A second statement smuggled in after a semicolon is refused for the same
+reason. `KEYS` is refused too, even though it only reads.
 
-Nothing is bundled to make this work: it runs the database's own `psql` or `mysql`
-inside the database's own container, the same way backups do. No driver in the binary,
-no port opened, nothing new listening.
+To change data beyond what the grid allows, use the **Terminal** tab, where the engine's
+own client is one command away and it is obvious what you are doing.
 
-PostgreSQL, MySQL and MariaDB for now. Redis and MongoDB are not tables, and a screen
-pretending otherwise would be worse than pointing at the Terminal tab.
+### Queries worth keeping
+
+**Keep it** saves a query under a name. The query you actually want is the same three
+every time, and retyping them from memory is the reason people give up and install a
+client instead.
+
+They are kept against the database rather than against you: the useful ones are facts
+about the shape of the data, and whoever looks after it next should find them already
+there.
+
+### How it works
+
+Nothing is bundled to make any of this work. It runs the database's own `psql`, `mysql`,
+`mongosh` or `valkey-cli` inside the database's own container, the same way backups do.
+No driver in the binary, no port opened, nothing new listening.
+
+Values you type are sent as hex rather than quoted into the statement, so there are no
+escaping rules to get wrong and a cell containing `'); DROP TABLE users; --` is a cell
+containing that text. Table and column names are checked against the ones the database
+itself reported, rather than escaped.

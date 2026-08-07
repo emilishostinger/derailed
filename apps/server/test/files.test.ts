@@ -120,7 +120,13 @@ describe('what counts as inside', () => {
  */
 describe('what counts as a name', () => {
   test('accepts the names files really have', () => {
-    for (const name of ['style.css', 'a file with spaces.txt', '.htaccess', 'ünïcode.png', 'a-b_c']) {
+    for (const name of [
+      'style.css',
+      'a file with spaces.txt',
+      '.htaccess',
+      'ünïcode.png',
+      'a-b_c',
+    ]) {
       expect(validName(name)).toBe(name);
     }
   });
