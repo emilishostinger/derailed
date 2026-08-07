@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { Alerts } from '../components/Alerts.tsx';
-import { playChime, setSoundsEnabled, soundsEnabled } from '../components/Celebrate.tsx';
+import {
+  confettiEnabled,
+  playChime,
+  setConfettiEnabled,
+  setSoundsEnabled,
+  soundsEnabled,
+} from '../components/Celebrate.tsx';
 import { MoveServer } from '../components/MoveServer.tsx';
 import { People } from '../components/People.tsx';
 import { Security } from '../components/Security.tsx';
@@ -180,6 +186,7 @@ export function Settings() {
 function Screenshots() {
   const [on, setOn] = useState<boolean | null>(null);
   const [sounds, setSounds] = useState(soundsEnabled);
+  const [confetti, setConfetti] = useState(confettiEnabled);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -217,7 +224,16 @@ function Screenshots() {
       />
       <ErrorNote error={error} />
 
-      <div className="mt-4 border-t border-line pt-4">
+      <div className="mt-4 space-y-3 border-t border-line pt-4">
+        <Switch
+          checked={confetti}
+          label="Throw confetti when a deploy works"
+          hint="A deploy working is the good part of this. Kept in this browser, and it stays out of the way if your system asks for reduced motion."
+          onChange={(next) => {
+            setConfettiEnabled(next);
+            setConfetti(next);
+          }}
+        />
         <Switch
           checked={sounds}
           label="Make a sound when a deploy finishes"

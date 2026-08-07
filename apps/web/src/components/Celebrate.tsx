@@ -12,7 +12,6 @@ import { useEffect, useRef } from 'react';
  * about the server, and somebody else signing in from an office should not inherit it.
  */
 const SOUND_KEY = 'derailed.sounds';
-const FIRST_DEPLOY_KEY = 'derailed.celebrated-first-deploy';
 
 export function soundsEnabled(): boolean {
   try {
@@ -75,24 +74,35 @@ export function playChime(kind: 'ok' | 'bad'): void {
   }
 }
 
-export function hasCelebratedFirstDeploy(): boolean {
+const CONFETTI_KEY = 'derailed.confetti';
+
+/**
+ * On unless somebody turned it off.
+ *
+ * It used to fire once, on the first deploy that ever worked on a server, which meant
+ * almost nobody ever saw it: the first deploy is usually the one you are still working
+ * out, and by the time things are going well the moment has been spent. A deploy
+ * working is the good part of this product, and three seconds of paper is a cheap way
+ * to say so.
+ */
+export function confettiEnabled(): boolean {
   try {
-    return localStorage.getItem(FIRST_DEPLOY_KEY) === '1';
+    return localStorage.getItem(CONFETTI_KEY) !== '0';
   } catch {
     return true;
   }
 }
 
-function rememberFirstDeploy(): void {
+export function setConfettiEnabled(on: boolean): void {
   try {
-    localStorage.setItem(FIRST_DEPLOY_KEY, '1');
+    localStorage.setItem(CONFETTI_KEY, on ? '1' : '0');
   } catch {
-    // Then it happens twice. Not the end of the world.
+    // Private browsing. It stays on, which is the friendlier way to fail.
   }
 }
 
 /**
- * Confetti, once, on the first deploy that ever works on this server.
+ * Confetti, on a deploy that worked.
  *
  * Canvas rather than a few hundred DOM nodes, and it removes itself. Respects
  * `prefers-reduced-motion`, since "delightful" and "makes some people feel ill" are
@@ -160,7 +170,6 @@ export function Confetti({ onDone }: { onDone: () => void }) {
     };
 
     raf = requestAnimationFrame(tick);
-    rememberFirstDeploy();
     return () => cancelAnimationFrame(raf);
   }, [onDone]);
 

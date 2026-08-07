@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { hasCelebratedFirstDeploy } from '../components/Celebrate.tsx';
+import { confettiEnabled } from '../components/Celebrate.tsx';
 
 /**
  * Whether confetti is falling right now.
@@ -10,7 +10,7 @@ import { hasCelebratedFirstDeploy } from '../components/Celebrate.tsx';
  */
 interface CelebrationState {
   confetti: boolean;
-  /** Starts it, but only for the first deploy that has ever worked here. */
+  /** Starts it, unless somebody has turned it off. */
   maybeConfetti: () => void;
   stop: () => void;
 }
@@ -18,7 +18,7 @@ interface CelebrationState {
 export const useCelebration = create<CelebrationState>((set) => ({
   confetti: false,
   maybeConfetti: () => {
-    if (hasCelebratedFirstDeploy()) return;
+    if (!confettiEnabled()) return;
     set({ confetti: true });
   },
   stop: () => set({ confetti: false }),

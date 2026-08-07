@@ -38,7 +38,11 @@ export function Offsite() {
           secretAccessKey: '',
         });
         setPathStyle(result.settings.pathStyle);
-        setEditing(!result.settings.endpoint);
+        // Never opened on arrival. Landing on a page about your backups and being
+        // shown an empty form for somebody else's cloud, with an endpoint, a region,
+        // a bucket and a secret key, is the wrong first sentence: it reads as work you
+        // have to do before the page will be useful. The one-line prompt below says
+        // the same thing in a sentence and waits to be asked.
       })
       .catch(() => undefined);
   }, []);

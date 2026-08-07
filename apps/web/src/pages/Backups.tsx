@@ -109,12 +109,6 @@ export function Backups() {
         <div className="mx-auto max-w-3xl space-y-2.5 p-5">
           <ErrorNote error={error} />
 
-          {/* Both of these come first, because they are the two things that decide
-              whether the copies below are worth anything: are they anywhere else,
-              and has anyone ever read one back. */}
-          <Offsite />
-          <Drill />
-
           {loading && (
             <div className="flex justify-center py-16 text-ink-faint">
               <Spinner className="h-5 w-5" />
@@ -147,6 +141,18 @@ export function Backups() {
                 onChange={refresh}
               />
             ))}
+
+          {/* Underneath, not on top. These two decide whether the copies above are
+              worth anything: are they anywhere else, and has anybody ever read one
+              back. Both are worth doing and neither is what you came to this page for,
+              so they wait here rather than greeting you with a form. */}
+          {!loading && (
+            <div className="space-y-2.5 pt-3">
+              <p className="eyebrow">Worth doing</p>
+              <Offsite />
+              <Drill />
+            </div>
+          )}
 
           {!loading && orphaned.length > 0 && (
             <ProjectBackups
