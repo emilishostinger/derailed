@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ApiError } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
 import { CopyButton, cx, EmptyState, ErrorNote, Modal, Spinner } from '../components/ui.tsx';
@@ -171,6 +172,8 @@ function AddDomain({
   const [hostname, setHostname] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  /** True once the server has said this name is a live site somewhere else. */
+  const [elsewhere, setElsewhere] = useState(false);
   const [result, setResult] = useState<DomainRow[] | null>(null);
 
   const typed = hostname.trim().toLowerCase().replace(/\.$/, '');
@@ -198,10 +201,16 @@ function AddDomain({
         pairable ? apexOf(typed) : typed,
         pairable,
         typedIsWww ? 'www' : 'apex',
+        // The server refuses once if this name is a live site on another machine, and
+        // accepts on the second press. Pressing Add again is the confirmation, which
+        // is exactly what its message told you to do.
+        elsewhere,
       );
       setResult(domains);
+      setElsewhere(false);
     } catch (err) {
       setError(err);
+      setElsewhere(err instanceof ApiError && /points at/.test(err.message));
     } finally {
       setBusy(false);
     }
@@ -275,7 +284,7 @@ function AddDomain({
               onClick={() => void add()}
             >
               {busy && <Spinner />}
-              Add it
+              {elsewhere ? 'Add it anyway' : 'Add it'}
             </button>
           </div>
         </div>

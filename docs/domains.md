@@ -177,6 +177,25 @@ Statuses you will see:
 - **Doesn't point anywhere yet**: no record found. Normal for the first few minutes.
 - **Checking…**: no answer from any resolver, usually a network problem on the server.
 
+Derailed re-checks every thirty seconds until a name is working, and **tells you when
+it starts**: once when it begins pointing here, and again when the padlock arrives.
+Setting up a domain means going away to somebody else's website, changing a record, and
+coming back not knowing whether it took, and the wait is anything from a minute to a
+day. Both messages are sent on the change rather than on the state, so a server that
+has been up for a month says nothing.
+
+### Adding a name that is already a live site
+
+Adding a domain with **no record yet** is the normal way to start: you add it here,
+then go and create the record, and the card shows you exactly which one.
+
+Adding a domain that resolves to a **different machine** is a different matter. It is
+almost always a typo, or a site somebody has not finished moving, and adding it quietly
+would do nothing visible for as long as it takes them to notice. So Derailed says so
+once, with the addresses it actually found, and adds it if you press again. Moving a
+site here by adding it first and repointing DNS afterwards is a perfectly good plan;
+doing it by accident is not.
+
 ## The dashboard's own address
 
 Settings → Dashboard address puts the panel itself behind a domain with HTTPS. Until

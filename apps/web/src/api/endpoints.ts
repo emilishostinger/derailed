@@ -163,11 +163,18 @@ export const endpoints = {
     api
       .get<{ domains: import('../pages/Domains.tsx').DomainRow[] }>('/domains')
       .then((r) => r.domains),
-  addOwnDomain: (hostname: string, alsoAddWww = false, primary: 'apex' | 'www' = 'apex') =>
+  addOwnDomain: (
+    hostname: string,
+    alsoAddWww = false,
+    primary: 'apex' | 'www' = 'apex',
+    /** Set on the second press, after "that points at somebody else's server". */
+    force = false,
+  ) =>
     api.post<{ domains: import('../pages/Domains.tsx').DomainRow[] }>('/domains', {
       hostname,
       alsoAddWww,
       primary,
+      force,
     }),
   /** Adds the other half of a pair (usually www) and points it at an existing one. */
   addPairedDomain: (hostname: string, redirectTo: string) =>

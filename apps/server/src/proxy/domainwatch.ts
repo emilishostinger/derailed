@@ -83,5 +83,32 @@ export async function checkDomain(domainId: string): Promise<Domain | null> {
   if (service) relevant.push(topics.project(service.projectId));
   publishAll(relevant, { type: 'domain.updated', domain: updated });
 
+  announce(domain, updated);
   return updated;
+}
+
+/**
+ * Says so, once, when a domain starts working.
+ *
+ * Setting up a domain means going away to somebody else's website, changing a record,
+ * and coming back not knowing whether it has taken. The card updates itself, but only
+ * if you are looking at it, and the wait is anything from a minute to a day. These are
+ * the two moments worth interrupting for, and each is announced on the transition
+ * rather than on the state, so a server that has been up for a month is silent.
+ */
+export function announce(before: Domain, after: Domain): void {
+  if (before.dnsStatus !== 'ok' && after.dnsStatus === 'ok') {
+    publishAll(['system'], {
+      type: 'notice',
+      level: 'info',
+      message: `${after.hostname} now points at this server. Sorting out its certificate.`,
+    });
+  }
+  if (before.tlsStatus !== 'active' && after.tlsStatus === 'active') {
+    publishAll(['system'], {
+      type: 'notice',
+      level: 'info',
+      message: `${after.hostname} is live, with a padlock.`,
+    });
+  }
 }

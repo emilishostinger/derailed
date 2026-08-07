@@ -207,7 +207,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | | |
 | --- | --- |
 | `GET /domains` | Every address on the server |
-| `POST /domains` | `{ hostname, alsoAddWww, primary: "apex" \| "www" }` |
+| `POST /domains` | `{ hostname, alsoAddWww, primary: "apex" \| "www" }`. A name that resolves to a different machine is refused once; send `force: true` to mean it |
 | `PUT /domains/:id/service` | `{ serviceId }` or `{ serviceId: null }` |
 | `PUT /domains/:id/primary` | Swap which half of a pair people see |
 | `PUT /domains/:id/path` | `{ pathPrefix }`. Null is the whole domain |

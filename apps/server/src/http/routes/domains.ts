@@ -16,7 +16,7 @@ import {
 import { listProjects } from '../../db/repo/projects.ts';
 import { findService } from '../../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../../db/repo/settings.ts';
-import { wwwVariant } from '../../proxy/dns.ts';
+import { checkDns, wwwVariant } from '../../proxy/dns.ts';
 import { checkDomain } from '../../proxy/domainwatch.ts';
 import { isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
@@ -64,6 +64,8 @@ domainRoutes.post('/', async (c) => {
      * same request: the apex already exists, so it would be refused as a duplicate.
      */
     redirectTo?: string;
+    /** Set on the second press, after "that points at somebody else's server". */
+    force?: boolean;
   };
 
   const hostname = (body.hostname ?? '').trim().toLowerCase().replace(/\.$/, '');
@@ -78,6 +80,8 @@ domainRoutes.post('/', async (c) => {
   const www = wwwVariant(hostname);
   const pair = alsoAddWww && www ? [hostname, www] : [hostname];
   for (const candidate of pair) assertUsable(candidate);
+
+  await assertNotSomebodyElses(hostname, body.force === true);
 
   // Pairing with something that already exists: one new domain, pointed at it.
   if (body.redirectTo) {
@@ -270,6 +274,35 @@ domainRoutes.get('/_panel', (c) =>
  * `forService` is the app asking. A domain already sitting unused is fair game for it;
  * one in use by something else is not, and saying which app has it saves a hunt.
  */
+/**
+ * Whether this name is already a live site somewhere else.
+ *
+ * Not the same question as "does it point here yet". A name with no record at all is
+ * the *normal* way to start: you add it here, then go and create the record, and the
+ * card tells you which one. Refusing that would be refusing the usual order of doing
+ * things.
+ *
+ * A name that resolves to a *different* machine is a different matter. It is almost
+ * always a typo, or somebody's live site they have not finished moving, and adding it
+ * here quietly does nothing visible for as long as it takes them to notice. So it is
+ * said out loud once, with the addresses it actually found, and allowed on the second
+ * press: moving a site here by adding it first and repointing DNS afterwards is a
+ * perfectly good plan.
+ */
+async function assertNotSomebodyElses(hostname: string, force: boolean): Promise<void> {
+  if (force) return;
+  const serverIp = getSetting(SETTINGS.serverIp);
+  if (!serverIp) return;
+
+  const dns = await checkDns(hostname, serverIp).catch(() => null);
+  if (dns?.status !== 'wrong_ip') return;
+
+  throw badRequest(
+    `${hostname} already points at ${dns.addresses.slice(0, 2).join(' and ')}, which is not this server.`,
+    `This server is ${serverIp}. If you are moving the site here, add it anyway and change the record when you are ready.`,
+  );
+}
+
 function assertUsable(hostname: string, forService?: string): void {
   if (isIpBasedHostname(hostname)) {
     throw badRequest(
