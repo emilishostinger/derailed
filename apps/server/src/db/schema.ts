@@ -698,4 +698,26 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    id: 27,
+    name: 'which pages are slow, and who is here now',
+    sql: `
+      -- The path tally counted requests and nothing else, so "which page is slow" had
+      -- no answer at all: the timing was in the hourly roll-up, which has no idea what
+      -- was asked for. A sum and a count rather than an average, because averages
+      -- cannot be added together and these rows are merged across days.
+      ALTER TABLE traffic_paths ADD COLUMN ms_total INTEGER NOT NULL DEFAULT 0;
+
+      -- Visitors were kept per hour, which answers "how many people today" and cannot
+      -- answer "how many people right now". A minute is fine enough to be live and
+      -- coarse enough that the table does not grow faster than the hourly one did.
+      CREATE TABLE traffic_live (
+        service_id   TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        minute_start INTEGER NOT NULL,
+        visitor_hash TEXT NOT NULL,
+        PRIMARY KEY (service_id, minute_start, visitor_hash)
+      );
+      CREATE INDEX idx_traffic_live_minute ON traffic_live(minute_start);
+    `,
+  },
 ];

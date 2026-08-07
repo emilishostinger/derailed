@@ -73,3 +73,44 @@ adds up to exactly the number of visits.
   counted as a person, the same as everywhere else.
 - Counting per app means counting per hostname. Two apps sharing a hostname cannot be
   told apart, but Derailed does not let that happen anyway.
+
+## Beyond the totals
+
+**Slowest pages** ranks by mean response time, not by the single worst request. Only
+pages asked for at least five times in the window appear: the mean for a page nobody
+visits is one bad afternoon rather than a fact about the page, and it would otherwise
+sit at the top of the list all day looking like a problem.
+
+**How it compares** sits under the visitor, visit and reply-time figures: the same
+window, one window earlier. "Four hundred visitors" is a number; "four hundred, up
+from two hundred and ten" is the thing you wanted to know. Not offered for the
+thirty-day range, because the window before that starts sixty days ago and only ninety
+days are kept, so it would quietly become "against whatever is left".
+
+**Here now** counts different people in the last five minutes, kept by the minute and
+swept away after an hour.
+
+**The whole server** is at `GET /system/traffic`: every app added up, with a
+per-app breakdown, for when the question is "is this machine busy" rather than "how is
+this app doing".
+
+### One number that is an upper bound, on purpose
+
+The server-wide visitor count is **visitors counted once per app**, not once per
+person. A visitor's hash is salted with the app's own id, so the same person reading
+two of your sites produces two unrelated hashes and nothing here can tell it was one
+person.
+
+That is deliberate and it is not going to change. Being unable to follow somebody
+across your sites is worth more than a tidier number on one screen.
+
+### Countries, and why they are not here
+
+Turning an address into a country needs an address-to-country database. Every one of
+them is either a licensed download that needs an account and a key, or a file of
+several megabytes baked into a binary that is currently one file you can copy to a
+server.
+
+Both are real costs, and both change what Derailed is, so this is a decision rather
+than an oversight. Nothing else in the analytics needs anything Derailed does not
+already see.

@@ -28,7 +28,43 @@ export interface TrafficReport {
   };
   topPaths: { path: string; requests: number }[];
   topReferrers: { referrer: string; requests: number }[];
+  slowestPaths: { path: string; requests: number; avgMs: number }[];
+  live: number;
+  previous: { requests: number; visitors: number; avgMs: number } | null;
   empty: boolean;
+}
+
+/**
+ * How this compares with the window before.
+ *
+ * "Four hundred visitors" is a number. "Four hundred, up from two hundred and ten" is
+ * the thing somebody actually wanted to know, and it is the difference between a page
+ * you glance at and one you act on.
+ *
+ * Absent rather than zero when there is nothing to compare against: "up 100%" from a
+ * standing start is noise dressed as news.
+ */
+function Change({
+  now,
+  before,
+  lowerIsBetter,
+}: {
+  now: number;
+  before?: number;
+  lowerIsBetter?: boolean;
+}) {
+  if (before === undefined || before === 0) return null;
+  const percent = Math.round(((now - before) / before) * 100);
+  if (percent === 0) return <span className="text-[11px] text-ink-faint">same as before</span>;
+
+  const up = percent > 0;
+  const good = lowerIsBetter ? !up : up;
+  return (
+    <span className={cx('text-[11px]', good ? 'text-ok' : 'text-ink-faint')}>
+      {up ? '+' : ''}
+      {percent}% on the {before === 0 ? 'period' : 'window'} before
+    </span>
+  );
 }
 
 const RANGES = [
@@ -94,7 +130,7 @@ export function TrafficTab({ service }: { service: Service }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         {RANGES.map(([value, label]) => (
           <button
             key={value}
@@ -110,6 +146,15 @@ export function TrafficTab({ service }: { service: Service }) {
             {label}
           </button>
         ))}
+
+        {/* Right now, rather than over the window. The one figure on this page that
+            answers "is anybody reading this" instead of "did anybody". */}
+        {(report?.live ?? 0) > 0 && (
+          <span className="ml-auto flex items-center gap-1.5 text-[12px] text-ink-muted">
+            <span className="h-1.5 w-1.5 rounded-full bg-ok" />
+            {report?.live} here now
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -117,11 +162,13 @@ export function TrafficTab({ service }: { service: Service }) {
           icon={<Users className="h-3.5 w-3.5" />}
           label="Visitors"
           value={compact(totals?.visitors ?? 0)}
+          note={<Change now={totals?.visitors ?? 0} before={report?.previous?.visitors} />}
         />
         <Stat
           icon={<BarChart3 className="h-3.5 w-3.5" />}
           label="Visits"
           value={compact(totals?.requests ?? 0)}
+          note={<Change now={totals?.requests ?? 0} before={report?.previous?.requests} />}
         />
         <Stat
           icon={<Gauge className="h-3.5 w-3.5" />}
@@ -132,6 +179,7 @@ export function TrafficTab({ service }: { service: Service }) {
           icon={<Clock className="h-3.5 w-3.5" />}
           label="Typical reply"
           value={`${totals?.avgMs ?? 0} ms`}
+          note={<Change now={totals?.avgMs ?? 0} before={report?.previous?.avgMs} lowerIsBetter />}
         />
       </div>
 
@@ -156,6 +204,19 @@ export function TrafficTab({ service }: { service: Service }) {
           empty="Everyone arrived directly."
         />
       </div>
+
+      {/* Only pages asked for enough times to mean anything, which is why this can be
+          empty on a quiet site while Most read is not. */}
+      <TopList
+        title="Slowest pages"
+        rows={(report?.slowestPaths ?? []).map((row) => ({
+          label: row.path,
+          value: row.avgMs,
+          suffix: 'ms',
+        }))}
+        empty="Nothing has been asked for often enough to have a reliable average yet."
+        mono
+      />
 
       <section>
         <p className="eyebrow mb-2">How it went</p>
@@ -199,7 +260,17 @@ export function TrafficTab({ service }: { service: Service }) {
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Stat({
+  icon,
+  label,
+  value,
+  note,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  note?: React.ReactNode;
+}) {
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-surface-2 p-3">
       <p className="flex items-center gap-1.5 text-[11px] text-ink-faint">
@@ -207,6 +278,7 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
         {label}
       </p>
       <p className="mt-1 text-[18px] font-semibold text-ink tabular">{value}</p>
+      {note}
     </div>
   );
 }
@@ -267,7 +339,7 @@ function TopList({
   mono,
 }: {
   title: string;
-  rows: { label: string; value: number }[];
+  rows: { label: string; value: number; suffix?: string }[];
   empty: string;
   mono?: boolean;
 }) {
@@ -292,6 +364,7 @@ function TopList({
                 </span>
                 <span className="shrink-0 text-[11px] text-ink-muted tabular">
                   {compact(row.value)}
+                  {row.suffix ? ` ${row.suffix}` : ''}
                 </span>
               </div>
             </div>

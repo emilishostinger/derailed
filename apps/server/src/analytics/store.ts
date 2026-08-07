@@ -117,14 +117,22 @@ export function recordTraffic(events: TrafficEvent[]): void {
       if (bot) continue;
 
       if (event.ip) {
+        const who = visitorHash(event.ip, event.serviceId);
         database
           .query(
             'INSERT OR IGNORE INTO traffic_visitors (service_id, hour_start, visitor_hash) VALUES (?, ?, ?)',
           )
-          .run(event.serviceId, hour, visitorHash(event.ip, event.serviceId));
+          .run(event.serviceId, hour, who);
+        // The same person again, by the minute, so "who is here now" has an answer.
+        // Swept away after an hour: this table is for the last few minutes only.
+        database
+          .query(
+            'INSERT OR IGNORE INTO traffic_live (service_id, minute_start, visitor_hash) VALUES (?, ?, ?)',
+          )
+          .run(event.serviceId, Math.floor(event.at / 60_000) * 60_000, who);
       }
 
-      bumpTop('traffic_paths', 'path', event.serviceId, day, cleanPath(event.path));
+      bumpTop('traffic_paths', 'path', event.serviceId, day, cleanPath(event.path), event.ms);
 
       const referrer = cleanReferrer(event.referrer);
       if (referrer) bumpTop('traffic_referrers', 'referrer', event.serviceId, day, referrer);
@@ -145,6 +153,8 @@ function bumpTop(
   serviceId: string,
   day: number,
   value: string,
+  /** Only paths carry a time. A referrer is a place, not a request. */
+  ms = 0,
 ): void {
   const database = db();
   const existing = database
@@ -156,9 +166,11 @@ function bumpTop(
   if (existing) {
     database
       .query(
-        `UPDATE ${table} SET requests = requests + 1 WHERE service_id = ? AND day_start = ? AND ${column} = ?`,
+        `UPDATE ${table} SET requests = requests + 1${
+          table === 'traffic_paths' ? ', ms_total = ms_total + ?' : ''
+        } WHERE service_id = ? AND day_start = ? AND ${column} = ?`,
       )
-      .run(serviceId, day, value);
+      .run(...(table === 'traffic_paths' ? [ms] : []), serviceId, day, value);
     return;
   }
 
@@ -169,9 +181,34 @@ function bumpTop(
     .get(serviceId, day) ?? { count: 0 };
   if (count >= MAX_DISTINCT_PER_DAY) return;
 
+  if (table === 'traffic_paths') {
+    database
+      .query(
+        'INSERT INTO traffic_paths (service_id, day_start, path, requests, ms_total) VALUES (?, ?, ?, 1, ?)',
+      )
+      .run(serviceId, day, value, ms);
+    return;
+  }
   database
     .query(`INSERT INTO ${table} (service_id, day_start, ${column}, requests) VALUES (?, ?, ?, 1)`)
     .run(serviceId, day, value);
+}
+
+/** How many different people have asked for anything in the last few minutes. */
+export function liveVisitors(serviceId?: string): number {
+  const since = Date.now() - 5 * 60_000;
+  const row = serviceId
+    ? db()
+        .query<{ visitors: number }, [string, number]>(
+          'SELECT COUNT(DISTINCT visitor_hash) AS visitors FROM traffic_live WHERE service_id = ? AND minute_start >= ?',
+        )
+        .get(serviceId, since)
+    : db()
+        .query<{ visitors: number }, [number]>(
+          'SELECT COUNT(DISTINCT visitor_hash) AS visitors FROM traffic_live WHERE minute_start >= ?',
+        )
+        .get(since);
+  return row?.visitors ?? 0;
 }
 
 export function pruneTraffic(): void {
@@ -185,6 +222,11 @@ export function pruneTraffic(): void {
   db()
     .query('DELETE FROM traffic_visitors WHERE hour_start < ?')
     .run(hourStart(Date.now() - 45 * DAY));
+  // An hour rather than a day: nothing reads past five minutes, and the rest is a
+  // row per person per minute, which is the fastest-growing table here.
+  db()
+    .query('DELETE FROM traffic_live WHERE minute_start < ?')
+    .run(Date.now() - 60 * 60_000);
 }
 
 export interface TrafficPoint {
@@ -212,9 +254,28 @@ export interface TrafficReport {
   };
   topPaths: { path: string; requests: number }[];
   topReferrers: { referrer: string; requests: number }[];
+  /**
+   * The pages people wait longest for, by mean time.
+   *
+   * Only pages asked for enough times to mean anything: one slow request to a page
+   * nobody visits is a coincidence, and it would otherwise sit at the top of this
+   * list for a day looking like a problem.
+   */
+  slowestPaths: { path: string; requests: number; avgMs: number }[];
+  /** Different people in the last five minutes. */
+  live: number;
+  /**
+   * The same figures for the window before this one, so the screen can say whether
+   * things are going up. Absent for 30d, where the comparison would reach past the
+   * ninety days of data that are kept.
+   */
+  previous: { requests: number; visitors: number; avgMs: number } | null;
   /** True until the first request has ever been recorded for this app. */
   empty: boolean;
 }
+
+/** Below this, a page's mean time is one bad afternoon rather than a property of it. */
+const SLOW_PAGE_MINIMUM = 5;
 
 const RANGES = {
   '24h': { since: () => Date.now() - DAY, bucket: HOUR },
@@ -316,6 +377,19 @@ export function trafficFor(serviceId: string, range: keyof typeof RANGES): Traff
     )
     .all(serviceId, fromDay);
 
+  // The `HAVING` is the whole point. Without it the slowest page is whichever one
+  // somebody hit once while the server was busy, which is not a fact about the page.
+  const slowestPaths = db()
+    .query<{ path: string; requests: number; avgMs: number }, [string, number]>(
+      `SELECT path, SUM(requests) AS requests,
+              CAST(SUM(ms_total) / SUM(requests) AS INTEGER) AS avgMs
+         FROM traffic_paths
+        WHERE service_id = ? AND day_start >= ?
+        GROUP BY path HAVING SUM(requests) >= ${SLOW_PAGE_MINIMUM}
+        ORDER BY avgMs DESC LIMIT 10`,
+    )
+    .all(serviceId, fromDay);
+
   const ever = db()
     .query<{ count: number }, [string]>(
       'SELECT COUNT(*) AS count FROM traffic_hourly WHERE service_id = ?',
@@ -328,6 +402,119 @@ export function trafficFor(serviceId: string, range: keyof typeof RANGES): Traff
     totals,
     topPaths,
     topReferrers,
+    slowestPaths,
+    live: liveVisitors(serviceId),
+    previous: previousWindow(serviceId, range, from),
     empty: (ever?.count ?? 0) === 0,
+  };
+}
+
+/**
+ * The same window, one window earlier.
+ *
+ * "Four hundred visitors" is a number. "Four hundred, up from two hundred and ten" is
+ * the thing somebody actually wanted to know, and it is the difference between a page
+ * you glance at and one you act on.
+ *
+ * Not offered for 30d: the window before that starts sixty days ago, and only ninety
+ * days are kept, so the comparison would quietly become "against whatever is left".
+ */
+function previousWindow(
+  serviceId: string,
+  range: keyof typeof RANGES,
+  from: number,
+): TrafficReport['previous'] {
+  if (range === '30d') return null;
+  const span = Date.now() - from;
+  const start = from - span;
+
+  const row = db()
+    .query<{ requests: number; ms: number }, [string, number, number]>(
+      `SELECT COALESCE(SUM(requests), 0) AS requests, COALESCE(SUM(ms_total), 0) AS ms
+         FROM traffic_hourly WHERE service_id = ? AND hour_start >= ? AND hour_start < ?`,
+    )
+    .get(serviceId, start, from);
+
+  const visitors = db()
+    .query<{ visitors: number }, [string, number, number]>(
+      `SELECT COUNT(DISTINCT visitor_hash) AS visitors FROM traffic_visitors
+        WHERE service_id = ? AND hour_start >= ? AND hour_start < ?`,
+    )
+    .get(serviceId, start, from);
+
+  const requests = row?.requests ?? 0;
+  return {
+    requests,
+    visitors: visitors?.visitors ?? 0,
+    avgMs: requests > 0 ? Math.round((row?.ms ?? 0) / requests) : 0,
+  };
+}
+
+/**
+ * Everything on the server, added up.
+ *
+ * "Is the machine busy" is a different question from "how is this app doing", and
+ * answering it previously meant opening every app in turn and adding up by eye.
+ */
+export function trafficAcrossServer(range: keyof typeof RANGES): {
+  range: keyof typeof RANGES;
+  totals: {
+    requests: number;
+    /** Counted once per app: see the note in the query. An upper bound, on purpose. */
+    visitors: number;
+    bots: number;
+    bytes: number;
+    avgMs: number;
+  };
+  live: number;
+  byService: { serviceId: string; requests: number; visitors: number }[];
+} {
+  const { since } = RANGES[range];
+  const from = since();
+
+  const totals = db()
+    .query<{ requests: number; bots: number; bytes: number; ms: number }, [number]>(
+      `SELECT COALESCE(SUM(requests), 0) AS requests, COALESCE(SUM(bots), 0) AS bots,
+              COALESCE(SUM(bytes), 0) AS bytes, COALESCE(SUM(ms_total), 0) AS ms
+         FROM traffic_hourly WHERE hour_start >= ?`,
+    )
+    .get(from);
+
+  // An upper bound, and deliberately so.
+  //
+  // A visitor's hash is salted with the app's own id, which means the same person on
+  // two of your sites produces two unrelated hashes and there is no way to tell it
+  // was one person. That is the point: being unable to follow somebody across your
+  // sites is a property worth more than a tidier number here. So this counts distinct
+  // hashes, which is "visitors, counted once per app", and the screen says so rather
+  // than implying a precision that the storage cannot support.
+  const visitors = db()
+    .query<{ visitors: number }, [number]>(
+      'SELECT COUNT(DISTINCT visitor_hash) AS visitors FROM traffic_visitors WHERE hour_start >= ?',
+    )
+    .get(from);
+
+  const byService = db()
+    .query<{ serviceId: string; requests: number; visitors: number }, [number, number]>(
+      `SELECT h.service_id AS serviceId, SUM(h.requests) AS requests,
+              (SELECT COUNT(DISTINCT v.visitor_hash) FROM traffic_visitors v
+                WHERE v.service_id = h.service_id AND v.hour_start >= ?) AS visitors
+         FROM traffic_hourly h WHERE h.hour_start >= ?
+        GROUP BY h.service_id ORDER BY requests DESC`,
+    )
+    .all(from, from);
+
+  const requests = totals?.requests ?? 0;
+  return {
+    range,
+    totals: {
+      requests,
+      visitors: visitors?.visitors ?? 0,
+      bots: totals?.bots ?? 0,
+      bytes: totals?.bytes ?? 0,
+      avgMs: requests > 0 ? Math.round((totals?.ms ?? 0) / requests) : 0,
+    },
+    live: liveVisitors(),
+    byService,
   };
 }

@@ -1,5 +1,6 @@
 import { type FreeDomainStep, schemas, topics } from '@derailed/shared';
 import { Hono } from 'hono';
+import { trafficAcrossServer } from '../../analytics/store.ts';
 import { AdoptError, adopt, adoptable } from '../../catalog/adopt.ts';
 import { paths } from '../../config.ts';
 import { createDomain, findDomainByHostname, listDomains } from '../../db/repo/domains.ts';
@@ -83,6 +84,28 @@ systemRoutes.post('/adopt', async (c) => {
 });
 
 systemRoutes.get('/cost', (c) => c.json({ cost: costComparison() }));
+
+/**
+ * All the traffic on this machine, added up.
+ *
+ * "Is the server busy" is a different question from "how is this app doing", and
+ * answering it meant opening every app in turn and adding up by eye.
+ */
+systemRoutes.get('/traffic', (c) => {
+  const asked = c.req.query('range') ?? '24h';
+  const range = asked === '7d' || asked === '30d' ? asked : '24h';
+  const report = trafficAcrossServer(range);
+  const named = new Map(listServices().map((service) => [service.id, service.name]));
+
+  return c.json({
+    traffic: {
+      ...report,
+      byService: report.byService
+        .filter((row) => named.has(row.serviceId))
+        .map((row) => ({ ...row, name: named.get(row.serviceId) })),
+    },
+  });
+});
 
 systemRoutes.get('/previews', (c) =>
   c.json({ screenshots: getBoolSetting(SETTINGS.previewShots) }),
