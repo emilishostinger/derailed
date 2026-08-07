@@ -109,60 +109,72 @@ function MobileNav() {
             className="animate-overlay-in absolute inset-0 cursor-default bg-black/50"
             onClick={() => setOpen(false)}
           />
-          <nav className="animate-drawer-in absolute inset-y-0 left-0 flex w-64 flex-col gap-1 border-r border-line bg-surface p-3">
-            <div className="mb-2 flex items-center justify-between px-2 py-1">
+          {/* Three parts, not one list. The middle is the only thing that scrolls, so
+              the way out stays on screen and the account never scrolls away from
+              under a thumb. As one flowing column it overflowed the moment somebody
+              had six projects: 820 pixels of menu in a 667 pixel phone, with `Sign
+              out` below the fold and no way to reach it. */}
+          <nav className="animate-drawer-in absolute inset-y-0 left-0 flex w-64 flex-col border-r border-line bg-surface">
+            <div className="flex items-center justify-between p-3 pb-2">
               <Wordmark />
-              <button type="button" className="btn-ghost px-1.5" onClick={() => setOpen(false)}>
+              <button
+                type="button"
+                aria-label="Close"
+                className="btn-ghost h-11 w-11 justify-center px-0"
+                onClick={() => setOpen(false)}
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <MobileLink to="/" onGo={() => setOpen(false)}>
-              Projects
-            </MobileLink>
-            {projects.map((project) => (
-              <MobileLink
-                key={project.id}
-                to={`/p/${project.slug}`}
-                onGo={() => setOpen(false)}
-                indent
-              >
-                {project.name}
+            <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-2">
+              <MobileLink to="/" onGo={() => setOpen(false)}>
+                Projects
               </MobileLink>
-            ))}
-            <MobileLink to="/domains" onGo={() => setOpen(false)}>
-              Domains
-            </MobileLink>
-            <MobileLink to="/server" onGo={() => setOpen(false)}>
-              Server
-            </MobileLink>
-            <MobileLink to="/backups" onGo={() => setOpen(false)}>
-              Backups
-            </MobileLink>
-            <MobileLink to="/uptime" onGo={() => setOpen(false)}>
-              Uptime
-            </MobileLink>
-            <MobileLink to="/trash" onGo={() => setOpen(false)}>
-              Trash
-            </MobileLink>
-            <MobileLink to="/updates" onGo={() => setOpen(false)}>
-              Updates
-            </MobileLink>
-            <MobileLink to="/agents" onGo={() => setOpen(false)}>
-              Coding agents
-            </MobileLink>
-            <MobileLink to="/settings" onGo={() => setOpen(false)}>
-              Settings
-            </MobileLink>
-            <MobileLink to="/help" onGo={() => setOpen(false)}>
-              Handbook
-            </MobileLink>
+              {projects.map((project) => (
+                <MobileLink
+                  key={project.id}
+                  to={`/p/${project.slug}`}
+                  onGo={() => setOpen(false)}
+                  indent
+                >
+                  {project.name}
+                </MobileLink>
+              ))}
+              <MobileLink to="/domains" onGo={() => setOpen(false)}>
+                Domains
+              </MobileLink>
+              <MobileLink to="/server" onGo={() => setOpen(false)}>
+                Server
+              </MobileLink>
+              <MobileLink to="/backups" onGo={() => setOpen(false)}>
+                Backups
+              </MobileLink>
+              <MobileLink to="/uptime" onGo={() => setOpen(false)}>
+                Uptime
+              </MobileLink>
+              <MobileLink to="/trash" onGo={() => setOpen(false)}>
+                Trash
+              </MobileLink>
+              <MobileLink to="/updates" onGo={() => setOpen(false)}>
+                Updates
+              </MobileLink>
+              <MobileLink to="/agents" onGo={() => setOpen(false)}>
+                Coding agents
+              </MobileLink>
+              <MobileLink to="/settings" onGo={() => setOpen(false)}>
+                Settings
+              </MobileLink>
+              <MobileLink to="/help" onGo={() => setOpen(false)}>
+                Handbook
+              </MobileLink>
+            </div>
 
-            <div className="mt-auto">
-              <ThemeToggle />
-              <div className="border-t border-line pt-2">
-                <MobileSignOut />
-              </div>
+            {/* Pinned, and padded for the home indicator on a phone that has one:
+                a Sign out button under a gesture bar is a Sign out button nobody can
+                press. */}
+            <div className="border-t border-line px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <MobileSignOut />
             </div>
           </nav>
         </div>
@@ -177,16 +189,23 @@ function MobileSignOut() {
   const logout = useSession((s) => s.logout);
 
   return (
-    <div className="space-y-1">
-      <p className="truncate px-2 py-1 text-[12px] text-ink-faint">{user?.email}</p>
-      <button
-        type="button"
-        className="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-2 text-left text-[14px] text-danger"
-        onClick={() => void logout()}
-      >
-        <LogOut className="h-4 w-4" />
-        Sign out
-      </button>
+    <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <p className="truncate px-2 text-[12px] text-ink-faint">{user?.email}</p>
+        <button
+          type="button"
+          className="flex min-h-11 w-full items-center gap-2.5 rounded-[var(--radius-control)] px-2 text-left text-[14px] text-danger"
+          onClick={() => void logout()}
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
+      </div>
+      {/* Beside the account rather than above it, as a pill the width of its two
+          icons. On its own line it was a block-level child of a column, so it stretched
+          the full width of the drawer: two small icons at one end of an empty 231 pixel
+          trough, which reads as a control that has lost its contents. */}
+      <ThemeToggle />
     </div>
   );
 }
@@ -209,7 +228,9 @@ function MobileLink({
       end={to === '/'}
       className={({ isActive }) =>
         cx(
-          'rounded-[var(--radius-control)] px-2 py-2 text-[14px] transition-colors',
+          // Eleven high rather than nine. A row a thumb misses is a row that is not
+          // there, and these were 37 pixels against a 44 pixel finger.
+          'flex min-h-11 items-center rounded-[var(--radius-control)] px-2 text-[14px] transition-colors',
           indent && 'ml-3 text-[13px]',
           isActive ? 'bg-surface-2 text-ink' : 'text-ink-muted',
         )
