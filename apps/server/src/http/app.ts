@@ -22,7 +22,12 @@ import { mailRoutes } from './routes/mail.ts';
 import { peopleRoutes } from './routes/people.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { projectServiceRoutes, serviceRoutes } from './routes/services.ts';
-import { publicStatusRoutes, uptimeRoutes } from './routes/status.ts';
+import {
+  publicStatus,
+  publicStatusRoutes,
+  statusPageEnabled,
+  uptimeRoutes,
+} from './routes/status.ts';
 import { systemRoutes } from './routes/system.ts';
 import { projectTemplateRoutes, templateRoutes } from './routes/templates.ts';
 import { tokenRoutes } from './routes/tokens.ts';
@@ -30,6 +35,7 @@ import { trashRoutes } from './routes/trash.ts';
 import { updateRoutes } from './routes/updates.ts';
 import { serviceVolumeRoutes, volumeRoutes } from './routes/volumes.ts';
 import { serveApp } from './static.ts';
+import { renderStatusPage } from './statuspage.ts';
 
 /**
  * The dashboard is the control panel for the whole machine, so it should not be
@@ -133,6 +139,21 @@ export function createApp() {
   });
 
   app.route('/api', api);
+
+  /**
+   * The status page, as a page.
+   *
+   * Outside `/api` and in front of the dashboard, because the whole point is a URL
+   * somebody can be sent. `/api/public/status.json` was the only thing here before,
+   * and a customer sent a wall of JSON has not been sent a status page.
+   *
+   * No session, by design. It answers 404 until somebody switches it on, so a server
+   * that never asked for one does not quietly have one.
+   */
+  app.get('/status', (c) => {
+    if (!statusPageEnabled()) return serveApp(c.req.raw);
+    return c.html(renderStatusPage(publicStatus()));
+  });
 
   // Anything that isn't /api is the dashboard.
   app.all('*', (c) => serveApp(c.req.raw));

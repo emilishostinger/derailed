@@ -2,7 +2,15 @@ import type { Domain, UptimeSummary } from '@derailed/shared';
 import { Activity, ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
-import { cx, EmptyState, ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
+import {
+  CopyButton,
+  cx,
+  EmptyState,
+  ErrorNote,
+  Field,
+  Spinner,
+  Switch,
+} from '../components/ui.tsx';
 import { useToasts } from '../stores/toasts.ts';
 import { PageHeader } from './Layout.tsx';
 
@@ -24,6 +32,9 @@ export function Uptime() {
   const [sites, setSites] = useState<Site[] | null>(null);
   const [page, setPage] = useState({ enabled: false, title: 'Status' });
   const [busy, setBusy] = useState<string | null>(null);
+  // Built from where the dashboard is actually being served, so it is right whether
+  // this is a domain, an IP, or a tunnel somebody set up themselves.
+  const statusUrl = `${window.location.origin}/status`;
   const [error, setError] = useState<unknown>(null);
   const push = useToasts((s) => s.push);
 
@@ -115,15 +126,41 @@ export function Uptime() {
                       />
                     </Field>
                   </div>
-                  <a
-                    className="link inline-flex items-center gap-1 text-[13px]"
-                    href="/api/public/status.json"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    See what it says
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  {/* The address, said out loud. Switching this on used to leave you
+                      with a toggle, a title box, and no idea what to send anybody:
+                      the only link went to the JSON, which is not a thing you send a
+                      customer. */}
+                  <div>
+                    <p className="eyebrow mb-1.5">Send people here</p>
+                    <div className="flex items-center gap-2">
+                      <code className="min-w-0 flex-1 truncate rounded-[var(--radius-control)] border border-line bg-surface-2 px-2.5 py-1.5 text-[12px] text-ink">
+                        {statusUrl}
+                      </code>
+                      <CopyButton value={statusUrl} />
+                      <a
+                        className="btn-ghost shrink-0"
+                        href="/status"
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Open it"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
+                    <p className="mt-1.5 text-[12px] text-ink-faint">
+                      It shows the addresses you own and how they have been doing, and nothing about
+                      your projects, your apps or this machine. There is also{' '}
+                      <a
+                        className="link"
+                        href="/api/public/status.json"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        the same thing as JSON
+                      </a>
+                      , if you want to put it somewhere else.
+                    </p>
+                  </div>
                 </>
               )}
             </div>

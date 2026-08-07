@@ -63,9 +63,27 @@ uptimeRoutes.put('/status-page', async (c) => {
  */
 export const publicStatusRoutes = new Hono();
 
-publicStatusRoutes.get('/status.json', (c) => {
-  if (!getBoolSetting(SETTINGS.statusPageEnabled)) return c.json({ error: 'Not found' }, 404);
+export interface PublicStatus {
+  title: string;
+  at: number;
+  allUp: boolean;
+  sites: {
+    name: string;
+    /** Null when it has never been checked. */
+    up: boolean | null;
+    uptimePercent: number | null;
+    /** `day` is the start of that day, in milliseconds. */
+    days: { day: number; uptimePercent: number }[];
+  }[];
+}
 
+/**
+ * Everything the public is allowed to know, in one place.
+ *
+ * One function rather than two, because there are two ways to ask for this now and a
+ * second copy of the filtering is a second place for something private to leak.
+ */
+export function publicStatus(): PublicStatus {
   const sites = allDomains()
     .filter((domain) => domain.serviceId && !domain.redirectTo && domain.kind === 'custom')
     .map((domain) => {
@@ -80,10 +98,19 @@ publicStatusRoutes.get('/status.json', (c) => {
       };
     });
 
-  return c.json({
+  return {
     title: getSetting(SETTINGS.statusPageTitle) ?? 'Status',
     at: Date.now(),
     allUp: sites.every((site) => site.up !== false),
     sites,
-  });
+  };
+}
+
+export function statusPageEnabled(): boolean {
+  return getBoolSetting(SETTINGS.statusPageEnabled);
+}
+
+publicStatusRoutes.get('/status.json', (c) => {
+  if (!statusPageEnabled()) return c.json({ error: 'Not found' }, 404);
+  return c.json(publicStatus());
 });

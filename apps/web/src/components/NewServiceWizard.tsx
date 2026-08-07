@@ -505,6 +505,124 @@ function FromTemplates({ projectId, onDone }: { projectId: string; onDone: () =>
         </p>
       )}
       <ErrorNote error={error} />
+
+      <FromLink projectId={projectId} onDone={onDone} disabled={installing !== null} />
+    </div>
+  );
+}
+
+/**
+ * An app from a link somebody sent you.
+ *
+ * The server could already fetch and check a template file from a URL, and there was
+ * no way to ask it to: no box to paste into, and nothing that would install what came
+ * back. So the catalogue was the catalogue, and that was that.
+ *
+ * It looks before it leaps. Pasting a link tells you what it would create and waits,
+ * because "run this file from the internet on my server" is not a thing to do on the
+ * strength of a URL nobody has read.
+ */
+function FromLink({
+  projectId,
+  onDone,
+  disabled,
+}: {
+  projectId: string;
+  onDone: () => void;
+  disabled: boolean;
+}) {
+  const load = useProjects((s) => s.load);
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [found, setFound] = useState<{ name: string; blurb: string } | null>(null);
+  const [busy, setBusy] = useState<'peek' | 'install' | null>(null);
+  const [error, setError] = useState<unknown>(null);
+
+  async function peek() {
+    setBusy('peek');
+    setError(null);
+    setFound(null);
+    try {
+      const result = await endpoints.peekTemplate(url.trim());
+      setFound(result.template);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function install() {
+    setBusy('install');
+    setError(null);
+    try {
+      await endpoints.installTemplateFromUrl(projectId, url.trim());
+      await load();
+      onDone();
+    } catch (err) {
+      setError(err);
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="border-t border-line pt-4">
+      {!open ? (
+        <button
+          type="button"
+          className="link text-[13px]"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+        >
+          Have a link to one? Paste it here
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <Field
+            label="The address of a template file"
+            hint="Over https only, and every field Derailed does not understand is dropped rather than passed on."
+          >
+            <div className="flex gap-2">
+              <input
+                className="input"
+                value={url}
+                placeholder="https://example.com/derailed.json"
+                onChange={(event) => {
+                  setUrl(event.target.value);
+                  setFound(null);
+                }}
+              />
+              <button
+                type="button"
+                className="btn-secondary shrink-0"
+                disabled={busy !== null || !url.trim()}
+                onClick={() => void peek()}
+              >
+                {busy === 'peek' && <Spinner />}
+                Check it
+              </button>
+            </div>
+          </Field>
+
+          {found && (
+            <div className="card p-3.5">
+              <p className="text-[13px] font-semibold text-ink">{found.name}</p>
+              <p className="mt-1 text-[12px] text-ink-muted">{found.blurb}</p>
+              <button
+                type="button"
+                className="btn-primary mt-3"
+                disabled={busy !== null}
+                onClick={() => void install()}
+              >
+                {busy === 'install' && <Spinner />}
+                Set this up
+              </button>
+            </div>
+          )}
+
+          <ErrorNote error={error} />
+        </div>
+      )}
     </div>
   );
 }

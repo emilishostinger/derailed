@@ -30,9 +30,21 @@ admitting a dip.
 
 ## A page you can share
 
-**Uptime → Publish a status page** makes `/api/public/status.json` readable by
-anybody, with no sign-in. Send it to a client, put it in a README, point a monitoring
-service at it.
+**Uptime → Publish a status page** puts a page at `/status` on your dashboard's own
+address, readable by anybody with no sign-in. The exact address to send people is
+shown on the Uptime screen once you switch it on, with a button to copy it.
+
+It is one self-contained page: no scripts, no fonts, no request to anywhere. That is
+deliberate, because this is the page people open when everything else is broken, and
+it must not depend on the dashboard's assets loading or on anything being reachable.
+
+The same thing is at `/api/public/status.json` if you would rather point a monitoring
+service at it, or build your own page from it.
+
+It never claims things are fine before it knows. A page that says "all systems
+normal" when nothing has been checked yet is the one sentence that would make the
+whole thing not worth reading, so it says "not checked yet" instead, and
+"everything checked is up" when some addresses are still pending.
 
 It is off until you switch it on, and it is deliberately narrow. It says:
 

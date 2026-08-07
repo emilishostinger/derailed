@@ -205,6 +205,15 @@ export const endpoints = {
         }[];
       }>('/templates')
       .then((r) => r.templates),
+  /** Checks a link and says what it would create, without creating anything. */
+  peekTemplate: (url: string) =>
+    api.post<{ template: { name: string; blurb: string; needsDatabase?: boolean } }>(
+      '/templates/from-url',
+      { url },
+    ),
+  installTemplateFromUrl: (projectId: string, url: string) =>
+    api.post<{ ok: true }>(`/projects/${projectId}/templates`, { url }),
+
   installTemplate: (projectId: string, slug: string, name?: string) =>
     api.post<{ service: Service; afterDeploy: string }>(`/projects/${projectId}/templates`, {
       slug,

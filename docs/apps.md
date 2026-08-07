@@ -4,6 +4,22 @@
 and its settings already right. It is the same machinery as any other deploy, with the
 fiddly parts filled in.
 
+## One from a link
+
+**New → Ready-made apps → "Have a link to one? Paste it here."**
+
+Somebody can publish a template file and send you the address of it, and you get the
+app it describes. Over https only.
+
+It checks before it does anything. Paste the link, press **Check it**, and it tells you
+what the file says it would create; nothing happens on your server until you press
+**Set this up**. "Run this file from the internet on my machine" is not a thing to do on
+the strength of a URL nobody has read.
+
+Every field Derailed does not define is dropped rather than passed through, and the
+file is size-capped before it is even parsed.
+
+
 ## What is in the catalogue
 
 ### Websites

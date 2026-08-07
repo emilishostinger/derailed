@@ -5,6 +5,7 @@ import { findEngine } from '../../catalog/databases.ts';
 import { connectServices } from '../../catalog/links.ts';
 import {
   APP_TEMPLATES,
+  type AppTemplate,
   CATEGORY_ORDER,
   fetchTemplate,
   findTemplate,
@@ -53,9 +54,28 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
   const project = findProject(c.req.param('id'));
   if (!project) throw notFound('That project');
 
-  const body = (await c.req.json().catch(() => ({}))) as { slug?: string; name?: string };
-  const template = findTemplate(body.slug ?? '');
-  if (!template) throw badRequest("Derailed doesn't have an app by that name.");
+  const body = (await c.req.json().catch(() => ({}))) as {
+    slug?: string;
+    url?: string;
+    name?: string;
+  };
+
+  // Either one from the catalogue or one fetched from a link. The fetched sort was
+  // validated and then had nowhere to go: `POST /templates/from-url` would check a
+  // definition and hand it back, and nothing here would accept it, so the whole
+  // feature stopped one step short of doing anything.
+  let template: AppTemplate | null;
+  if (body.url?.trim()) {
+    try {
+      template = await fetchTemplate(body.url.trim());
+    } catch (err) {
+      if (err instanceof TemplateError) throw badRequest(err.message, err.hint);
+      throw err;
+    }
+  } else {
+    template = findTemplate(body.slug ?? '') ?? null;
+    if (!template) throw badRequest("Derailed doesn't have an app by that name.");
+  }
 
   const name = body.name?.trim() || template.slug;
   let databaseId: string | null = null;
