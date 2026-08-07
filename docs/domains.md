@@ -74,6 +74,20 @@ You do not have to buy a domain to get HTTPS. In **Settings → A secure address
 Every app then gets `shop.my-server.duckdns.org` with a real Let's Encrypt certificate,
 and so does every app you deploy afterwards.
 
+**It takes a couple of minutes, and it says how far along it is.** There is a certificate
+tool to fetch the first time, a DNS record that has to propagate, and Let's Encrypt to
+answer, so the stages are ticked off as they happen with the tool's own last line
+underneath. A spinner for three minutes is indistinguishable from a spinner for
+something that has hung, and the second is what people assume, right before they reload
+the page at the worst possible moment.
+
+Leaving the page does not stop it. The work is on the server, not in the browser.
+
+**Nothing is remembered until it has worked.** The token is proved against DuckDNS
+before it is stored, and Derailed only starts handing out addresses under the name once
+a certificate exists. A wrong token, or a certificate that never arrives, leaves the
+server exactly as it was rather than half configured.
+
 **Why this works when sslip.io cannot.** `duckdns.org` *is* on the public suffix list.
 That one fact means Let's Encrypt treats `my-server.duckdns.org` as a registered domain
 in its own right, with its own certificate allowance, rather than as one more name

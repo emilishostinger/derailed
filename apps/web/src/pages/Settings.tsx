@@ -1,8 +1,10 @@
-import type { FreeDomain, UserRole } from '@derailed/shared';
-import { ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
+import type { FreeDomain, FreeDomainStep, UserRole } from '@derailed/shared';
+import { FREE_DOMAIN_STEPS, topics } from '@derailed/shared';
+import { Check, ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
+import { live } from '../api/ws.ts';
 import { Alerts } from '../components/Alerts.tsx';
 import {
   confettiEnabled,
@@ -406,6 +408,8 @@ function FreeAddress() {
       {note && <p className="mt-3 text-[12px] text-ok">{note}</p>}
       <ErrorNote error={error} />
 
+      {busy && <ClaimProgress />}
+
       <div className="mt-3">
         <button
           type="button"
@@ -417,6 +421,70 @@ function FreeAddress() {
           {busy ? 'Getting your certificate…' : 'Use this address'}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * How far along the claim is.
+ *
+ * The one thing in Derailed that routinely takes minutes: a certificate tool to
+ * download, a DNS record to propagate, and Let's Encrypt to answer. Three minutes of
+ * spinner is indistinguishable from three minutes of something that has hung, and
+ * people assume the second one and reload, which is the worst moment to reload.
+ *
+ * So: the stages, ticked off, with whatever the tool last said underneath. The last
+ * line is there because when this does get stuck, the reason is usually in it.
+ */
+function ClaimProgress() {
+  const [reached, setReached] = useState<FreeDomainStep | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const stop = live.subscribe([topics.system]);
+    const off = live.on((event) => {
+      if (event.type !== 'freedomain.progress') return;
+      setReached(event.step);
+      if (event.detail) setDetail(event.detail);
+    });
+    return () => {
+      off();
+      stop();
+    };
+  }, []);
+
+  const order = FREE_DOMAIN_STEPS.map((entry) => entry.step);
+  const at = reached === null ? -1 : reached === 'done' ? order.length : order.indexOf(reached);
+
+  return (
+    <div className="mt-3 rounded-[var(--radius-card)] border border-line bg-surface-2 p-3.5">
+      <ul className="space-y-1.5">
+        {FREE_DOMAIN_STEPS.map((entry, index) => {
+          const done = index < at;
+          const current = index === at;
+          return (
+            <li key={entry.step} className="flex items-center gap-2 text-[13px]">
+              {done ? (
+                <Check className="h-3.5 w-3.5 shrink-0 text-ok" />
+              ) : current ? (
+                <Spinner className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <span className="h-3.5 w-3.5 shrink-0" />
+              )}
+              <span className={done || current ? 'text-ink' : 'text-ink-faint'}>{entry.label}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {detail && (
+        <p className="mt-2.5 truncate border-line border-t pt-2.5 font-mono text-[11px] text-ink-faint">
+          {detail}
+        </p>
+      )}
+      <p className="mt-2 text-[12px] text-ink-faint">
+        The certificate step waits for DNS to catch up, which can take a couple of minutes. Leaving
+        this page does not stop it.
+      </p>
     </div>
   );
 }

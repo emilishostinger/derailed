@@ -1,4 +1,4 @@
-import { schemas } from '@derailed/shared';
+import { type FreeDomainStep, schemas, topics } from '@derailed/shared';
 import { Hono } from 'hono';
 import { AdoptError, adopt, adoptable } from '../../catalog/adopt.ts';
 import { paths } from '../../config.ts';
@@ -12,6 +12,7 @@ import {
   setBoolSetting,
   setSetting,
 } from '../../db/repo/settings.ts';
+import { publish } from '../../events/bus.ts';
 import { ensureCaddyRunning } from '../../proxy/caddy.ts';
 import { checkDns } from '../../proxy/dns.ts';
 import { checkDomain } from '../../proxy/domainwatch.ts';
@@ -266,6 +267,18 @@ systemRoutes.put('/free-domain', async (c) => {
   // an expiry warning should go anyway.
   const email = body.email?.trim() || c.get('user').email;
 
+  /**
+   * Progress goes out over the socket rather than down this response.
+   *
+   * The response cannot say anything until it is finished, and this is the one thing
+   * in Derailed that routinely takes minutes: a tool to download, a DNS record to
+   * propagate, and Let's Encrypt to answer. Three minutes of spinner is
+   * indistinguishable from three minutes of hung, and people assume the second one.
+   */
+  const report = (progress: { step: FreeDomainStep; message: string; detail?: string }) => {
+    publish(topics.system, { type: 'freedomain.progress', ...progress });
+  };
+
   let state: Awaited<ReturnType<typeof freeDomainState>>;
   try {
     state = await claimFreeDomain({
@@ -273,6 +286,7 @@ systemRoutes.put('/free-domain', async (c) => {
       token: body.token ?? '',
       email,
       serverIp,
+      onProgress: report,
     });
   } catch (err) {
     if (err instanceof FreeDomainError) throw badRequest(err.message, err.hint);
@@ -282,12 +296,15 @@ systemRoutes.put('/free-domain', async (c) => {
   // The free address becomes where apps live, unless a domain of the person's own is
   // already doing that job. Theirs wins: they went to the trouble of pointing it here.
   if (!getSetting(SETTINGS.appBaseDomain) && state.hostname) {
+    report({ step: 'addresses', message: 'Giving your apps their new addresses' });
     const added = await giveEveryAppAnAddress(state.hostname, serverIp);
     await syncRoutes();
+    report({ step: 'done', message: 'Done' });
     return c.json({ freeDomain: state, added });
   }
 
   await syncRoutes();
+  report({ step: 'done', message: 'Done' });
   return c.json({ freeDomain: state, added: 0 });
 });
 

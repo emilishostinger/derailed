@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { type FreeDomain, topics } from '@derailed/shared';
+import { type FreeDomain, type FreeDomainStep, topics } from '@derailed/shared';
 import { CERTS_DIR_IN_CONTAINER } from '../config.ts';
 import { deleteSetting, getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
@@ -94,6 +94,14 @@ export interface ClaimOptions {
   email: string;
   serverIp: string;
   onLine?: (line: string) => void;
+  /**
+   * Which stage this has reached, for the screen.
+   *
+   * Named stages rather than the tool's own log, because the log is `lego` telling you
+   * about ACME order URLs and the person waiting wants to know whether it is stuck.
+   * The log still arrives, as `detail` under whichever stage is current.
+   */
+  onProgress?: (progress: { step: FreeDomainStep; message: string; detail?: string }) => void;
 }
 
 export class FreeDomainError extends Error {
@@ -128,14 +136,35 @@ export async function claimFreeDomain(options: ClaimOptions): Promise<FreeDomain
     );
   }
 
-  options.onLine?.(`Pointing ${hostnameFor(name)} at this server…`);
+  const host = hostnameFor(name);
+  options.onLine?.(`Pointing ${host} at this server…`);
+  options.onProgress?.({
+    step: 'point',
+    message: `Pointing ${host} at ${options.serverIp}`,
+  });
   await pointAtServer(name, options.token.trim(), options.serverIp);
+
+  // Two stages share one callback, and which one a line belongs to is decided by what
+  // the line says. The alternative is threading a stage through `acme.ts`, which would
+  // make the certificate code know about a screen it has no other reason to know about.
+  let step: FreeDomainStep = 'tool';
+  options.onProgress?.({ step: 'tool', message: 'Getting the certificate tool' });
 
   await ensureCertificate({
     name,
     token: options.token.trim(),
     email: options.email,
-    onLine: options.onLine,
+    onLine: (line) => {
+      options.onLine?.(line);
+      if (step === 'tool' && /let's encrypt|renewing the certificate/i.test(line)) {
+        step = 'certificate';
+        options.onProgress?.({
+          step: 'certificate',
+          message: `Asking Let's Encrypt for a certificate covering *.${host}`,
+        });
+      }
+      options.onProgress?.({ step, message: '', detail: line });
+    },
   });
 
   setSetting(SETTINGS.freeDomainName, name);

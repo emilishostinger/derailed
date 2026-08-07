@@ -57,7 +57,33 @@ export type ServerEvent =
   | { type: 'deployment.logs'; deploymentId: string; lines: LogLine[] }
   | { type: 'service.logs'; serviceId: string; lines: LogLine[] }
   | { type: 'domain.updated'; domain: Domain }
+  /**
+   * How far along claiming the free address is.
+   *
+   * It is the one thing in Derailed that routinely takes minutes: a certificate tool
+   * to fetch, a DNS record to propagate, and Let's Encrypt to answer. A spinner for
+   * three minutes is indistinguishable from a spinner for something that has hung,
+   * and the second one is what people assume.
+   */
+  | {
+      type: 'freedomain.progress';
+      step: FreeDomainStep;
+      /** What is happening, in the words the screen should use. */
+      message: string;
+      /** The tool's own output, for the line underneath. Often absent. */
+      detail?: string;
+    }
   /** A fresh title, icon or screenshot is available for this app. */
   | { type: 'preview'; serviceId: string };
+
+/** The stages of claiming a free address, in the order they happen. */
+export type FreeDomainStep = 'point' | 'tool' | 'certificate' | 'addresses' | 'done';
+
+export const FREE_DOMAIN_STEPS: { step: FreeDomainStep; label: string }[] = [
+  { step: 'point', label: 'Pointing the name at this server' },
+  { step: 'tool', label: 'Getting the certificate tool' },
+  { step: 'certificate', label: "Asking Let's Encrypt" },
+  { step: 'addresses', label: 'Giving your apps their new addresses' },
+];
 
 export type ServerEventType = ServerEvent['type'];
