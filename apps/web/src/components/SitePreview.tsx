@@ -14,6 +14,9 @@ import { cx } from './ui.tsx';
 const base = '/api/services/previews';
 
 /** A row of the site icons for a project, with the title of the first one. */
+/** Enough to recognise the project by, before the row turns into a smear. */
+const SHOWN = 4;
+
 export function ProjectPreview({ services }: { services: Service[] }) {
   const withPreview = services.filter((service) => service.preview?.iconPath);
   const title = services.find((service) => service.preview?.title)?.preview?.title;
@@ -23,10 +26,21 @@ export function ProjectPreview({ services }: { services: Service[] }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       {withPreview.length > 0 && (
-        <div className="flex shrink-0 -space-x-1.5">
-          {withPreview.slice(0, 4).map((service) => (
+        <div className="flex shrink-0 items-center -space-x-1.5">
+          {withPreview.slice(0, SHOWN).map((service) => (
             <SiteIcon key={service.id} service={service} />
           ))}
+          {/* Said rather than silently dropped. Four was already the limit, so a
+              project with a hundred apps looked exactly like one with four: the row
+              never grew and never admitted there was more. */}
+          {withPreview.length > SHOWN && (
+            <span
+              className="flex h-5 items-center rounded-full border border-line bg-surface-2 pr-1.5 pl-2.5 text-[10px] text-ink-muted tabular"
+              title={`${withPreview.length} apps with a site`}
+            >
+              +{withPreview.length - SHOWN}
+            </span>
+          )}
         </div>
       )}
       {title && <p className="min-w-0 flex-1 truncate text-[12px] text-ink-muted">{title}</p>}

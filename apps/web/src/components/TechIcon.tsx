@@ -35,6 +35,7 @@ const ALIASES: Record<string, string> = {
   mysql: 'mysql',
   mariadb: 'mariadb',
   redis: 'redis',
+  valkey: 'valkey',
   mongo: 'mongodb',
 
   // languages and runtimes
@@ -179,7 +180,7 @@ export function BrandTile({
         />
       ) : (
         <svg
-          viewBox="0 0 24 24"
+          viewBox={brand.viewBox ?? '0 0 24 24'}
           className="h-[62%] w-[62%]"
           fill={readableOn(brand.hex)}
           fillRule={brand.evenOdd ? 'evenodd' : undefined}

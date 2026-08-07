@@ -30,7 +30,7 @@ import { CommandPalette } from '../components/CommandPalette.tsx';
 import { Wordmark } from '../components/Logo.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { Toasts } from '../components/Toasts.tsx';
-import { cx, ErrorNote, Modal, Spinner, StatusDot } from '../components/ui.tsx';
+import { cx, ErrorNote, Modal, Reveal, Spinner, StatusDot } from '../components/ui.tsx';
 import { useCelebration } from '../stores/celebration.ts';
 import { usePalette } from '../stores/palette.ts';
 import { useProjects } from '../stores/projects.ts';
@@ -328,20 +328,31 @@ function Sidebar() {
             }}
             trailing={
               projects.length > 0 && (
-                <ChevronDown
-                  aria-hidden="true"
+                // A target rather than a glyph. It had no padding, no hover and an
+                // instant flip, so pressing it felt like hitting a printed arrow.
+                // The row still does the folding; this is the part that says so.
+                <span
                   className={cx(
-                    '-mr-0.5 h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform',
-                    !projectsOpen && '-rotate-90',
+                    'group/chev -mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px]',
+                    'transition-colors duration-150 hover:bg-surface-2',
                   )}
-                />
+                >
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={cx(
+                      'h-3.5 w-3.5 text-ink-faint transition-[transform,color] duration-200 ease-out',
+                      'group-hover/chev:text-ink',
+                      !projectsOpen && '-rotate-90',
+                    )}
+                  />
+                </span>
               )
             }
           >
             Projects
           </NavItem>
 
-          {projectsOpen && projects.length > 0 && (
+          <Reveal open={projectsOpen && projects.length > 0}>
             <ul className="mt-1 mb-1 ml-2 space-y-px border-l border-line pl-2">
               {projects.map((project) => (
                 <li key={project.id}>
@@ -355,7 +366,7 @@ function Sidebar() {
                 </li>
               ))}
             </ul>
-          )}
+          </Reveal>
 
           <NavItem to="/domains" icon={<Globe className="h-4 w-4" />}>
             Domains

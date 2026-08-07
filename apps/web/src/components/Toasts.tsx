@@ -6,16 +6,19 @@ import { cx, Spinner } from './ui.tsx';
 /**
  * Short-lived messages, and the offer to undo what caused them.
  *
- * Pinned to the bottom centre rather than a corner: an undo offer is the one message
- * here that has to be seen before it expires, and the corner of a wide screen is the
- * part of it nobody is looking at.
+ * Pinned to the bottom right of the window.
+ *
+ * Centred looked right in the abstract and wrong in place. The sidebar takes the left
+ * of the screen, so the canvas people are actually reading sits right of centre, and a
+ * toast centred on the *window* lands off to the left of everything it is talking
+ * about. The bottom right is the corner nearest the work.
  */
 export function Toasts() {
   const toasts = useToasts((s) => s.toasts);
   if (!toasts.length) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 p-4">
+    <div className="pointer-events-none fixed right-0 bottom-0 z-50 flex flex-col items-end gap-2 p-4">
       {toasts.map((toast) => (
         <ToastRow key={toast.id} toast={toast} />
       ))}

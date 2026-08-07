@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { cx } from './ui.tsx';
 
 export interface MenuItem {
@@ -108,7 +109,11 @@ export function ContextMenu({
 
   if (!at) return null;
 
-  return (
+  // Portalled for the same reason the dropdown is: `position: fixed` stops meaning
+  // "the viewport" the moment any ancestor has a transform, and the modals and drawers
+  // here animate in with one. A menu measured against the viewport and then positioned
+  // against a dialog lands somewhere else entirely.
+  return createPortal(
     <div
       ref={menu}
       role="menu"
@@ -156,6 +161,7 @@ export function ContextMenu({
           </button>
         </div>
       ))}
-    </div>
+    </div>,
+    document.body,
   );
 }

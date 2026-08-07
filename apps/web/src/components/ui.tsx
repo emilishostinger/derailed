@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { ApiError } from '../api/client.ts';
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -348,63 +349,75 @@ export function Select<T extends string>({
         />
       </button>
 
-      {open && (
-        <>
-          {/* Clicking anywhere else puts it away, which is what everybody tries first. */}
-          <button
-            type="button"
-            aria-hidden
-            tabIndex={-1}
-            className="fixed inset-0 z-[59] cursor-default"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            ref={list}
-            id={id}
-            role="listbox"
-            aria-label={ariaLabel}
-            // A ceiling on the width, so one wordy option cannot stretch the menu
-            // across the window. Narrow enough to sit under the control it belongs to,
-            // wide enough that the explanations still read as sentences.
-            className="panel animate-pop-in fixed z-[60] max-h-64 max-w-[min(22rem,calc(100vw-1rem))] overflow-y-auto p-1"
-            style={{
-              left: box?.left ?? 0,
-              top: box?.top ?? 0,
-              minWidth: box?.width ?? 0,
-              // Hidden until measured, or it flashes in the wrong place first.
-              visibility: box ? 'visible' : 'hidden',
-            }}
-          >
-            {options.map((option, index) => (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={option.value === value}
-                onMouseEnter={() => setActive(index)}
-                onClick={() => choose(index)}
-                className={cx(
-                  'flex w-full items-start gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[13px] text-ink transition-colors',
-                  index === active && 'bg-surface-2',
-                )}
-              >
-                <Check
+      {open &&
+        // Rendered at the top of the document rather than beside the trigger.
+        //
+        // `position: fixed` is relative to the viewport only until some ancestor has a
+        // transform on it, at which point that ancestor silently becomes the containing
+        // block instead. Modals here animate in with `fade-up`, which is a transform,
+        // and `fill-mode: both` means it keeps one after the animation ends. So a
+        // dropdown opened inside a modal was measured against the viewport and then
+        // positioned against the dialog, and landed somewhere off to the right.
+        //
+        // A portal is the only fix that stays fixed: nothing above it can move it.
+        createPortal(
+          <>
+            {/* Clicking anywhere else puts it away, which is what everybody tries first. */}
+            <button
+              type="button"
+              aria-hidden
+              tabIndex={-1}
+              className="fixed inset-0 z-[59] cursor-default"
+              onClick={() => setOpen(false)}
+            />
+            <div
+              ref={list}
+              id={id}
+              role="listbox"
+              aria-label={ariaLabel}
+              // A ceiling on the width, so one wordy option cannot stretch the menu
+              // across the window. Narrow enough to sit under the control it belongs
+              // to, wide enough that the explanations still read as sentences.
+              className="panel animate-pop-in fixed z-[60] max-h-64 max-w-[min(22rem,calc(100vw-1rem))] overflow-y-auto p-1"
+              style={{
+                left: box?.left ?? 0,
+                top: box?.top ?? 0,
+                minWidth: box?.width ?? 0,
+                // Hidden until measured, or it flashes in the wrong place first.
+                visibility: box ? 'visible' : 'hidden',
+              }}
+            >
+              {options.map((option, index) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={option.value === value}
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => choose(index)}
                   className={cx(
-                    'mt-0.5 h-3.5 w-3.5 shrink-0',
-                    option.value === value ? 'text-accent' : 'text-transparent',
+                    'flex w-full items-start gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[13px] text-ink transition-colors',
+                    index === active && 'bg-surface-2',
                   )}
-                />
-                <span className="min-w-0">
-                  <span className="block truncate">{option.label}</span>
-                  {option.hint && (
-                    <span className="mt-0.5 block text-[11px] text-ink-faint">{option.hint}</span>
-                  )}
-                </span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+                >
+                  <Check
+                    className={cx(
+                      'mt-0.5 h-3.5 w-3.5 shrink-0',
+                      option.value === value ? 'text-accent' : 'text-transparent',
+                    )}
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate">{option.label}</span>
+                    {option.hint && (
+                      <span className="mt-0.5 block text-[11px] text-ink-faint">{option.hint}</span>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body,
+        )}
     </>
   );
 }
