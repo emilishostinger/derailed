@@ -101,6 +101,15 @@ const OWNER_ONLY: Rule[] = [
     methods: ['DELETE'],
     why: 'Only an owner can delete an app or a project.',
   },
+  {
+    // Storage outlives the app attached to it, which is the entire reason it exists.
+    // Leaving this to members while the app itself is owner-only had the boundary
+    // exactly backwards: an app can be deployed again from the same link in a minute,
+    // and the database inside its storage cannot be got back at all.
+    path: /^\/volumes\/[^/]+$/,
+    methods: ['DELETE'],
+    why: 'Only an owner can delete storage, because what is in it does not come back.',
+  },
 ];
 
 export interface Decision {
@@ -139,6 +148,26 @@ export function mayCall(role: UserRole, method: string, path: string): Decision 
   }
 
   return { ok: true };
+}
+
+/**
+ * The one rule the table above cannot express.
+ *
+ * Every rule here is matched on a path and a method, which is the right shape for
+ * almost everything and the wrong shape for exactly one case: a scheduled job. The
+ * same route creates two very different things depending on one field in the body.
+ * With an app named, the command runs inside that app's container, which is a member's
+ * own business. With nothing named, it runs on the server itself, through `/bin/sh`,
+ * as whoever Derailed runs as, which on a real install is root.
+ *
+ * So a member could write `command: "cat /var/lib/derailed/derailed.db"`, press Run,
+ * and read it out of the job's output, walking around every owner-only rule above at
+ * once. A path this route shares with a legitimate member action cannot tell the two
+ * apart, so the handler has to.
+ */
+export function requireOwnerFor(role: UserRole, why: string): void {
+  if (role === 'owner') return;
+  throw forbidden(why, 'Ask an owner of this server if you need it.');
 }
 
 /** Mounted once, after the session check, so everything below it is covered. */

@@ -15,7 +15,7 @@ somebody has to hold in their head, and the questions people actually ask are on
 | | What they can do |
 | --- | --- |
 | **Owner** | Everything. Change the server, decide who else is here, delete things. |
-| **Member** | Run the apps: deploy, restart, read logs, change variables, add domains, take backups. Not delete an app, and nothing server-shaped. |
+| **Member** | Run the apps: deploy, restart, read logs, change variables, add domains, take backups. Not delete an app or its storage, and nothing server-shaped. |
 | **Viewer** | Look at everything. Change nothing at all. |
 
 Whoever set the server up is an owner, and so is every account that existed before this
@@ -38,6 +38,12 @@ Owners only:
 - The trash: emptying it, and putting things back
 - Publishing a status page, because it is visible to anybody
 - Deleting an app or a project
+- Deleting storage, because what is inside it does not come back. An app can be
+  deployed again from the same link in a minute; the database in its storage cannot.
+- Scheduled jobs that run on the server rather than inside an app. Those are a shell
+  command on the machine, so they are a way to do anything at all, and a member who has
+  one has every entry above whether or not the list says so. Jobs *inside* an app stay
+  a member's to write. See [jobs](jobs.md#jobs-that-belong-to-the-server).
 
 Everything else is a member's to do.
 

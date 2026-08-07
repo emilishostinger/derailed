@@ -1,3 +1,4 @@
+import { BlockedAddressError, fetchPublic } from '../util/net.ts';
 import { DATABASE_ENGINES } from './databases.ts';
 /**
  * One-click apps.
@@ -620,7 +621,19 @@ function parseDatabase(input: unknown): TemplateDatabase | undefined {
   return { engine, version, env: (connection) => fillConnection(mapping, connection) };
 }
 
-/** Fetches and validates one. Everything that can go wrong is said in words. */
+/**
+ * Fetches and validates one. Everything that can go wrong is said in words.
+ *
+ * The address comes from whoever pasted it, and the request is made by the server,
+ * from inside the network the server sits in. That combination is the whole of what
+ * server-side request forgery is, so it goes through `fetchPublic`, which resolves the
+ * name before connecting and checks every redirect rather than trusting the first hop.
+ *
+ * Https only, and that rule is now actually enforced: with `redirect: 'follow'` the
+ * check applied to the address somebody typed and to nothing after it, so a link to an
+ * ordinary https site that answered `302 Location: http://169.254.169.254/` walked
+ * straight past it.
+ */
 export async function fetchTemplate(url: string): Promise<AppTemplate> {
   let parsed: URL;
   try {
@@ -628,17 +641,21 @@ export async function fetchTemplate(url: string): Promise<AppTemplate> {
   } catch {
     throw new TemplateError(`"${url}" is not a web address.`);
   }
-  if (parsed.protocol !== 'https:') {
-    throw new TemplateError(
-      'Templates are only fetched over https.',
-      'Anything else could be changed on its way here.',
-    );
-  }
 
   let response: Response;
   try {
-    response = await fetch(parsed, { redirect: 'follow', signal: AbortSignal.timeout(15_000) });
-  } catch {
+    response = await fetchPublic(
+      parsed,
+      { signal: AbortSignal.timeout(15_000) },
+      { protocols: ['https:'] },
+    );
+  } catch (err) {
+    if (err instanceof BlockedAddressError) {
+      throw new TemplateError(
+        err.message,
+        'A template has to sit somewhere on the public internet over https.',
+      );
+    }
     throw new TemplateError('That address could not be reached.');
   }
   if (!response.ok) {

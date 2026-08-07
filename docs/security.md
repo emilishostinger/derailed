@@ -75,6 +75,30 @@ otherwise would be the lie.
 - Anything with a certificate redirects HTTP to HTTPS, with the ACME challenge path
   excluded so renewal cannot walk into its own redirect.
 
+### Addresses Derailed will fetch on your say-so
+
+Adding an app from a template link hands Derailed a URL and asks it to fetch it. The
+request is then made by the server, from inside whatever network the server sits in,
+which is a great deal more than the person who pasted the link can reach themselves: a
+cloud metadata service on `169.254.169.254`, a database on the same Docker bridge, an
+admin panel on the office LAN.
+
+So the name is resolved before anything is opened, and every address it answers with has
+to be on the public internet. Loopback, the RFC1918 ranges, link-local, unique-local,
+carrier-grade NAT, the multicast and reserved blocks, and the unspecified address are all
+refused. Resolving rather than reading the URL matters, because `internal.example.com` is
+an ordinary-looking name that happens to answer `10.0.0.5`.
+
+Redirects are followed by hand, one hop at a time, with the same check on each. The rule
+used to be "https only" applied to the address that was typed and to nothing after it,
+so an ordinary https link answering `302 Location: http://169.254.169.254/` walked past
+it and arrived over plain http.
+
+Alert channels and webhooks are deliberately *not* held to this. Those are owner-only,
+and an owner pointing them at an ntfy server on their own LAN is a self-hosting setup
+working as intended rather than an attack. The template fetcher is the one that takes an
+arbitrary address from somebody who is not necessarily an owner.
+
 ## Uploads
 
 A zip is unpacked in-process, with no external tools. Entries that try to write outside
@@ -193,6 +217,13 @@ walked around:
   they can already deploy whatever code they like into that container.
 - **The list of API tokens is owner-only, reads included.** A token acts as an owner, so
   the list of them is the list of keys to the machine.
+- **A scheduled job with no app attached is owner-only.** It runs as a shell command on
+  the machine rather than inside a container, so it is a way to do anything at all,
+  including reading the database and the secret key. Until 0.9.0 the rules could not see
+  this: the difference between "run this in my app" and "run this on the machine" is one
+  field in the request body, and the rules match on paths, so a member could write one
+  and press Run. The route now asks, and server jobs are hidden from a member's list and
+  their output kept back, for the same reason the token list is.
 
 What roles are not is isolation. Everybody here sees every project, and a member can
 deploy to any of them. If two people must not see each other's work, that is two

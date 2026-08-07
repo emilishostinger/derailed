@@ -62,6 +62,12 @@ Deleting the app does **not** delete its volumes. The app goes to the [trash](tr
 for a week with its storage intact, and only then is any of it removed. Emptying the
 trash by hand does it sooner, and says so first.
 
+**Deleting storage is an owner's decision**, like deleting the app it belongs to. It was
+a member's until 0.9.0, which had the line in the wrong place: an app can be deployed
+again from the same link in a minute, and the database inside its storage cannot be got
+back at all. Members can still attach storage and detach it, which is the part that is
+reversible. See [more than one person](people.md).
+
 ## Backups
 
 Stored folders are what a [backup](backups.md) copies, as a plain `.tar` per folder

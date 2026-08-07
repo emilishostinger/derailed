@@ -87,6 +87,7 @@ Creating a service:
 | `GET · POST /services/:id/queries` · `DELETE /services/:id/queries/:queryId` | Queries kept against this database |
 | `GET /services/:id/links` | What this app is connected to |
 | `GET /services/:id/volumes` · `POST` | Storage |
+| `DELETE /volumes/:id` | Removes storage, and what is in it. Owner only |
 | `GET /services/:id/domains` · `POST` | Its addresses |
 
 ## Off-site backups and drills
@@ -115,12 +116,16 @@ Creating a service:
 
 | | |
 | --- | --- |
-| `GET /jobs` · `GET /services/:id/jobs` | Everything scheduled, or one app's |
-| `POST /jobs` | `{ serviceId, name, command, schedule }`. A null serviceId runs on the server |
-| `PATCH /jobs/:id` · `DELETE /jobs/:id` | Change or remove one |
-| `POST /jobs/:id/run` | Run it now, whatever the schedule says |
-| `GET /jobs/:id/runs` | The last twenty runs, with what they printed |
+| `GET /jobs` · `GET /services/:id/jobs` | Everything scheduled, or one app's. Server jobs are listed to owners only |
+| `POST /jobs` | `{ serviceId, name, command, schedule }`. A null serviceId runs on the server, and is owner only |
+| `PATCH /jobs/:id` · `DELETE /jobs/:id` | Change or remove one. Owner only for a server job |
+| `POST /jobs/:id/run` | Run it now, whatever the schedule says. Owner only for a server job |
+| `GET /jobs/:id/runs` | The last twenty runs, with what they printed. Owner only for a server job |
 | `POST /jobs/preview` | `{ schedule }` in words, and when it would next fire |
+
+A job with a `serviceId` runs inside that app's container and is a member's to make. A
+job without one runs as a shell command on the machine, so every route above is owner
+only when the job has no app attached. See [jobs](jobs.md#jobs-that-belong-to-the-server).
 
 ## Moving servers
 
@@ -134,7 +139,7 @@ Creating a service:
 
 | | |
 | --- | --- |
-| `POST /auth/login` | `{ email, password, code? }`. Answers `{ needsCode: true }` when one is set up |
+| `POST /auth/login` | `{ email, password, code? }`. Answers `{ needsCode: true }` when one is set up. A body of the wrong shape is a 400 |
 | `POST /auth/totp/start` · `/totp/confirm` | Set up the second factor. Confirm returns recovery codes, once |
 | `DELETE /auth/totp` | `{ password }`. The password again, deliberately |
 | `GET /auth/sessions` · `DELETE /auth/sessions/:id` | Where you are signed in |
@@ -212,7 +217,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | --- | --- |
 | `GET /domains` | Every address on the server |
 | `PUT /projects/:id/limits` | `{ memoryLimitMb, cpuLimitMillis }`, per app in the project. Null for no limit |
-| `GET · PUT /projects/:id/env` | Variables shared by every app in the project. An app's own value wins |
+| `GET · PUT /projects/:id/env` | Variables shared by every app in the project. An app's own value wins. `PUT` takes `{ vars: [{ key, value }] }` and replaces the lot, so an absent `vars` is a 400 rather than "delete them all" |
 | `GET · POST /webhooks` · `PATCH · DELETE /webhooks/:id` | Where to POST events. Owner only. The signing secret is never returned |
 | `POST /webhooks/:id/test` | Sends one through the ordinary path, signature included |
 | `GET /system/ports` | Every port open to the internet, with what each is for |
@@ -235,7 +240,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `PUT /backups/retention` | `{ keep, keepDays }` |
 | `GET /backups/:id/download` | The `.tar.gz` itself |
 | `POST /backups/:id/restore` | `{ projectId }` |
-| `DELETE /backups/:id` | Remove a copy |
+| `DELETE /backups/:id` | Remove a copy. 404 if there is no such copy |
 
 ## The machine
 

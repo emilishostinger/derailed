@@ -75,3 +75,15 @@ curl -X POST https://your-dashboard/api/jobs \
   -H 'Content-Type: application/json' \
   -d '{"serviceId":null,"name":"Nightly tidy","command":"docker image prune -f","schedule":"0 4 * * *"}'
 ```
+
+**These are owners only.** A job attached to an app runs inside that app's container
+and is a member's to write, like everything else about the app they already deploy. A
+job with no app runs as a shell command on the machine, as whoever Derailed runs as,
+which on a normal install is root. That is not "one more kind of job", it is a way to
+run anything at all on the server, so making one, changing one, running one on demand,
+deleting one, and reading what one printed are all owner-only. Server jobs are left out
+of the list a member sees, for the same reason the list of API tokens is: the command
+line names paths and sometimes credentials, and the output can contain anything.
+
+Until 0.9.0 this was not enforced, and a member could write a server job and press Run.
+See [security](security.md#what-each-person-can-do).
