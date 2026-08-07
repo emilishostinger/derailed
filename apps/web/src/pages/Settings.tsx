@@ -18,6 +18,7 @@ import { People } from '../components/People.tsx';
 import { Security } from '../components/Security.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
+import { Webhooks } from '../components/Webhooks.tsx';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
 
@@ -107,6 +108,10 @@ export function Settings() {
 
               <Section title="Tell me when something breaks">
                 <Alerts />
+              </Section>
+
+              <Section title="Tell something else when it happens">
+                <Webhooks />
               </Section>
 
               <Section title="Keeping up to date">

@@ -669,4 +669,33 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    id: 26,
+    name: 'telling something else what happened',
+    sql: `
+      -- There is already a webhook *alert channel*, and it is a different thing: it
+      -- posts the same prose a human would read in Discord, only fires for alerts
+      -- that are switched on, and is deduplicated so the same problem twice is said
+      -- once. All three are right for a person and wrong for a program.
+      --
+      -- This is for wiring Derailed into something: a stable event name, structured
+      -- fields, every occurrence, and a signature so the receiver can tell it is
+      -- really us.
+      CREATE TABLE webhooks (
+        id           TEXT PRIMARY KEY,
+        url          TEXT NOT NULL,
+        -- Encrypted at rest like every other secret, and never sent to the browser.
+        secret_enc   TEXT,
+        -- JSON array of event names, or NULL meaning every event there is.
+        events       TEXT,
+        enabled      INTEGER NOT NULL DEFAULT 1,
+        created_at   INTEGER NOT NULL,
+        -- What happened last time, so the screen can say whether this works without
+        -- anybody having to go and look at the other end.
+        last_at      INTEGER,
+        last_status  INTEGER,
+        last_error   TEXT
+      );
+    `,
+  },
 ];

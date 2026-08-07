@@ -67,3 +67,57 @@ Derailed service in the middle, and nothing is sent anywhere you did not configu
 
 Bot tokens are encrypted at rest like every other secret and are never returned to the
 browser. Saving the form without retyping one keeps the stored one.
+
+## Telling something else what happened
+
+**Settings → Tell something else when it happens** posts a small JSON message to an
+address of yours every time something happens here, for wiring Derailed into whatever
+you already have.
+
+This is not the same as the webhook *alert channel* above, and the difference is the
+whole reason it exists. That one posts the same prose a person reads in Discord, only
+fires for the alerts somebody has switched on, and is deduplicated so the same problem
+twice is said once. All three are right for a human and wrong for a program.
+
+This one sends **every occurrence**, in a fixed shape, whatever is switched on for
+alerts:
+
+```json
+{
+  "event": "deploy.failed",
+  "subject": "svc_9f2a",
+  "at": 1786099999999,
+  "delivery": "0b8c1e...",
+  "data": {
+    "title": "Deploying Web failed",
+    "body": "Nixpacks could not work the project out.",
+    "action": "Adding a Dockerfile always works.",
+    "severity": "warning",
+    "url": "https://dashboard.example.com"
+  }
+}
+```
+
+Headers: `x-derailed-event`, `x-derailed-delivery`, and `x-derailed-signature` when a
+signing secret is set. `delivery` is fresh per attempt at sending, so the same one
+arriving twice means a retry rather than two things happening.
+
+### Checking it really came from you
+
+Set a signing secret and every message carries
+`x-derailed-signature: sha256=<hmac>`, an HMAC-SHA256 of **the exact body bytes**
+using that secret. Verify it over the raw body, not over a re-serialisation of the
+parsed JSON: no two languages agree on how to serialise JSON, and matching byte for
+byte across two of them is a debugging afternoon nobody enjoys.
+
+The secret is encrypted at rest and never sent back to the browser.
+
+### When the other end is down
+
+A `5xx` or a connection failure is tried once more, a second apart. A `4xx` is not:
+that is the receiver saying no, and sending it again just produces two refusals.
+Either way the result is recorded and shown on the row, so you can tell whether this
+has ever worked without going and looking at the other end.
+
+Delivery never blocks anything. A webhook pointing at a machine that has been switched
+off cannot slow a deploy down, and certainly cannot fail one.

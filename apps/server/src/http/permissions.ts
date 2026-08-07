@@ -64,6 +64,12 @@ const OWNER_ONLY: Rule[] = [
     why: 'Only an owner can update the server.',
   },
   {
+    path: /^\/webhooks(\/|$)/,
+    // Including reads. The list is where this server talks to on its own, and a
+    // signing secret is a shared credential even though the value never comes back.
+    why: 'Only an owner can change where this server sends events.',
+  },
+  {
     path: /^\/trash(\/|$)/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     why: 'Only an owner can empty the trash or put things back.',

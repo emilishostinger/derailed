@@ -3,6 +3,7 @@ import type { AlertChannel, AlertEventKind, AlertSettings } from '@derailed/shar
 import { getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
 import { decrypt, encrypt } from '../util/crypto.ts';
 import { type Alert, type Channel, deliver } from './channels.ts';
+import { fire } from './webhooks.ts';
 
 /**
  * Deciding when to say something.
@@ -174,6 +175,30 @@ export interface RaiseResult {
  */
 export async function raise(options: RaiseOptions): Promise<RaiseResult> {
   const result: RaiseResult = { sent: 0, failed: [], skipped: null };
+
+  /**
+   * Outbound webhooks go first, and unconditionally.
+   *
+   * Every one of the three checks below is a decision about what a person wants to
+   * be told: whether this kind of alert is switched on, whether any channel exists,
+   * and whether the same thing was said recently. None of them is true of a program
+   * wired into this, which wants every occurrence whatever anybody has switched on.
+   *
+   * Hung off `raise` rather than off eleven call sites because this is already the
+   * funnel every notable event goes through, and the twelfth call site is the one
+   * somebody would forget.
+   */
+  fire({
+    event: options.kind,
+    subject: options.subject,
+    data: {
+      title: options.title,
+      body: options.body,
+      action: options.action ?? null,
+      severity: options.severity,
+      url: options.url ?? dashboardUrl(),
+    },
+  });
 
   if (!enabledEvents().includes(options.kind)) {
     result.skipped = 'off';

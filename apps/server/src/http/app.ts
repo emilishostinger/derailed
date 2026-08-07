@@ -34,6 +34,7 @@ import { tokenRoutes } from './routes/tokens.ts';
 import { trashRoutes } from './routes/trash.ts';
 import { updateRoutes } from './routes/updates.ts';
 import { serviceVolumeRoutes, volumeRoutes } from './routes/volumes.ts';
+import { webhookRoutes } from './routes/webhooks.ts';
 import { serveApp } from './static.ts';
 import { renderStatusPage } from './statuspage.ts';
 
@@ -129,6 +130,7 @@ export function createApp() {
   api.route('/backups', backupRoutes);
   api.route('/trash', trashRoutes);
   api.route('/alerts', alertRoutes);
+  api.route('/webhooks', webhookRoutes);
   api.route('/jobs', jobRoutes);
   api.route('/uptime', uptimeRoutes);
   api.get('/audit', (c) => c.json({ entries: listAudit() }));

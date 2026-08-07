@@ -602,6 +602,27 @@ export const endpoints = {
   whyBroken: (deploymentId: string) =>
     api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),
 
+  webhooks: () =>
+    api.get<{
+      webhooks: {
+        id: string;
+        url: string;
+        hasSecret: boolean;
+        events: AlertEventKind[] | null;
+        enabled: boolean;
+        lastAt: number | null;
+        lastStatus: number | null;
+        lastError: string | null;
+      }[];
+      kinds: { kind: AlertEventKind; label: string }[];
+    }>('/webhooks'),
+  addWebhook: (url: string, secret: string, events: AlertEventKind[] | null) =>
+    api.post<{ webhook: unknown }>('/webhooks', { url, secret, events }),
+  setWebhookEnabled: (id: string, enabled: boolean) =>
+    api.patch<{ webhook: unknown }>(`/webhooks/${id}`, { enabled }),
+  deleteWebhook: (id: string) => api.delete<{ ok: true }>(`/webhooks/${id}`),
+  testWebhook: (id: string) => api.post<{ sent: true }>(`/webhooks/${id}/test`),
+
   alerts: () =>
     api.get<{ settings: AlertSettings; kinds: { kind: AlertEventKind; label: string }[] }>(
       '/alerts',
