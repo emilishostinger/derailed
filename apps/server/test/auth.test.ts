@@ -1,9 +1,10 @@
-import { beforeAll, describe, expect, test } from 'bun:test';
+import { beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { initDb } from '../src/db/index.ts';
 import { createApp } from '../src/http/app.ts';
+import { loginLimiter, peerLimiter } from '../src/http/routes/auth.ts';
 import { loadSecretKey } from '../src/util/crypto.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'derailed-auth-'));
@@ -179,5 +180,69 @@ describe('first-run setup and sign-in', () => {
     expect(response.headers.get('x-frame-options')).toBe('DENY');
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+});
+
+/**
+ * The sign-in route is the one endpoint on the machine that strangers are meant to
+ * reach, so how it fails matters more than anywhere else.
+ *
+ * It reads its own body, because the second-factor code is an optional extra the
+ * schema deliberately does not describe, and it used zod's `parse` to check the rest.
+ * That throws a `ZodError`, which nothing upstream recognises, so *every* malformed
+ * sign-in came back as "Something went wrong on the server". Found by calling every
+ * route on a running server with an empty body and looking for 500s.
+ */
+describe('a sign-in request that is not shaped like one', () => {
+  // The limiter is checked before the body is even read, and rightly so. These tests
+  // are about the body, so each starts with a fresh allowance rather than measuring
+  // how many of them have run.
+  beforeEach(() => {
+    loginLimiter.resetAll();
+    peerLimiter.resetAll();
+  });
+
+  const badBodies: [string, unknown][] = [
+    ['an empty object', {}],
+    ['only an email', { email: 'someone@example.com' }],
+    ['only a password', { password: 'correct-horse' }],
+    ['numbers instead of strings', { email: 123, password: 456 }],
+    ['an array', []],
+    ['a bare string', 'nope'],
+    ['null', null],
+    ['an email that is not one', { email: 'not-an-email', password: 'correct-horse' }],
+  ];
+
+  for (const [name, body] of badBodies) {
+    test(`${name} is a 400, not a 500`, async () => {
+      const response = await post('/api/auth/login', body);
+      expect(response.status).toBeLessThan(500);
+      expect(response.status).toBe(400);
+
+      const { error } = (await response.json()) as { error: { code: string; message: string } };
+      expect(error.code).toBe('bad_request');
+      // And it says which field, rather than shrugging.
+      expect(error.message).toBeTruthy();
+      expect(error.message).not.toContain('went wrong on the server');
+    });
+  }
+
+  test('a body that is not JSON at all is a 400 too', async () => {
+    const response = await app.request('/api/auth/login', {
+      method: 'POST',
+      headers: HEADERS,
+      body: '{not json',
+    });
+    expect(response.status).toBe(400);
+  });
+
+  test('and a well-shaped request still gets the ordinary refusal', async () => {
+    // The point is to separate "you sent nonsense" from "that is the wrong password",
+    // and the second must not start looking like the first.
+    const response = await post('/api/auth/login', {
+      email: 'nobody@example.com',
+      password: 'a-long-enough-password',
+    });
+    expect(response.status).toBe(401);
   });
 });

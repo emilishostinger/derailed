@@ -1,3 +1,4 @@
+import { FriendlyError } from '../build/git.ts';
 import { DockerError, dockerFetch, dockerJson } from './client.ts';
 import { MANAGED_FILTER, managedLabels } from './labels.ts';
 
@@ -42,6 +43,22 @@ export async function ensureNetwork(name: string, labels: Record<string, string>
   } catch (err) {
     // Someone else won the race; that's fine.
     if (err instanceof DockerError && /already exists/i.test(err.message)) return;
+    /**
+     * Docker hands out project networks from a fixed set of address ranges, and there
+     * are about thirty of them. Past that it refuses, in its own words: "all predefined
+     * address pools have been fully subnetted". That sentence has never told anybody
+     * what to do, and it arrives at the worst moment, as a deploy failing for a reason
+     * that has nothing to do with the app being deployed.
+     *
+     * It is reached honestly on a busy server, and reached faster than it looks, because
+     * a network outlives the project that made it until housekeeping comes round.
+     */
+    if (err instanceof DockerError && /address pools/i.test(err.message)) {
+      throw new FriendlyError(
+        'Docker has run out of private network ranges, so this app has nowhere to sit.',
+        'Each project gets its own network, and Docker only has about thirty to give out. Delete a project you have finished with, or run `docker network prune` on the server to clear away the ones nothing is using.',
+      );
+    }
     throw err;
   }
 }

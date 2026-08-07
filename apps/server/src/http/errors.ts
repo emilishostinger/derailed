@@ -76,6 +76,26 @@ export function errorResponse(c: Context, err: unknown) {
   );
 }
 
+/**
+ * Checks an already-read value against a schema, as a 400 rather than a throw.
+ *
+ * Separate from `parseBody` for the handful of routes that have to read the body
+ * themselves, because they accept a field the schema does not describe. Those routes
+ * were reaching for zod's `parse`, which throws a `ZodError` that nothing here knows
+ * how to answer, so a body of the wrong shape came back as "Something went wrong on
+ * the server". On the sign-in route, which is the one endpoint on the machine that
+ * strangers are meant to reach, every malformed request was a 500.
+ */
+export function parseValue<T>(schema: ZodType<T>, raw: unknown): T {
+  const result = schema.safeParse(raw);
+  if (!result.success) {
+    const first = result.error.issues[0];
+    const path = first?.path.join('.');
+    throw badRequest(first?.message ?? 'Some of those values are not valid.', path || undefined);
+  }
+  return result.data;
+}
+
 /** Parses a JSON body against a zod schema, surfacing the first message as-is. */
 export async function parseBody<T>(c: Context, schema: ZodType<T>): Promise<T> {
   let raw: unknown;
@@ -84,11 +104,5 @@ export async function parseBody<T>(c: Context, schema: ZodType<T>): Promise<T> {
   } catch {
     throw badRequest('That request was not valid JSON.');
   }
-  const result = schema.safeParse(raw);
-  if (!result.success) {
-    const first = result.error.issues[0];
-    const path = first?.path.join('.');
-    throw badRequest(first?.message ?? 'Some of those values are not valid.', path || undefined);
-  }
-  return result.data;
+  return parseValue(schema, raw);
 }

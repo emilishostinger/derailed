@@ -43,6 +43,7 @@ import {
   conflict,
   notFound,
   parseBody,
+  parseValue,
   tooManyRequests,
   unauthorized,
 } from '../errors.ts';
@@ -118,7 +119,9 @@ authRoutes.post('/login', async (c) => {
   // Read once: the schema validates the two required fields, and the code is an
   // optional extra the schema deliberately does not know about.
   const raw = (await c.req.json().catch(() => ({}))) as { code?: string };
-  const { email, password } = schemas.loginRequest.parse(raw);
+  // `parseValue` rather than the schema's own `parse`: that one throws a `ZodError`,
+  // which nothing upstream recognises, so it came out as a 500. On the sign-in route.
+  const { email, password } = parseValue(schemas.loginRequest, raw);
   const body = raw;
   const record = findUserByEmail(email);
   // Verify against a decoy hash when the email is unknown, so response timing

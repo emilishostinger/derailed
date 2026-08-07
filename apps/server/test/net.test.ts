@@ -79,3 +79,44 @@ describe('whether the connection was secure', () => {
     expect(resolveHttps(null, null, 'http:')).toBe(false);
   });
 });
+
+/**
+ * Docker hands out project networks from a fixed set of ranges, roughly thirty of them,
+ * and then refuses with "all predefined address pools have been fully subnetted". Hit
+ * for real while testing: every Docker-backed test in the suite failed at once, with
+ * that sentence and nothing else to go on.
+ *
+ * A server with a few dozen projects reaches it honestly, and reaches it sooner than
+ * the project count suggests, because a network outlives the project that made it until
+ * housekeeping comes round. The message a person gets has to say what to do.
+ */
+describe('running out of Docker networks', () => {
+  test('is explained, with something to do about it', async () => {
+    const { ensureNetwork } = await import('../src/docker/networks.ts');
+    const { FriendlyError } = await import('../src/build/git.ts');
+
+    // Docker's own words, in the shape the daemon actually sends them.
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (url.includes('/networks/create')) {
+        return new Response(
+          JSON.stringify({ message: 'all predefined address pools have been fully subnetted' }),
+          { status: 403, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response('[]', { headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+
+    try {
+      const error = await ensureNetwork('derailed-p_whatever', {}).catch((err) => err);
+      expect(error).toBeInstanceOf(FriendlyError);
+      expect(error.message).not.toContain('subnetted');
+      expect(error.message).toMatch(/network ranges/i);
+      // And a next step, not just a diagnosis.
+      expect(error.hint).toMatch(/prune|delete a project/i);
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+});

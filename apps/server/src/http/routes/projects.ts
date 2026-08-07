@@ -52,26 +52,23 @@ projectRoutes.put('/:id/env', async (c) => {
   const project = findProject(c.req.param('id'));
   if (!project) throw notFound('That project');
 
-  const body = (await c.req.json().catch(() => ({}))) as {
-    vars?: { key?: unknown; value?: unknown }[];
-  };
-  const vars: { key: string; value: string }[] = [];
-  const seen = new Set<string>();
+  /**
+   * The same schema the per-app route uses, rather than reading the body by hand.
+   *
+   * This route used to do its own parsing and fall back to `body.vars ?? []`, which
+   * on a replace-all endpoint is the worst possible default: a request whose body was
+   * the wrong shape, or truncated, deleted every variable in the project and answered
+   * 200 with "redeploy for this to take effect". Emptying the list has to be something
+   * somebody asked for, so an absent `vars` is now an error rather than a silent yes.
+   */
+  const { vars } = await parseBody(c, schemas.putEnvRequest);
 
-  for (const entry of body.vars ?? []) {
-    const key = typeof entry.key === 'string' ? entry.key.trim() : '';
-    if (!key) continue;
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
-      throw badRequest(
-        `"${key}" is not a name an environment variable can have.`,
-        'Letters, digits and underscores, not starting with a digit.',
-      );
+  const seen = new Set<string>();
+  for (const entry of vars) {
+    if (seen.has(entry.key)) {
+      throw badRequest(`${entry.key} is listed twice. Each variable can only appear once.`);
     }
-    if (seen.has(key)) {
-      throw badRequest(`${key} is listed twice. Each variable can only appear once.`);
-    }
-    seen.add(key);
-    vars.push({ key, value: typeof entry.value === 'string' ? entry.value : '' });
+    seen.add(entry.key);
   }
 
   replaceProjectEnv(project.id, vars);

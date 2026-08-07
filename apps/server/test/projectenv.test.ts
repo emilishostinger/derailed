@@ -14,6 +14,9 @@ import {
 } from '../src/db/repo/env.ts';
 import { createProject, deleteProject } from '../src/db/repo/projects.ts';
 import { createAppService } from '../src/db/repo/services.ts';
+import { createSession } from '../src/db/repo/sessions.ts';
+import { createUser } from '../src/db/repo/users.ts';
+import { createApp } from '../src/http/app.ts';
 import { loadSecretKey, resetSecretKeyCache } from '../src/util/crypto.ts';
 
 /**
@@ -154,5 +157,98 @@ describe('what the project list itself holds', () => {
 
     expect(listEnv(app.id).map((entry) => entry.key)).toEqual(['OWN']);
     expect(listProjectEnv(shop.id).map((entry) => entry.key)).toEqual(['SHARED']);
+  });
+});
+
+/**
+ * Saving the shared list, over HTTP.
+ *
+ * `PUT /projects/:id/env` replaces the whole list, and it used to read the body by
+ * hand and fall back to `body.vars ?? []`. On a replace-all endpoint that is the worst
+ * available default: a request whose body was the wrong shape, or truncated in
+ * transit, deleted every variable in the project, answered 200, and helpfully added
+ * "redeploy for this to take effect".
+ *
+ * Found by sending the wrong shape on purpose against a running server and noticing
+ * that it was cheerfully accepted.
+ */
+describe('saving the shared list over HTTP', () => {
+  async function signedIn() {
+    const app = createApp();
+    const user = createUser('owner@example.com', await Bun.password.hash('correct-horse'));
+    const cookie = `derailed_session=${createSession(user.id).id}`;
+    const call = (method: string, path: string, body?: unknown) =>
+      app.request(path, {
+        method,
+        headers: { 'x-requested-with': 'derailed', 'content-type': 'application/json', cookie },
+        body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
+      });
+    return { call };
+  }
+
+  test('a body of the wrong shape is refused, and changes nothing', async () => {
+    const { project: shop } = project();
+    replaceProjectEnv(shop.id, [{ key: 'KEEP', value: 'me' }]);
+    const { call } = await signedIn();
+
+    // The shape the old hand-rolled parser silently read as "none".
+    const response = await call('PUT', `/api/projects/${shop.id}/env`, { env: { KEEP: 'me' } });
+    expect(response.status).toBe(400);
+    expect(listProjectEnv(shop.id).map((entry) => entry.key)).toEqual(['KEEP']);
+  });
+
+  test('so is a body with no vars at all', async () => {
+    const { project: shop } = project();
+    replaceProjectEnv(shop.id, [{ key: 'KEEP', value: 'me' }]);
+    const { call } = await signedIn();
+
+    expect((await call('PUT', `/api/projects/${shop.id}/env`, {})).status).toBe(400);
+    expect(listProjectEnv(shop.id).map((entry) => entry.key)).toEqual(['KEEP']);
+  });
+
+  test('but an empty list somebody actually sent still empties it', async () => {
+    // Emptying has to stay possible: the difference is that it is now asked for.
+    const { project: shop } = project();
+    replaceProjectEnv(shop.id, [{ key: 'GO', value: 'away' }]);
+    const { call } = await signedIn();
+
+    expect((await call('PUT', `/api/projects/${shop.id}/env`, { vars: [] })).status).toBe(200);
+    expect(listProjectEnv(shop.id)).toEqual([]);
+  });
+
+  test('and a good list is saved', async () => {
+    const { project: shop } = project();
+    const { call } = await signedIn();
+
+    const response = await call('PUT', `/api/projects/${shop.id}/env`, {
+      vars: [{ key: 'TZ', value: 'Europe/Vilnius' }],
+    });
+    expect(response.status).toBe(200);
+    expect(listProjectEnv(shop.id)[0]).toMatchObject({ key: 'TZ', value: 'Europe/Vilnius' });
+  });
+
+  test('a name that is not a name is still refused', async () => {
+    const { project: shop } = project();
+    const { call } = await signedIn();
+
+    const response = await call('PUT', `/api/projects/${shop.id}/env`, {
+      vars: [{ key: '9BAD', value: 'x' }],
+    });
+    expect(response.status).toBe(400);
+  });
+
+  test('and the same name twice is refused rather than quietly deduped', async () => {
+    const { project: shop } = project();
+    const { call } = await signedIn();
+
+    const response = await call('PUT', `/api/projects/${shop.id}/env`, {
+      vars: [
+        { key: 'SAME', value: 'one' },
+        { key: 'SAME', value: 'two' },
+      ],
+    });
+    expect(response.status).toBe(400);
+    const { error } = (await response.json()) as { error: { message: string } };
+    expect(error.message).toContain('twice');
   });
 });

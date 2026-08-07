@@ -204,6 +204,11 @@ them before it runs out. When it does, nothing can create a network again: no ne
 project, no new database, no deploy, on a machine that otherwise looks completely
 healthy.
 
+From 0.9.0 the deploy that hits this says so in words, and tells you to remove a project
+or run the prune below. Before that, Docker's own sentence was passed through as-is, and
+that sentence has never told anybody what to do. It is here as well as in the product
+because the version that shows it to you is not always the version you are reading about.
+
 Derailed removes project networks belonging to projects that no longer exist at every
 boot, so this should not build up. If you are on an older version, or something else
 on the machine is using them:

@@ -198,6 +198,11 @@ backupRoutes.post('/:id/restore', async (c) => {
 });
 
 backupRoutes.delete('/:id', async (c) => {
-  await deleteBackup(c.req.param('id'));
+  const id = c.req.param('id');
+  // `rm -f` semantics underneath, so without this every id answered "ok" whether or
+  // not it named anything. On the one screen whose job is to say what copies still
+  // exist, "deleted" about something that was never there is the wrong answer.
+  if (!(await Bun.file(backupFile(id)).exists())) throw notFound('That backup');
+  await deleteBackup(id);
   return c.json({ ok: true });
 });
