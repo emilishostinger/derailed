@@ -53,10 +53,72 @@ export function Logs() {
     ];
   }, [projects]);
 
+  /**
+   * The label each app's lines are tagged with, taken from the picker's own options so
+   * the name in front of a line is the name in the list you filter by. The three apps
+   * called `index.html` would otherwise be three identical prefixes.
+   */
+  const names = useMemo(
+    () =>
+      new Map(
+        options.filter((option) => option.value).map((option) => [option.value, option.label]),
+      ),
+    [options],
+  );
+
   const apps = useMemo(
     () => options.filter((option) => option.value).map((option) => ({ id: option.value })),
     [options],
   );
+
+  /** The backlog, so the page is not empty while waiting for something to be printed. */
+  useEffect(() => {
+    let current = true;
+    endpoints
+      .serverLogs()
+      .then((result) => current && setLines(result))
+      .catch(() => current && setLines([]));
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  /**
+   * Everything after that comes down the socket.
+   *
+   * Log lines are published on each app's own topic, which nothing on this page is
+   * otherwise subscribed to, so the subscription has to be made here and for every app
+   * at once. That is the whole point of the page.
+   */
+  useEffect(() => {
+    if (apps.length === 0) return;
+    return live.subscribe(apps.map((app) => topics.service(app.id)));
+  }, [apps]);
+
+  useEffect(() => {
+    return live.on((event) => {
+      if (event.type !== 'service.logs') return;
+      const name = names.get(event.serviceId);
+      // An app that is not in the sidebar yet has no name to label its lines with, and
+      // an unlabelled line in a page whose whole job is saying which app said it is
+      // worse than no line.
+      if (!name) return;
+      setLines((previous) => {
+        const next = [
+          ...previous,
+          ...event.lines.map((line) => ({
+            ...line,
+            serviceId: event.serviceId,
+            serviceName: name,
+          })),
+        ];
+        // The ceiling the server keeps for one app, times a plausible number of apps.
+        // Without it a chatty deploy grows this array until the tab is the problem, and
+        // this is the one page that is left open in the background for hours.
+        return next.length > 2000 ? next.slice(-2000) : next;
+      });
+    });
+  }, [names]);
 
   const shown = only ? lines.filter((line) => line.serviceId === only) : lines;
 
@@ -71,9 +133,11 @@ export function Logs() {
     () =>
       shown.map((line) => ({
         ...line,
-        line: only ? line.line : `${line.serviceName}  ${line.line}`,
+        // Through the same map as the live lines: the backlog arrives labelled with the
+        // app's plain name, and two apps can share one.
+        line: only ? line.line : `${names.get(line.serviceId) ?? line.serviceName}  ${line.line}`,
       })),
-    [shown, only],
+    [shown, only, names],
   );
 
   return (
@@ -88,20 +152,23 @@ export function Logs() {
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="space-y-3 p-5">
-          {apps.length > 1 && (
-            <ScopePicker
-              label="Showing"
-              value={only ?? ''}
-              options={options}
-              onChange={(next) => setOnly(next || null)}
-            />
-          )}
-
+        <div className="p-5">
           <LogViewer
             lines={labelled}
-            className="h-[calc(100vh-16rem)]"
+            className="h-[calc(100vh-13rem)]"
             emptyMessage="Nothing has been printed yet. Anything your apps write shows up here as it happens."
+            // Which app, and which words in it, are one question. They sit on one row.
+            toolbar={
+              apps.length > 1 ? (
+                <ScopePicker
+                  label="Showing"
+                  className="shrink-0"
+                  value={only ?? ''}
+                  options={options}
+                  onChange={(next) => setOnly(next || null)}
+                />
+              ) : undefined
+            }
           />
         </div>
       </div>

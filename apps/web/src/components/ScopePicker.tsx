@@ -97,12 +97,22 @@ export function ScopePicker({
 
   useEffect(() => {
     if (!open) return;
-    // Scrolling the pane underneath would leave the panel behind, pointing at nothing.
-    const shut = () => setOpen(false);
-    window.addEventListener('resize', shut);
+    // Scrolling the pane underneath would leave the panel behind, pointing at nothing,
+    // so that shuts it. Scrolling *inside* the panel must not, and getting this wrong
+    // made the list unscrollable: a scroll event does not bubble but it does propagate
+    // downwards, so a capturing listener on the window hears the option list being
+    // scrolled and closed the very thing being scrolled. On a trackpad, where a scroll
+    // is the reflex, the list simply could not be reached past its first eight rows.
+    const shut = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && panel.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const close = () => setOpen(false);
+    window.addEventListener('resize', close);
     window.addEventListener('scroll', shut, true);
     return () => {
-      window.removeEventListener('resize', shut);
+      window.removeEventListener('resize', close);
       window.removeEventListener('scroll', shut, true);
     };
   }, [open]);
@@ -233,7 +243,13 @@ export function ScopePicker({
                 </div>
               )}
 
-              <div role="listbox" className="max-h-72 overflow-y-auto p-1">
+              {/*
+                `overscroll-contain` is the other half of that. Without it, a scroll
+                that reaches the end of the list carries on into the page underneath,
+                which is an outside scroll, which closes the panel. Flicking a trackpad
+                hard enough to reach the bottom of the list would shut it on arrival.
+              */}
+              <div role="listbox" className="max-h-72 overflow-y-auto overscroll-contain p-1">
                 {rows.length === 0 ? (
                   <p className="px-2 py-3 text-[13px] text-ink-faint">Nothing matches that.</p>
                 ) : (

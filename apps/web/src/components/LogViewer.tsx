@@ -17,11 +17,21 @@ export function LogViewer({
   className,
   /** Start collapsed to the plain-language lines, with the rest a click away. */
   summarise,
+  /**
+   * Goes in front of the search box, on the same row.
+   *
+   * Anything that narrows what is in the viewer belongs beside the thing that
+   * searches it, not stacked above it: they are one question asked twice, they are
+   * the same height, and a row of its own costs a line of log output for a control
+   * that is mostly empty space.
+   */
+  toolbar,
 }: {
   lines: LogLine[];
   emptyMessage?: string;
   className?: string;
   summarise?: boolean;
+  toolbar?: React.ReactNode;
 }) {
   const [showAll, setShowAll] = useState(!summarise);
   const [search, setSearch] = useState('');
@@ -67,8 +77,9 @@ export function LogViewer({
 
   return (
     <div className={cx('flex min-h-0 flex-col', className)}>
-      <div className="flex items-center gap-2 pb-2">
-        <div className="relative min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-2 pb-2">
+        {toolbar}
+        <div className="relative min-w-0 flex-1 basis-48">
           <Search className="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" />
           <input
             className="input h-8 py-1 pl-8 text-[12px]"
