@@ -297,7 +297,7 @@ function AddressList({
   return (
     <section>
       <p className="eyebrow mb-2">{title}</p>
-      <p className="mb-2.5 max-w-prose text-[13px] text-ink-muted">{blurb}</p>
+      <p className="mb-2.5 text-[13px] text-ink-muted">{blurb}</p>
 
       {entries.length === 0 ? (
         <p className="mb-2.5 text-[13px] text-ink-faint">{empty}</p>

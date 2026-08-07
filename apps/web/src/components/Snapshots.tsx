@@ -41,7 +41,7 @@ export function Snapshots({ service }: { service: Service }) {
 
   return (
     <div className="space-y-4">
-      <p className="max-w-prose text-[13px] text-ink-muted">
+      <p className="text-[13px] text-ink-muted">
         A copy of this database on its own, kept on a short rolling window, so losing an afternoon
         does not mean going back to last night's backup.
       </p>
@@ -120,7 +120,7 @@ export function Snapshots({ service }: { service: Service }) {
         </ul>
       )}
 
-      <p className="max-w-prose text-[12px] text-ink-faint">
+      <p className="text-[12px] text-ink-faint">
         Putting a copy back replaces what is in the database now with what was in it then.
         Everything written since is gone, which is the point, and there is no undo for it.
       </p>

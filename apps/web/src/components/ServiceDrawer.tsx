@@ -407,6 +407,12 @@ function Overview({ service }: { service: Service }) {
 /**
  * This app, as a file somebody else can install.
  *
+ * No `max-w-prose` on the text, unlike a documentation page. The drawer is already a
+ * fixed column, so prose width does nothing except stop each paragraph at a different
+ * place: two of them at 517 and 477 pixels inside a 740 pixel panel gave the block
+ * three ragged right edges that lined up with nothing above it, and read as a mistake
+ * rather than as a measure.
+ *
  * Only offered for apps that run a published image, because that is the only kind a
  * template can describe: an app built from a repository is shared by sharing the
  * repository.
@@ -420,11 +426,11 @@ function ShareAsTemplate({ service }: { service: Service }) {
   return (
     <div className="border-t border-line pt-4">
       <p className="eyebrow mb-2">Share this app</p>
-      <p className="mb-2.5 max-w-prose text-[13px] text-ink-muted">
+      <p className="mb-2.5 text-[13px] text-ink-muted">
         Downloads a template file. Anybody can paste its address into their own Derailed and get
         this app, with the same image, port, storage and database.
       </p>
-      <p className="mb-3 max-w-prose text-[12px] text-ink-faint">
+      <p className="mb-3 text-[12px] text-ink-faint">
         Passwords, keys and tokens are left out: anything that came from your database becomes a
         placeholder, and anything that looks like a secret becomes a name their server fills in with
         a fresh random value. Read the file before publishing it.
