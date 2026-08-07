@@ -57,6 +57,9 @@ Creating a service:
 | `PATCH /services/:id` | Branch, folder, port, health path, memory limit, image, and `deployOnPush` / `deployOnRelease` |
 | `DELETE /services/:id` | Stops it and frees its addresses. Everything stored is kept for a week; see the trash below |
 | `POST /services/:id/start` · `/stop` · `/restart` | Control it |
+| `GET · PUT · POST /services/:id/snapshots` | Copies of one database: list, set the interval, take one now |
+| `GET /services/:id/snapshots/at?at=` | Which copy would be used for a moment, without restoring |
+| `POST /services/:id/snapshots/:snapshotId/restore` | Puts one back. No undo |
 | `GET /services/:id/template` | This app as a `.derailed.json` template file. Secrets are placeheld or renamed on the way out |
 | `GET /services/:id/files?path=` | Browse an app's storage |
 | `GET /services/:id/files/read?path=` · `PUT /services/:id/files` | Read and write one file, as text, up to 512 KB |

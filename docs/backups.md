@@ -152,3 +152,41 @@ enough to run unattended, which a full restore would not be.
 
 Engines whose dumps have no end marker (Redis, MongoDB's archive format) are checked
 for being present and non-empty and no further. Claiming more than that would be a lie.
+
+## Copies of one database, taken often
+
+A project backup runs nightly. "The bad thing happened at three o'clock and the backup
+is from midnight" is the worst hour of somebody's month, and the answer to it is not a
+better nightly backup, it is more of them.
+
+Every database has a **Copies** tab: take one now, or have one taken every hour, six
+hours or twelve. Forty-eight are kept, so at hourly that is two days.
+
+Putting one back replaces what is in the database now with what was in it then.
+Everything written since is gone, which is the point, and there is no undo. Apps
+connected to the database keep running; they simply see the older data.
+
+### This is not point-in-time recovery, and the difference matters
+
+Real point-in-time recovery replays a write-ahead log to any second you name. It needs
+the database configured to archive that log, it costs disk continuously, and it exists
+for PostgreSQL and MySQL and not for the other four engines here.
+
+This puts back the nearest copy taken **at or before** the moment you name. So the
+question it answers is "how much do I lose", and the answer is up to one interval
+rather than up to a day.
+
+**Never a later copy**, however much closer in time it might be. If the mistake was at
+02:55, the 03:00 copy is five minutes away and the 02:00 copy is fifty-five, and the
+03:00 one contains the mistake. That is the single rule this whole feature turns on.
+
+### What can be put back
+
+PostgreSQL, MySQL, MariaDB and MongoDB. Redis and Valkey can have a copy taken but not
+put back into a running server: their dump is the file the server reads when it starts,
+not something it can be handed while running, and the backups page says the same.
+
+The dump is taken with the drops included, so it can go back into the database it came
+from rather than only into an empty one. Without that, every `CREATE TABLE` fails
+because the table is already there, the client carries on to the next statement, and
+the restore reports success while changing nothing at all.

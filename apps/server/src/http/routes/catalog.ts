@@ -1,6 +1,14 @@
 import { schemas } from '@derailed/shared';
 import { Hono } from 'hono';
 import {
+  INTERVALS,
+  listSnapshots,
+  restoreSnapshot,
+  snapshotAt,
+  takeSnapshot,
+} from '../../backup/snapshots.ts';
+import { FriendlyError } from '../../build/git.ts';
+import {
   browseKeys,
   browseKind,
   canBrowse,
@@ -238,6 +246,87 @@ browseRoutes.delete('/:id/queries/:queryId', (c) => {
   const query = findSavedQuery(c.req.param('queryId'));
   if (!query || query.serviceId !== c.req.param('id')) throw notFound('That saved query');
   deleteSavedQuery(query.id);
+  return c.json({ ok: true });
+});
+
+/**
+ * Copies of one database, taken often.
+ *
+ * Deliberately not called point-in-time recovery anywhere the person can see, because
+ * it is not that: it restores the nearest copy at or before a moment, so what it
+ * bounds is how much you lose rather than how precisely you can land.
+ */
+browseRoutes.get('/:id/snapshots', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+  return c.json({
+    snapshots: listSnapshots(service.id),
+    everyHours: service.snapshotEveryHours ?? null,
+    intervals: INTERVALS,
+  });
+});
+
+browseRoutes.put('/:id/snapshots', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+  if (service.kind !== 'database') throw badRequest('Only databases are copied this way.');
+
+  const body = (await c.req.json().catch(() => ({}))) as { everyHours?: number | null };
+  const hours = body.everyHours ?? null;
+  if (hours !== null && !(INTERVALS as readonly number[]).includes(hours)) {
+    throw badRequest(
+      'Pick one of the intervals offered.',
+      `Every ${INTERVALS.join(', ')} hours, or off.`,
+    );
+  }
+
+  updateService(service.id, { snapshotEveryHours: hours });
+  emitService(service.id);
+  return c.json({ everyHours: hours });
+});
+
+browseRoutes.post('/:id/snapshots', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+
+  const snapshot = await takeSnapshot(service.id);
+  if (!snapshot) {
+    throw badRequest(
+      'Derailed could not read that database just now.',
+      'It may still be starting, or its engine may not have a dump Derailed can take.',
+    );
+  }
+  return c.json({ snapshot }, 201);
+});
+
+/**
+ * Which copy would be used for a moment, without restoring it.
+ *
+ * Always the newest one at or before that moment, never a later one however much
+ * closer it is: a copy from after the thing you are undoing contains the thing you
+ * are undoing.
+ */
+browseRoutes.get('/:id/snapshots/at', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+  const moment = Number(c.req.query('at') ?? Date.now());
+  if (!Number.isFinite(moment)) throw badRequest('That is not a moment.');
+
+  return c.json({ snapshot: snapshotAt(service.id, moment) });
+});
+
+browseRoutes.post('/:id/snapshots/:snapshotId/restore', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That database');
+
+  try {
+    await restoreSnapshot(c.req.param('snapshotId'));
+  } catch (err) {
+    throw badRequest(
+      err instanceof Error ? err.message : 'That copy could not be put back.',
+      err instanceof FriendlyError ? err.hint : undefined,
+    );
+  }
   return c.json({ ok: true });
 });
 

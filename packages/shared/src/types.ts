@@ -137,6 +137,13 @@ export interface Service {
   dbName: string | null;
   dbUser: string | null;
   exposedPort: number | null;
+  /**
+   * How often a copy of this database is kept, in hours, or null for never.
+   *
+   * Not point-in-time recovery: it restores the nearest copy at or before a moment,
+   * so what it bounds is how much you lose, not how precisely you can land.
+   */
+  snapshotEveryHours?: number | null;
 
   createdAt: number;
   updatedAt: number;

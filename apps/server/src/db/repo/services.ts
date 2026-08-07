@@ -34,6 +34,7 @@ interface ServiceRow {
   db_password_enc: string | null;
   repo_token_enc: string | null;
   exposed_port: number | null;
+  snapshot_every_hours?: number | null;
   created_at: number;
   updated_at: number;
   deleted_at?: number | null;
@@ -74,6 +75,7 @@ function toService(row: ServiceRow): Service {
     dbName: row.db_name,
     dbUser: row.db_user,
     exposedPort: row.exposed_port,
+    snapshotEveryHours: row.snapshot_every_hours ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at ?? null,
@@ -300,6 +302,7 @@ const UPDATABLE: Record<string, string> = {
   source: 'source',
   image: 'image',
   framework: 'framework',
+  snapshotEveryHours: 'snapshot_every_hours',
 };
 
 export function updateService(

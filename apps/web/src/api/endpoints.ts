@@ -550,6 +550,19 @@ export const endpoints = {
   deleteKey: (serviceId: string, key: string) =>
     api.delete<{ ok: true }>(`/services/${serviceId}/keys?key=${encodeURIComponent(key)}`),
 
+  snapshots: (serviceId: string) =>
+    api.get<{
+      snapshots: { id: string; at: number; sizeBytes: number }[];
+      everyHours: number | null;
+      intervals: number[];
+    }>(`/services/${serviceId}/snapshots`),
+  setSnapshotInterval: (serviceId: string, everyHours: number | null) =>
+    api.put<{ everyHours: number | null }>(`/services/${serviceId}/snapshots`, { everyHours }),
+  takeSnapshot: (serviceId: string) =>
+    api.post<{ snapshot: unknown }>(`/services/${serviceId}/snapshots`),
+  restoreSnapshot: (serviceId: string, snapshotId: string) =>
+    api.post<{ ok: true }>(`/services/${serviceId}/snapshots/${snapshotId}/restore`),
+
   savedQueries: (serviceId: string) =>
     api.get<{ queries: SavedQuery[] }>(`/services/${serviceId}/queries`).then((r) => r.queries),
   saveNamedQuery: (serviceId: string, name: string, body: string) =>

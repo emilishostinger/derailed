@@ -737,4 +737,28 @@ export const migrations: Migration[] = [
       ALTER TABLE projects ADD COLUMN cpu_limit_millis INTEGER;
     `,
   },
+  {
+    id: 29,
+    name: 'a copy of a database more often than nightly',
+    sql: `
+      -- "The bad thing happened at three and the backup is from midnight" is the
+      -- worst hour of somebody's month, and the answer to it is not a bigger nightly
+      -- backup. It is more of them.
+      --
+      -- Deliberately not the same thing as a project backup: this is one database,
+      -- kept on a short rolling window, so it stays small enough to take often.
+      CREATE TABLE db_snapshots (
+        id         TEXT PRIMARY KEY,
+        service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        at         INTEGER NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        file       TEXT NOT NULL
+      );
+      CREATE INDEX idx_db_snapshots_service ON db_snapshots(service_id, at DESC);
+
+      -- How often, in hours. NULL is off, which is the default: taking copies of
+      -- somebody's database on a schedule they did not ask for is their disk.
+      ALTER TABLE services ADD COLUMN snapshot_every_hours INTEGER;
+    `,
+  },
 ];

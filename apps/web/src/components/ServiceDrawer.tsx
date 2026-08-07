@@ -28,6 +28,7 @@ import { LogsTab } from './LogsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
+import { Snapshots } from './Snapshots.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
 import { TechIcon } from './TechIcon.tsx';
@@ -39,6 +40,7 @@ import { WhyBroken } from './WhyBroken.tsx';
 
 type Tab =
   | 'overview'
+  | 'snapshots'
   | 'traffic'
   | 'logs'
   | 'metrics'
@@ -120,6 +122,7 @@ export function ServiceDrawer({
     : [
         ['overview', 'Overview'],
         ['browse', 'Browse'],
+        ['snapshots', 'Copies'],
         ['connection', 'Connection'],
         ['variables', 'Variables'],
         ['terminal', 'Terminal'],
@@ -307,6 +310,7 @@ export function ServiceDrawer({
           {tab === 'logs' && <LogsTab service={service} />}
           {tab === 'metrics' && <MetricsTab service={service} />}
           {tab === 'browse' && <BrowseTab service={service} />}
+          {tab === 'snapshots' && <Snapshots service={service} />}
           {tab === 'files' && <FilesTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}

@@ -155,10 +155,28 @@ export interface DumpPlan {
 export function dumpCommandFor(
   engine: string,
   credentials: { user: string; dbName: string; password: string },
+  /**
+   * Whether this dump has to be able to go back into a database that still has the
+   * old tables in it.
+   *
+   * A project restore builds a fresh database, so a plain dump is enough. Putting a
+   * copy back into the live database it came from is a different job: without the
+   * drops, every `CREATE TABLE` fails because the table is already there, `psql`
+   * carries on to the next statement, and the restore reports success while changing
+   * nothing at all. That is worse than failing, and it is what this flag exists to
+   * stop.
+   */
+  options: { replace?: boolean } = {},
 ): DumpPlan | null {
   if (engine === 'postgres') {
     return {
-      cmd: ['pg_dump', '-U', credentials.user, credentials.dbName],
+      cmd: [
+        'pg_dump',
+        '-U',
+        credentials.user,
+        ...(options.replace ? ['--clean', '--if-exists'] : []),
+        credentials.dbName,
+      ],
       env: [`PGPASSWORD=${credentials.password}`],
       file: 'dump.sql',
     };
@@ -172,6 +190,9 @@ export function dumpCommandFor(
         credentials.user,
         '--single-transaction',
         '--routines',
+        // Already the default, and named anyway: this is the line that decides
+        // whether a copy can go back where it came from.
+        ...(options.replace ? ['--add-drop-table'] : []),
         credentials.dbName,
       ],
       env: [`MYSQL_PWD=${credentials.password}`],
@@ -277,7 +298,7 @@ export function safeInside(root: string, name: string): string | null {
 }
 
 /** `docker exec` with an environment, as `-e KEY=value` pairs before the command. */
-function execArgs(containerId: string, env: string[], extra: string[] = []): string[] {
+export function execArgs(containerId: string, env: string[], extra: string[] = []): string[] {
   return ['exec', ...extra, ...env.flatMap((entry) => ['-e', entry]), containerId];
 }
 

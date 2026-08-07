@@ -3,6 +3,7 @@ import { startTrafficCollector, stopTrafficCollector } from './analytics/collect
 import { pruneTraffic } from './analytics/store.ts';
 import { startDrills, stopDrills } from './backup/drill.ts';
 import { startBackupSchedule, stopBackupSchedule } from './backup/schedule.ts';
+import { startSnapshots, stopSnapshots } from './backup/snapshots.ts';
 import { startPreviewBranches, stopPreviewBranches } from './build/previews.ts';
 import { startPushWatcher, stopPushWatcher } from './build/pushes.ts';
 import { startReleaseWatcher, stopReleaseWatcher } from './build/releases.ts';
@@ -167,6 +168,7 @@ export async function serve(): Promise<void> {
   const shutdown = () => {
     console.log('\nShutting down.');
     stopDomainWatcher();
+    stopSnapshots();
     stopFreeDomainRenewal();
     stopBackupSchedule();
     stopDrills();
@@ -228,6 +230,7 @@ async function bootRuntime(): Promise<void> {
     for (const problem of report.problems) console.warn(`  problem    →  ${problem}`);
 
     startDomainWatcher();
+    startSnapshots();
     // Renewing pushes a fresh certificate to Caddy, which only matters once Caddy is
     // up, hence its place here rather than beside the other timers.
     startFreeDomainRenewal(() => syncRoutes());

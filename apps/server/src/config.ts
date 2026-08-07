@@ -25,6 +25,15 @@ export const paths = {
    */
   certs: join(dataDir, 'certs'),
   builds: join(dataDir, 'builds'),
+  /**
+   * Copies of one database, taken on a short rolling window.
+   *
+   * Kept apart from the project backups on purpose: those are a whole project in one
+   * archive, made nightly and kept for weeks. These are one database, made hourly and
+   * kept for a day or two, and mixing them would mean pruning could not tell which
+   * rule to apply to which.
+   */
+  snapshots: join(dataDir, 'snapshots'),
   // Overridable so tests can share one download of the Nixpacks binary rather than
   // fetching 20 MB into a throwaway folder on every run.
   bin: process.env.DERAILED_BIN ?? join(dataDir, 'bin'),
