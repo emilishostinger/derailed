@@ -2,6 +2,27 @@
 
 Derailed tries to say what's wrong and what to do about it, in the dashboard, in plain language.
 
+## Reading what an app is printing
+
+**Your app → Logs.**
+
+What the program itself is writing, as it writes it. This is the first place to look
+when a site is up but behaving oddly: the container is running, so nothing is
+"crashed", and the answer is usually in the last twenty lines it printed.
+
+The last five hundred lines are kept while the app runs, and new ones appear as they
+happen. They survive a redeploy in the sense that the tab keeps working: it notices the
+new container and follows that instead.
+
+Build output is a different thing and lives under **Deploys**, with the deploy it
+belongs to.
+
+Every app at once is on **Server → Logs**, for when something on the machine is
+complaining and you do not yet know which app it is.
+
+On the command line: `derailed logs <app>`.
+
+
 ## Start here
 
 ```sh

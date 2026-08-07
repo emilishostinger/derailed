@@ -23,6 +23,7 @@ import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
 import { FilesTab } from './FilesTab.tsx';
 import { JobsTab } from './JobsTab.tsx';
+import { LogsTab } from './LogsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
@@ -38,6 +39,7 @@ import { WhyBroken } from './WhyBroken.tsx';
 type Tab =
   | 'overview'
   | 'traffic'
+  | 'logs'
   | 'metrics'
   | 'browse'
   | 'files'
@@ -100,6 +102,7 @@ export function ServiceDrawer({
   const tabs: [Tab, string][] = isApp
     ? [
         ['overview', 'Overview'],
+        ['logs', 'Logs'],
         ['traffic', 'Visitors'],
         ['metrics', 'Load'],
         ['deployments', 'Deploys'],
@@ -300,6 +303,7 @@ export function ServiceDrawer({
           {tab === 'storage' && <StorageTab service={service} />}
           {tab === 'terminal' && <TerminalTab service={service} />}
           {tab === 'domains' && <DomainsTab service={service} />}
+          {tab === 'logs' && <LogsTab service={service} />}
           {tab === 'metrics' && <MetricsTab service={service} />}
           {tab === 'browse' && <BrowseTab service={service} />}
           {tab === 'files' && <FilesTab service={service} />}

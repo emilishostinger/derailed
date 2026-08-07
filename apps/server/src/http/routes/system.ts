@@ -24,6 +24,7 @@ import {
 } from '../../proxy/freedomain.ts';
 import { generatedHostname, isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
+import { recentLogs } from '../../runtime/logtail.ts';
 import { costComparison } from '../../system/cost.ts';
 import { diskReport, freeUpSpace } from '../../system/disk.ts';
 import { runDoctor } from '../../system/doctor.ts';
@@ -143,6 +144,29 @@ systemRoutes.post('/swap', async (c) => {
 });
 
 /** Derailed itself, and whatever else someone put on this machine. */
+/**
+ * Everything every app is printing, in one place.
+ *
+ * "Something on this server is complaining and I do not know which" is a real question
+ * and the only way to answer it before this was to open each app in turn. Each line
+ * carries the app it came from, so the page can label them.
+ */
+systemRoutes.get('/logs', (c) => {
+  const apps = listServices().filter((service) => service.kind === 'app');
+  const lines = apps
+    .flatMap((service) =>
+      recentLogs(service.id).map((line) => ({
+        ...line,
+        serviceId: service.id,
+        serviceName: service.name,
+      })),
+    )
+    .sort((a, b) => a.ts - b.ts)
+    .slice(-1000);
+
+  return c.json({ lines });
+});
+
 systemRoutes.get('/others', async (c) => c.json({ others: await otherSoftware(paths.dataDir) }));
 
 systemRoutes.get('/panel-domain', (c) =>

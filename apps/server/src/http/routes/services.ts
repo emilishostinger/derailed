@@ -32,6 +32,7 @@ import { publish } from '../../events/bus.ts';
 import { AppMailError, appCanSendMail, mailCredentials, setAppMail } from '../../mail/appmail.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { listFiles, readFile, storageRoots, writeFile } from '../../runtime/files.ts';
+import { followService, recentLogs } from '../../runtime/logtail.ts';
 import { historyFor } from '../../runtime/metrics.ts';
 import { emitProject, emitService, presentService } from '../../runtime/present.ts';
 import { previewFile, refreshPreview } from '../../runtime/preview.ts';
@@ -335,6 +336,23 @@ serviceRoutes.put('/:id/repo-token', async (c) => {
 });
 
 /** Upload (or replace) the files an app is built from. */
+/**
+ * What this app has printed lately.
+ *
+ * The live lines arrive over the websocket; this is the backlog, so opening the tab
+ * shows what already happened instead of an empty box that fills only if the app
+ * happens to say something while you watch.
+ */
+serviceRoutes.get('/:id/logs', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  // Asked for on the way in: the sweep starts followers on its own, but somebody
+  // opening this tab should not wait up to ten seconds for the first line.
+  await followService(service.id);
+  return c.json({ lines: recentLogs(service.id) });
+});
+
 serviceRoutes.post('/:id/upload', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');

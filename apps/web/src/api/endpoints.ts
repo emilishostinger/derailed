@@ -252,6 +252,8 @@ export const endpoints = {
       })
       .then((r) => r.service),
   /** A folder, each file labelled with its path inside it. Nothing is zipped first. */
+  serviceLogs: (serviceId: string) => api.get<{ lines: LogLine[] }>(`/services/${serviceId}/logs`),
+
   uploadFolder: (serviceId: string, files: { path: string; file: File }[]) => {
     const form = new FormData();
     for (const entry of files) form.append('files', entry.file, entry.path);

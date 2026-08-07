@@ -24,6 +24,7 @@ import {
   pruneOldDeployments,
   pruneOrphanedNetworks,
 } from './runtime/housekeeping.ts';
+import { startLogTails, stopLogTails } from './runtime/logtail.ts';
 import { pruneMetrics } from './runtime/metrics.ts';
 import { startMonitor, stopMonitor } from './runtime/monitor.ts';
 import { startPreviews, stopPreviews } from './runtime/preview.ts';
@@ -180,6 +181,7 @@ export async function serve(): Promise<void> {
     stopPreviewBranches();
     stopUpdateNotifier();
     stopTrafficCollector();
+    stopLogTails();
     stopMonitor();
     server.stop();
     process.exit(0);
@@ -237,6 +239,8 @@ async function bootRuntime(): Promise<void> {
     startPreviews();
     startUptime();
     startSleeper();
+    // What the running apps are printing, so the Logs tab has something in it.
+    startLogTails();
     startReleaseWatcher();
     startPushWatcher();
     startPreviewBranches((line) => console.log(`  previews   →  ${line}`));
