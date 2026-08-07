@@ -1,3 +1,4 @@
+import { DATABASE_ENGINES } from './databases.ts';
 /**
  * One-click apps.
  *
@@ -8,6 +9,15 @@
  *
  * Adding one is a data change, not a code change.
  */
+export interface TemplateConnection {
+  host: string;
+  port: number;
+  dbName: string;
+  user: string;
+  password: string;
+  url: string;
+}
+
 export interface TemplateDatabase {
   engine: 'postgres' | 'mysql' | 'redis';
   version: string;
@@ -15,14 +25,41 @@ export interface TemplateDatabase {
    * Maps the created database's connection details onto the variables this app
    * expects. Apps rarely agree on names, and almost none read a DATABASE_URL.
    */
-  env: (connection: {
-    host: string;
-    port: number;
-    dbName: string;
-    user: string;
-    password: string;
-    url: string;
-  }) => Record<string, string>;
+  env: (connection: TemplateConnection) => Record<string, string>;
+}
+
+/** The only things a `{placeholder}` in a shared template may stand for. */
+export const CONNECTION_FIELDS = [
+  'host',
+  'port',
+  'dbName',
+  'user',
+  'password',
+  'url',
+] as const satisfies readonly (keyof TemplateConnection)[];
+
+/**
+ * The same mapping, written down rather than computed.
+ *
+ * A template from the catalogue maps connection details with a function, which is the
+ * right shape for code and an impossible one for JSON. A shared template says
+ * `"DB_HOST": "{host}"` instead, and only the six names above are ever substituted:
+ * anything else in braces is left exactly as it was typed, so a template cannot reach
+ * for something it was not offered.
+ */
+export function fillConnection(
+  template: Record<string, string>,
+  connection: TemplateConnection,
+): Record<string, string> {
+  const filled: Record<string, string> = {};
+  for (const [key, value] of Object.entries(template)) {
+    filled[key] = value.replace(/\{([a-zA-Z]+)\}/g, (whole, field: string) =>
+      (CONNECTION_FIELDS as readonly string[]).includes(field)
+        ? String(connection[field as keyof TemplateConnection])
+        : whole,
+    );
+  }
+  return filled;
 }
 
 /**
@@ -525,6 +562,7 @@ export function parseTemplate(input: unknown): AppTemplate {
   }
 
   return {
+    database: parseDatabase(raw.database),
     slug: String(raw.slug ?? raw.name)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -549,6 +587,37 @@ export function parseTemplate(input: unknown): AppTemplate {
         ? raw.afterDeploy.slice(0, 300)
         : 'Open your site to finish setting it up.',
   };
+}
+
+/**
+ * The database half of a shared template, or nothing.
+ *
+ * Checked as hard as everything else: the engine has to be one of three, the version
+ * one the catalogue actually offers, and the mapping plain strings. A template that
+ * could name any image and any version would be a way to start an unmaintained
+ * database from four years ago on somebody's server.
+ */
+function parseDatabase(input: unknown): TemplateDatabase | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+  const raw = input as Record<string, unknown>;
+
+  const engine = raw.engine;
+  if (engine !== 'postgres' && engine !== 'mysql' && engine !== 'redis') return undefined;
+
+  const offered = DATABASE_ENGINES.find((entry) => entry.engine === engine);
+  const version = typeof raw.version === 'string' ? raw.version : '';
+  if (!offered?.versions.includes(version)) return undefined;
+
+  const mapping: Record<string, string> = {};
+  if (raw.env && typeof raw.env === 'object') {
+    for (const [key, value] of Object.entries(raw.env as Record<string, unknown>)) {
+      if (/^[A-Za-z_][A-Za-z0-9_]{0,100}$/.test(key) && typeof value === 'string') {
+        mapping[key] = value.slice(0, 4000);
+      }
+    }
+  }
+
+  return { engine, version, env: (connection) => fillConnection(mapping, connection) };
 }
 
 /** Fetches and validates one. Everything that can go wrong is said in words. */

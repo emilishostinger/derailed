@@ -8,6 +8,7 @@ import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
 import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.ts';
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
+import { ShareError, shareTemplate } from '../../catalog/share.ts';
 import { listDomains } from '../../db/repo/domains.ts';
 import { listEnv, replaceUserEnv } from '../../db/repo/env.ts';
 import { findProject } from '../../db/repo/projects.ts';
@@ -637,6 +638,36 @@ serviceRoutes.post('/:id/files/upload', async (c) => {
     throw badRequest(err instanceof Error ? err.message : 'That file could not be uploaded.');
   }
   return c.json({ ok: true }, 201);
+});
+
+/**
+ * This app, as a template file somebody else could run.
+ *
+ * The other half of pasting a template link, which existed on its own for a while:
+ * you could install one and not produce one, and nobody writes a template by hand
+ * from a documentation page.
+ *
+ * A download rather than a page, because the useful thing to do with it is put it in
+ * a repository next to the project it describes.
+ */
+serviceRoutes.get('/:id/template', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  let template: ReturnType<typeof shareTemplate>;
+  try {
+    template = shareTemplate(service.id);
+  } catch (err) {
+    if (err instanceof ShareError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+
+  return new Response(`${JSON.stringify(template, null, 2)}\n`, {
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'content-disposition': `attachment; filename="${service.slug}.derailed.json"`,
+    },
+  });
 });
 
 /** Straight through from the container to the browser, without a copy in between. */

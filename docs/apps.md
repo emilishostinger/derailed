@@ -19,6 +19,54 @@ the strength of a URL nobody has read.
 Every field Derailed does not define is dropped rather than passed through, and the
 file is size-capped before it is even parsed.
 
+## Sharing one of yours
+
+Any app that runs a published image has **Download the template** on its Overview tab.
+It writes a `.derailed.json` file describing the app: the image, the port, the storage,
+the variables, and the database if it has one. Put it in a repository, send somebody the
+link to the raw file, and they get your app.
+
+Apps built from a repository cannot be shared this way, and it says so. A template names
+an image anybody can pull; an app built from source is shared by sharing the source.
+
+### The secrets are taken out
+
+The file is generated from the app's own variables, which is exactly where its
+passwords, keys and tokens live, and whoever presses the button is about to publish it.
+So three things happen on the way out:
+
+- Anything that came from the app's **database** becomes a placeholder. The password,
+  the host, the connection URL: `{password}`, `{host}`, `{url}`. Matched by value rather
+  than by variable name, so it is caught even inside a longer string, and matched
+  longest-first so a URL stays one placeholder rather than a URL with a hole in it.
+- Anything that **looks like a secret** becomes a name instead of a value, listed under
+  `generatedEnv`. The installing server fills each one with a fresh random value. Both
+  the name and the value are checked: a variable called `LICENCE` holding thirty random
+  characters is a key, whatever it is called.
+- Anything **Derailed injected** is dropped entirely. A connection string pointing at a
+  container on this machine is no use on somebody else's and should not travel.
+
+That is a careful set of rules and not a guarantee. **Read the file before you publish
+it.** Anything left in it is a value Derailed had no reason to think was a secret.
+
+### The database half
+
+A shared template describes its database declaratively, because a template from the
+catalogue maps connection details with a function and JSON cannot hold one:
+
+```json
+"database": {
+  "engine": "mysql",
+  "version": "8.0",
+  "env": { "DB_HOST": "{host}", "DB_PASSWORD": "{password}" }
+}
+```
+
+Only `{host}`, `{port}`, `{dbName}`, `{user}`, `{password}` and `{url}` are ever
+substituted. Anything else in braces is left as typed, so a template cannot reach for
+something it was not offered. The engine has to be one of the three and the version one
+the catalogue actually offers, or the database block is dropped.
+
 
 ## What is in the catalogue
 

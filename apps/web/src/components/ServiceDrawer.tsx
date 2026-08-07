@@ -1,6 +1,7 @@
 import type { Deployment, LogLine, Service } from '@derailed/shared';
 import { ACTIVE_DEPLOYMENT_STATUSES, topics } from '@derailed/shared';
 import {
+  Download,
   ExternalLink,
   Globe,
   Lock,
@@ -393,6 +394,41 @@ function Overview({ service }: { service: Service }) {
           emptyMessage="No output yet. Deploy to see what happens."
         />
       </div>
+
+      {service.source === 'image' && <ShareAsTemplate service={service} />}
+    </div>
+  );
+}
+
+/**
+ * This app, as a file somebody else can install.
+ *
+ * Only offered for apps that run a published image, because that is the only kind a
+ * template can describe: an app built from a repository is shared by sharing the
+ * repository.
+ *
+ * The warning is not decoration. The person pressing this is about to publish the
+ * file, and the file is generated from the app's own variables, which is exactly
+ * where its secrets live. Derailed takes them out, but "we took the secrets out" is
+ * a claim worth stating rather than assuming, so it says which ones and why.
+ */
+function ShareAsTemplate({ service }: { service: Service }) {
+  return (
+    <div className="border-t border-line pt-4">
+      <p className="eyebrow mb-2">Share this app</p>
+      <p className="mb-2.5 max-w-prose text-[13px] text-ink-muted">
+        Downloads a template file. Anybody can paste its address into their own Derailed and get
+        this app, with the same image, port, storage and database.
+      </p>
+      <p className="mb-3 max-w-prose text-[12px] text-ink-faint">
+        Passwords, keys and tokens are left out: anything that came from your database becomes a
+        placeholder, and anything that looks like a secret becomes a name their server fills in with
+        a fresh random value. Read the file before publishing it.
+      </p>
+      <a className="btn-secondary" href={`/api/services/${service.id}/template`}>
+        <Download className="h-3.5 w-3.5" />
+        Download the template
+      </a>
     </div>
   );
 }
