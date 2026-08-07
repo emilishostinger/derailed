@@ -182,6 +182,28 @@ next deploy, which the tab says plainly rather than pretending to be live.
 Connecting a database to an app adds its connection details automatically as a
 variable; see [databases](databases.md).
 
+### Set once for the whole project
+
+An API key, a timezone, an error-reporting address: things that are true of a project
+rather than of one app in it. **Project menu → Shared variables** sets them once, and
+every app in the project gets them.
+
+Setting the same value on five apps by hand is five chances to fat-finger one, and
+rotating it later means finding all five and remembering which they were.
+
+**An app's own value wins.** A shared variable is a default, not a decree: an app that
+needs a different one sets it on its own Variables tab and that is what it gets, with
+no need to take anything off the project first. The other way round, a shared list
+becomes something you have to fight the moment one app is different.
+
+A connection detail Derailed injected also wins, for the same reason but more so: it
+points at a real container, and a project-wide default of the same name would be a
+guess.
+
+Shared variables appear on each app's Variables tab under **Set for you**, greyed, so
+the tab still answers the question it exists to answer: what will actually be set when
+this runs.
+
 ## When a build fails
 
 The error is translated into what happened and what to do next, with the last lines of

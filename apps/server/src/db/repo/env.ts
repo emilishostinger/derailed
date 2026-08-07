@@ -26,9 +26,73 @@ export function listEnv(serviceId: string): EnvVar[] {
     .map(toEnvVar);
 }
 
+interface ProjectEnvRow {
+  id: string;
+  project_id: string;
+  key: string;
+  value_enc: string;
+}
+
+/**
+ * Variables shared by everything in a project.
+ *
+ * An API key, a timezone, an error-reporting address: things that are true of the
+ * project rather than of one app in it. Setting the same value on five apps by hand
+ * is five chances to fat-finger one, and rotating it later means finding all five and
+ * remembering which they were.
+ */
+export function listProjectEnv(projectId: string): { key: string; value: string }[] {
+  return db()
+    .query<ProjectEnvRow, [string]>('SELECT * FROM project_env WHERE project_id = ? ORDER BY key')
+    .all(projectId)
+    .map((row) => ({ key: row.key, value: decrypt(row.value_enc) }));
+}
+
+export function replaceProjectEnv(projectId: string, vars: { key: string; value: string }[]): void {
+  db().transaction(() => {
+    db().query('DELETE FROM project_env WHERE project_id = ?').run(projectId);
+    for (const entry of vars) {
+      db()
+        .query('INSERT INTO project_env (id, project_id, key, value_enc) VALUES (?, ?, ?, ?)')
+        .run(newId(), projectId, entry.key, encrypt(entry.value));
+    }
+  })();
+}
+
+/**
+ * What an app actually gets, shared variables included.
+ *
+ * The project's come first and the app's own overwrite them, so a shared value is a
+ * default rather than a decree: an app that needs a different one sets it and wins,
+ * without anybody having to remove it from the project first. Any other order would
+ * make the shared list a thing you have to fight.
+ */
+export function effectiveEnv(serviceId: string): EnvVar[] {
+  const own = listEnv(serviceId);
+  const service = db()
+    .query<{ project_id: string }, [string]>('SELECT project_id FROM services WHERE id = ?')
+    .get(serviceId);
+  if (!service) return own;
+
+  const ownKeys = new Set(own.map((entry) => entry.key));
+  const shared: EnvVar[] = listProjectEnv(service.project_id)
+    .filter((entry) => !ownKeys.has(entry.key))
+    .map((entry) => ({
+      // Not a stored row, so it has no id of its own. The key is what identifies it
+      // on the screen, and the screen is the only thing that sees this.
+      id: `project:${entry.key}`,
+      serviceId,
+      key: entry.key,
+      value: entry.value,
+      source: 'project' as const,
+    }));
+
+  return [...own, ...shared].sort((a, b) => a.key.localeCompare(b.key));
+}
+
 export function envMap(serviceId: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const entry of listEnv(serviceId)) out[entry.key] = entry.value;
+  for (const entry of effectiveEnv(serviceId)) out[entry.key] = entry.value;
   return out;
 }
 

@@ -1,5 +1,6 @@
 import { schemas, topics } from '@derailed/shared';
 import { Hono } from 'hono';
+import { listProjectEnv, replaceProjectEnv } from '../../db/repo/env.ts';
 import {
   createProject,
   findProject,
@@ -13,7 +14,7 @@ import { publish } from '../../events/bus.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { emitProject, presentProject, presentProjects } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
-import { notFound, parseBody } from '../errors.ts';
+import { badRequest, notFound, parseBody } from '../errors.ts';
 
 export const projectRoutes = new Hono<AppEnv>();
 
@@ -30,6 +31,53 @@ projectRoutes.get('/:id', (c) => {
   const project = findProject(c.req.param('id'));
   if (!project) throw notFound('That project');
   return c.json({ project: presentProject(project) });
+});
+
+/**
+ * Variables shared by everything in a project.
+ *
+ * The value an app sees is its own if it has one and this otherwise, so a shared
+ * variable is a default rather than a decree. That direction matters: an app that
+ * needs a different value sets it and wins, without anybody having to take it off
+ * the project first.
+ */
+projectRoutes.get('/:id/env', (c) => {
+  const project = findProject(c.req.param('id'));
+  if (!project) throw notFound('That project');
+  return c.json({ vars: listProjectEnv(project.id) });
+});
+
+projectRoutes.put('/:id/env', async (c) => {
+  const project = findProject(c.req.param('id'));
+  if (!project) throw notFound('That project');
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    vars?: { key?: unknown; value?: unknown }[];
+  };
+  const vars: { key: string; value: string }[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of body.vars ?? []) {
+    const key = typeof entry.key === 'string' ? entry.key.trim() : '';
+    if (!key) continue;
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw badRequest(
+        `"${key}" is not a name an environment variable can have.`,
+        'Letters, digits and underscores, not starting with a digit.',
+      );
+    }
+    if (seen.has(key)) {
+      throw badRequest(`${key} is listed twice. Each variable can only appear once.`);
+    }
+    seen.add(key);
+    vars.push({ key, value: typeof entry.value === 'string' ? entry.value : '' });
+  }
+
+  replaceProjectEnv(project.id, vars);
+  // Every app in the project is now running with a stale set, so the screens that
+  // say "redeploy for this to take effect" have to be looking at fresh services.
+  emitProject(project.id);
+  return c.json({ vars: listProjectEnv(project.id), redeployNeeded: true });
 });
 
 projectRoutes.patch('/:id', async (c) => {

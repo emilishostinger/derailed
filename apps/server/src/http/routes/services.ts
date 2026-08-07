@@ -10,7 +10,7 @@ import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.t
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
 import { ShareError, shareTemplate } from '../../catalog/share.ts';
 import { listDomains } from '../../db/repo/domains.ts';
-import { listEnv, replaceUserEnv } from '../../db/repo/env.ts';
+import { effectiveEnv, replaceUserEnv } from '../../db/repo/env.ts';
 import { findProject } from '../../db/repo/projects.ts';
 import {
   createAppService,
@@ -791,10 +791,17 @@ serviceRoutes.get('/:id/traffic', (c) => {
   return c.json({ traffic: trafficFor(service.id, range) });
 });
 
+/**
+ * What this app actually gets, its project's shared variables included.
+ *
+ * The merged list rather than its own rows, because the question the screen is
+ * answering is "what will be set when this runs", and a shared variable that is
+ * invisible here is one somebody will set again by hand and then wonder about.
+ */
 serviceRoutes.get('/:id/env', (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
-  return c.json({ vars: listEnv(service.id) });
+  return c.json({ vars: effectiveEnv(service.id) });
 });
 
 serviceRoutes.put('/:id/env', async (c) => {
@@ -812,7 +819,7 @@ serviceRoutes.put('/:id/env', async (c) => {
 
   replaceUserEnv(service.id, vars);
   emitService(service.id);
-  return c.json({ vars: listEnv(service.id) });
+  return c.json({ vars: effectiveEnv(service.id) });
 });
 
 serviceRoutes.get('/:id/domains', (c) => {

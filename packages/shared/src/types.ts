@@ -41,7 +41,14 @@ export type ServiceStatus = 'running' | 'deploying' | 'stopped' | 'failed' | 'cr
 
 export type DeploymentTrigger = 'manual' | 'redeploy' | 'rollback' | 'webhook' | 'release' | 'push';
 
-export type EnvSource = 'user' | 'link' | 'system';
+/**
+ * Where a variable came from.
+ *
+ * `project` never appears on a stored row: it is what a shared variable looks like
+ * once it has been merged into an app's list, so the screen can grey it out and say
+ * where to change it.
+ */
+export type EnvSource = 'user' | 'link' | 'system' | 'project';
 
 export type DomainKind = 'generated' | 'custom';
 export type DnsStatus = 'unchecked' | 'ok' | 'wrong_ip' | 'no_record';

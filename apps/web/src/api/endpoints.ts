@@ -129,6 +129,15 @@ export const endpoints = {
   stopService: (id: string) => api.post<{ service: Service }>(`/services/${id}/stop`),
   restartService: (id: string) => api.post<{ service: Service }>(`/services/${id}/restart`),
 
+  projectEnv: (projectId: string) =>
+    api
+      .get<{ vars: { key: string; value: string }[] }>(`/projects/${projectId}/env`)
+      .then((r) => r.vars),
+  saveProjectEnv: (projectId: string, vars: { key: string; value: string }[]) =>
+    api
+      .put<{ vars: { key: string; value: string }[] }>(`/projects/${projectId}/env`, { vars })
+      .then((r) => r.vars),
+
   env: (serviceId: string) =>
     api.get<{ vars: EnvVar[] }>(`/services/${serviceId}/env`).then((r) => r.vars),
   saveEnv: (serviceId: string, vars: { key: string; value: string }[]) =>

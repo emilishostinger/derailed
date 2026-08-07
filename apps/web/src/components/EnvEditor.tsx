@@ -209,21 +209,35 @@ export function EnvEditor({ serviceId, onSaved }: { serviceId: string; onSaved?:
         </p>
       )}
 
+      {/* Shown rather than hidden, because the question this screen answers is "what
+          will be set when this runs". A shared variable that is invisible here is one
+          somebody sets again by hand and then wonders about. */}
       {linked.length > 0 && (
         <div>
-          <p className="eyebrow mb-2">From connected services</p>
+          <p className="eyebrow mb-2">Set for you</p>
           <div className="space-y-1">
             {linked.map((entry) => (
               <div
                 key={entry.id}
                 className="flex items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2 text-xs text-ink-muted"
               >
-                <span className="text-accent">⛓</span>
+                <span className="text-accent">{entry.source === 'project' ? '◇' : '⛓'}</span>
                 <span className="text-ink">{entry.key}</span>
-                <span className="ml-auto">set automatically</span>
+                <span className="ml-auto">
+                  {entry.source === 'project'
+                    ? 'shared by this project'
+                    : 'from a connected service'}
+                </span>
               </div>
             ))}
           </div>
+          {linked.some((entry) => entry.source === 'project') && (
+            // The escape hatch, said out loud. Otherwise the only way people find it
+            // is by trying it and being surprised that it worked.
+            <p className="mt-2 text-[12px] text-ink-faint">
+              Adding one above with the same name overrides it for this app only.
+            </p>
+          )}
         </div>
       )}
 

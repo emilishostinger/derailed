@@ -648,4 +648,25 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN block_from TEXT;
     `,
   },
+  {
+    id: 25,
+    name: 'set it once for the whole project',
+    sql: `
+      -- An API key, a timezone, a Sentry address: things that are true of the whole
+      -- project rather than of one app in it. Setting the same value on five apps by
+      -- hand is five chances to fat-finger one of them, and rotating it later means
+      -- finding all five and remembering which they were.
+      --
+      -- Kept in its own table rather than as rows on services with a null service_id,
+      -- because the unique constraint that stops one app having two of the same
+      -- variable is exactly the one that would have to be given up to allow it.
+      CREATE TABLE project_env (
+        id         TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        key        TEXT NOT NULL,
+        value_enc  TEXT NOT NULL,
+        UNIQUE (project_id, key)
+      );
+    `,
+  },
 ];
