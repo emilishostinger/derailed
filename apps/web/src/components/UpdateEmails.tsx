@@ -1,7 +1,7 @@
 import { Check, Mail, Send, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { type DirectCheck, endpoints, type MailSettings } from '../api/endpoints.ts';
-import { cx, ErrorNote, Field, Spinner, Switch } from './ui.tsx';
+import { cx, ErrorNote, Field, Select, Spinner, Switch } from './ui.tsx';
 
 /**
  * Emailing you when updates are waiting.
@@ -261,24 +261,20 @@ export function UpdateEmails() {
 
               <div className="mb-3">
                 <span className="label">Provider</span>
-                <select
-                  className="input mt-1"
-                  value={preset}
-                  onChange={(event) => {
-                    const chosen = PRESETS.find((entry) => entry.id === event.target.value);
-                    setPreset(event.target.value);
-                    if (chosen?.host) {
-                      set({ host: chosen.host, port: chosen.port, security: chosen.security });
-                    }
-                  }}
-                >
-                  <option value="">Pick one…</option>
-                  {PRESETS.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="mt-1">
+                  <Select
+                    ariaLabel="Who sends your email"
+                    value={preset}
+                    options={PRESETS.map((entry) => ({ value: entry.id, label: entry.label }))}
+                    onChange={(id) => {
+                      const chosen = PRESETS.find((entry) => entry.id === id);
+                      setPreset(id);
+                      if (chosen?.host) {
+                        set({ host: chosen.host, port: chosen.port, security: chosen.security });
+                      }
+                    }}
+                  />
+                </div>
                 {PRESETS.find((entry) => entry.id === preset)?.hint && (
                   <p className="mt-1.5 text-[12px] text-ink-muted">
                     {PRESETS.find((entry) => entry.id === preset)?.hint}

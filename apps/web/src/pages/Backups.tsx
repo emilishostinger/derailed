@@ -11,7 +11,7 @@ import {
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { Drill, Offsite } from '../components/Offsite.tsx';
-import { cx, EmptyState, ErrorNote, Modal, Spinner } from '../components/ui.tsx';
+import { cx, EmptyState, ErrorNote, Modal, Select, Spinner } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { formatBytes, PageHeader } from './Layout.tsx';
 
@@ -547,17 +547,12 @@ function RestoreDialog({
 
           <label className="block">
             <span className="label">Restore into</span>
-            <select
-              className="input"
+            <Select
+              ariaLabel="Which project"
               value={target}
-              onChange={(event) => setTarget(event.target.value)}
-            >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+              options={projects.map((project) => ({ value: project.id, label: project.name }))}
+              onChange={setTarget}
+            />
           </label>
 
           <ErrorNote error={error} />

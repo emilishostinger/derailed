@@ -4,7 +4,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useProjects } from '../stores/projects.ts';
 import { BrandTile, brandByName } from './TechIcon.tsx';
-import { cx, ErrorNote, Field, Modal, Spinner } from './ui.tsx';
+import { cx, ErrorNote, Field, Modal, Select, Spinner } from './ui.tsx';
 
 type Mode = 'choose' | 'apps' | 'github' | 'image' | 'upload' | 'database';
 
@@ -385,17 +385,12 @@ function FromCatalog({ projectId, onDone }: { projectId: string; onDone: () => v
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Version">
-          <select
-            className="input"
+          <Select
+            ariaLabel="Version"
             value={version}
-            onChange={(event) => setVersion(event.target.value)}
-          >
-            {engine.versions.map((entry) => (
-              <option key={entry} value={entry}>
-                {entry}
-              </option>
-            ))}
-          </select>
+            options={engine.versions.map((entry) => ({ value: entry, label: entry }))}
+            onChange={setVersion}
+          />
         </Field>
         <Field label="Name it">
           <input

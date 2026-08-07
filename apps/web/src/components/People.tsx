@@ -3,7 +3,7 @@ import { Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useToasts } from '../stores/toasts.ts';
-import { ErrorNote, Field, Spinner } from './ui.tsx';
+import { ErrorNote, Field, Select, Spinner } from './ui.tsx';
 
 /**
  * Who else can get in.
@@ -133,19 +133,15 @@ function PersonRow({
       {/* Your own row is fixed on purpose. Stepping down from the only owner account
           leaves a server nobody can administer, and that is not a thing to find out
           about after pressing a dropdown. */}
-      <select
-        className="input h-8 w-[7.5rem] text-[12px]"
+      <Select
+        className="w-32 shrink-0"
+        ariaLabel={`What ${person.email} can do`}
         value={person.role}
+        options={ROLES}
         disabled={busy || isYou}
         title={isYou ? 'You cannot change your own access.' : undefined}
-        onChange={(event) => void change(event.target.value as UserRole)}
-      >
-        {ROLES.map((role) => (
-          <option key={role.value} value={role.value}>
-            {role.label}
-          </option>
-        ))}
-      </select>
+        onChange={(role) => void change(role)}
+      />
 
       <button
         type="button"

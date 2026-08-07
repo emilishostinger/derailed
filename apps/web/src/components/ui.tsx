@@ -1,5 +1,13 @@
-import { AlertCircle, Check, Copy } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { AlertCircle, Check, ChevronDown, Copy } from 'lucide-react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { ApiError } from '../api/client.ts';
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -118,6 +126,261 @@ export function Switch({
         {hint && <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">{hint}</p>}
       </div>
     </div>
+  );
+}
+
+export interface SelectOption<T extends string> {
+  value: T;
+  label: string;
+  /** A line of explanation under the label, for choices that need one. */
+  hint?: string;
+}
+
+/**
+ * A dropdown that looks like the rest of the app.
+ *
+ * A native `<select>` is the one control a browser refuses to let you style. Its list
+ * is drawn by the operating system, so on a dark dashboard it opens a bright white
+ * menu in a different typeface with different corners, and on every platform it is a
+ * different shape. Next to controls that were designed, it reads as something that was
+ * forgotten.
+ *
+ * So the list is drawn here. The parts a native select gets right and hand-rolled ones
+ * usually drop are kept deliberately: it is a real listbox to a screen reader, the
+ * keyboard works the way the platform one does, and typing jumps to a matching option.
+ *
+ * The panel is positioned `fixed` rather than absolutely inside the trigger. These sit
+ * in scrolling panes and inside modals, and an absolutely positioned menu gets clipped
+ * by the first ancestor with `overflow` on it, which is a bug that only shows up in the
+ * one place somebody actually uses the control.
+ */
+export function Select<T extends string>({
+  value,
+  options,
+  onChange,
+  disabled,
+  title,
+  className,
+  placeholder = 'Pick one…',
+  ariaLabel,
+}: {
+  value: T | '';
+  options: SelectOption<T>[];
+  onChange: (next: T) => void;
+  disabled?: boolean;
+  title?: string;
+  className?: string;
+  placeholder?: string;
+  ariaLabel?: string;
+}) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [box, setBox] = useState<{ left: number; top: number; width: number } | null>(null);
+
+  const selected = options.findIndex((option) => option.value === value);
+  const current = selected >= 0 ? options[selected] : undefined;
+  const id = useId();
+
+  const place = useCallback(() => {
+    const anchor = trigger.current?.getBoundingClientRect();
+    if (!anchor) return;
+
+    // Measured after the list exists, so a menu near the bottom of the window opens
+    // upwards instead of hanging off the edge.
+    const height = list.current?.offsetHeight ?? 0;
+    const below = window.innerHeight - anchor.bottom;
+    const flip = height > 0 && below < height + 8 && anchor.top > below;
+
+    // And kept on screen sideways. These are often wider than the control that opened
+    // them, because the options carry a line of explanation and the control is a
+    // narrow column in a row. Anchoring the left edge and hoping is how a menu ends up
+    // half off the right of the window on a laptop.
+    const width = list.current?.offsetWidth ?? anchor.width;
+    const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8));
+
+    setBox({
+      left,
+      top: flip ? anchor.top - height - 4 : anchor.bottom + 4,
+      width: anchor.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+  }, [open, place]);
+
+  useEffect(() => {
+    if (!open) return;
+    const shut = () => setOpen(false);
+    // Scrolling the pane underneath would leave the menu behind, pointing at nothing.
+    window.addEventListener('resize', shut);
+    window.addEventListener('scroll', shut, true);
+    return () => {
+      window.removeEventListener('resize', shut);
+      window.removeEventListener('scroll', shut, true);
+    };
+  }, [open]);
+
+  function choose(index: number) {
+    const option = options[index];
+    if (!option) return;
+    onChange(option.value);
+    setOpen(false);
+    trigger.current?.focus();
+  }
+
+  function show() {
+    setActive(selected >= 0 ? selected : 0);
+    setOpen(true);
+  }
+
+  /** The keys a native select answers to, because muscle memory is the whole point. */
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (!open) {
+      if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) {
+        event.preventDefault();
+        show();
+      }
+      return;
+    }
+
+    switch (event.key) {
+      case 'Escape':
+        event.preventDefault();
+        setOpen(false);
+        break;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        choose(active);
+        break;
+      case 'ArrowDown':
+        event.preventDefault();
+        setActive((at) => Math.min(at + 1, options.length - 1));
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        setActive((at) => Math.max(at - 1, 0));
+        break;
+      case 'Home':
+        event.preventDefault();
+        setActive(0);
+        break;
+      case 'End':
+        event.preventDefault();
+        setActive(options.length - 1);
+        break;
+      default: {
+        // Typeahead. A list of database versions is exactly where somebody types "16"
+        // rather than reaching for the mouse.
+        if (event.key.length !== 1) return;
+        const from = options.findIndex((option, index) =>
+          index > active ? option.label.toLowerCase().startsWith(event.key.toLowerCase()) : false,
+        );
+        const wrapped =
+          from >= 0
+            ? from
+            : options.findIndex((option) =>
+                option.label.toLowerCase().startsWith(event.key.toLowerCase()),
+              );
+        if (wrapped >= 0) setActive(wrapped);
+      }
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={trigger}
+        type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        aria-haspopup="listbox"
+        aria-label={ariaLabel}
+        disabled={disabled}
+        title={title}
+        onKeyDown={onKeyDown}
+        onClick={() => (open ? setOpen(false) : show())}
+        className={cx(
+          'input flex items-center justify-between gap-2 text-left',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          open && 'border-accent ring-[3px] ring-accent/20',
+          className,
+        )}
+      >
+        <span className={cx('truncate', !current && 'text-ink-faint')}>
+          {current?.label ?? placeholder}
+        </span>
+        <ChevronDown
+          className={cx(
+            'h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform duration-150',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+
+      {open && (
+        <>
+          {/* Clicking anywhere else puts it away, which is what everybody tries first. */}
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            className="fixed inset-0 z-[59] cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            ref={list}
+            id={id}
+            role="listbox"
+            aria-label={ariaLabel}
+            // A ceiling on the width, so one wordy option cannot stretch the menu
+            // across the window. Narrow enough to sit under the control it belongs to,
+            // wide enough that the explanations still read as sentences.
+            className="panel animate-pop-in fixed z-[60] max-h-64 max-w-[min(22rem,calc(100vw-1rem))] overflow-y-auto p-1"
+            style={{
+              left: box?.left ?? 0,
+              top: box?.top ?? 0,
+              minWidth: box?.width ?? 0,
+              // Hidden until measured, or it flashes in the wrong place first.
+              visibility: box ? 'visible' : 'hidden',
+            }}
+          >
+            {options.map((option, index) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                onMouseEnter={() => setActive(index)}
+                onClick={() => choose(index)}
+                className={cx(
+                  'flex w-full items-start gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[13px] text-ink transition-colors',
+                  index === active && 'bg-surface-2',
+                )}
+              >
+                <Check
+                  className={cx(
+                    'mt-0.5 h-3.5 w-3.5 shrink-0',
+                    option.value === value ? 'text-accent' : 'text-transparent',
+                  )}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate">{option.label}</span>
+                  {option.hint && (
+                    <span className="mt-0.5 block text-[11px] text-ink-faint">{option.hint}</span>
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
