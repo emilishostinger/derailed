@@ -162,6 +162,27 @@ guess about every way somebody could write `DROP`, and being wrong once means lo
 database. A second statement smuggled in after a semicolon is refused for the same
 reason. `KEYS` is refused too, even though it only reads.
 
+For SQL there is a second rule underneath, and it is the one doing the real work: the
+query runs inside a **read-only transaction**, so the engine itself refuses anything
+that writes and the statement is rolled back either way. That is not a reading of your
+SQL, it is PostgreSQL or MySQL saying no, which means it covers the forms nobody has
+thought of yet.
+
+It needed to. Until 0.9.1 the allowlist was the only rule, and `with` was on it: in
+PostgreSQL a common table expression can contain a statement that changes data, so
+
+```sql
+with gone as (delete from things returning *) select * from gone
+```
+
+opened with an allowed word, contained no semicolon, and emptied the table. `explain
+analyze` had the same shape, because it runs the statement rather than describing it.
+Both are refused outright now, and both would be stopped by the transaction anyway.
+
+Statements that reach the filesystem (`pg_read_file`, `load_file`, `into outfile`) are
+refused too. A transaction has no opinion about those: reading a file is a read as far
+as the engine is concerned.
+
 To change data beyond what the grid allows, use the **Terminal** tab, where the engine's
 own client is one command away and it is obvious what you are doing.
 

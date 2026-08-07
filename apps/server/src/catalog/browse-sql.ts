@@ -12,12 +12,22 @@ import { exec, hexLiteral, type Session, type SqlEngine, tidyError } from './dbc
 /** Marks a real NULL, so it is not confused with an empty string. */
 const NULL_MARK = '\x1e';
 
-async function run(session: Session, sql: string): Promise<string> {
+/**
+ * `quiet` suppresses the command tag psql prints for a statement returning no rows.
+ *
+ * Only the read-only query box wants it, and only because the `BEGIN` and `ROLLBACK`
+ * wrapped around the query would otherwise arrive as two extra lines and be read as
+ * data. Everywhere else those tags are load-bearing: `updateCell` knows a row has been
+ * deleted underneath somebody because Postgres answers `UPDATE 0`, and passing `-q`
+ * everywhere turned that into silence that looked like success.
+ */
+async function run(session: Session, sql: string, quiet = false): Promise<string> {
   const engine = session.engine as SqlEngine;
   const cmd =
     engine === 'postgres'
       ? [
           'psql',
+          ...(quiet ? ['-q'] : []),
           '-U',
           session.user,
           '-d',
@@ -305,17 +315,72 @@ export async function readTable(
 }
 
 /**
+ * Statements that change something, wherever in the text they appear.
+ *
+ * Only consulted for the two openings that can carry one along: a `WITH` clause and an
+ * `EXPLAIN`. A plain `SELECT` is left alone, because `WHERE action = 'delete'` is an
+ * ordinary query and refusing it would be worse than useless.
+ */
+const WRITES =
+  /\b(insert|update|delete|merge|truncate|drop|alter|create|grant|revoke|call|vacuum|reindex|refresh)\b/i;
+
+/**
+ * Reaching the filesystem, which a read-only transaction does not stop.
+ *
+ * Reading a file is a read as far as the engine is concerned, so nothing below the
+ * client refuses it. `pg_read_file` is limited to the data directory unless the role is
+ * a superuser, and the role in a Derailed database container often is.
+ */
+const FILE_ACCESS =
+  /\b(pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_file|pg_logdir_ls|lo_import|lo_export|load_file|dblink|dblink_connect)\s*\(/i;
+
+/** `SELECT ... INTO OUTFILE` writes a file, and no transaction setting prevents it. */
+const INTO_FILE = /\binto\s+(outfile|dumpfile)\b/i;
+
+/**
  * Whether a statement only reads.
  *
  * Deliberately an allowlist of first words rather than a search for dangerous ones: a
  * denylist is a guess about every way somebody could write `DROP`, and being wrong
  * once means losing a database. Anything not obviously a read is refused, and the
  * person can use the Terminal tab, where it is clear what they are doing.
+ *
+ * The allowlist alone was not enough, and the hole was `WITH`. In PostgreSQL a common
+ * table expression may contain a statement that changes data, so
+ * `WITH gone AS (DELETE FROM things RETURNING *) SELECT * FROM gone` begins with an
+ * allowed word, contains no semicolon, and empties the table. `EXPLAIN` had the same
+ * shape: `EXPLAIN ANALYZE` runs the statement it is explaining rather than describing
+ * it. Both were tried against a real PostgreSQL and both worked.
+ *
+ * This function is now the second line rather than the only one. `runQuery` runs
+ * everything inside a read-only transaction, which is the engine itself refusing, and
+ * is not a guess about SQL syntax. What is left here is the cases a transaction has no
+ * opinion about, and giving somebody a sentence they can act on instead of the engine's.
  */
 export function isReadOnly(sql: string): boolean {
   const trimmed = sql.trim().replace(/^\(+/, '');
   if (/;\s*\S/.test(trimmed.replace(/;\s*$/, ''))) return false;
-  return /^(select|show|describe|desc|explain|with)\b/i.test(trimmed);
+  if (!/^(select|show|describe|desc|explain|with)\b/i.test(trimmed)) return false;
+  if (FILE_ACCESS.test(trimmed) || INTO_FILE.test(trimmed)) return false;
+  if (/^(with|explain)\b/i.test(trimmed) && WRITES.test(trimmed)) return false;
+  return true;
+}
+
+/**
+ * The same query, with the engine told to refuse anything that writes.
+ *
+ * This is the part that actually holds. `isReadOnly` reads the text and can be argued
+ * with; a read-only transaction is the database refusing, and it covers the forms
+ * nobody has thought of yet. The statement is rolled back either way, so even a read
+ * that takes a lock lets go of it.
+ *
+ * Safe to build by concatenation only because `isReadOnly` has already refused anything
+ * containing a semicolon, so there is no second statement to smuggle in here.
+ */
+function readOnlyTransaction(engine: SqlEngine, sql: string): string {
+  const body = sql.trim().replace(/;\s*$/, '');
+  const begin = engine === 'postgres' ? 'BEGIN READ ONLY' : 'START TRANSACTION READ ONLY';
+  return `${begin}; ${body}; ROLLBACK;`;
 }
 
 export async function runQuery(session: Session, sql: string): Promise<QueryResult> {
@@ -324,7 +389,11 @@ export async function runQuery(session: Session, sql: string): Promise<QueryResu
       'This box only runs queries that read. Use the Terminal tab for anything that changes data.',
     );
   }
-  const { columns, rows } = parse(session.engine as SqlEngine, await run(session, sql));
+  const engine = session.engine as SqlEngine;
+  const { columns, rows } = parse(
+    engine,
+    await run(session, readOnlyTransaction(engine, sql), true),
+  );
   return {
     columns,
     rows: rows.slice(0, 500),
