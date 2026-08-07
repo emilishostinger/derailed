@@ -8,9 +8,9 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
-import { cx, ErrorNote, Spinner } from '../components/ui.tsx';
+import { cx, ErrorNote, Spinner, Switch } from '../components/ui.tsx';
 import { PageHeader } from './Layout.tsx';
 
 export interface UpdateItem {
@@ -130,6 +130,8 @@ export function Updates() {
           )}
           <ErrorNote error={error} />
 
+          <AutomaticUpdates />
+
           {report?.rebootRequired && (
             <div className="card p-4">
               <p className="flex items-center gap-2 text-[13px] font-medium text-ink">
@@ -201,5 +203,95 @@ function KindIcon({ kind, security }: { kind: UpdateItem['kind']; security?: boo
     >
       {security ? <ShieldAlert className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
     </span>
+  );
+}
+
+/**
+ * Applying the operating system's security updates without being asked.
+ *
+ * Off until somebody chooses it: updating a stranger's server on a timer is a
+ * decision, not a nicety. Narrow on purpose, and the screen says how narrow, because
+ * "automatic updates" means very different things to different people and the gap
+ * between them is somebody's afternoon.
+ */
+function AutomaticUpdates() {
+  const [state, setState] = useState<Awaited<ReturnType<typeof endpoints.automaticUpdates>> | null>(
+    null,
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const load = useCallback(
+    () =>
+      endpoints
+        .automaticUpdates()
+        .then(setState)
+        .catch(() => undefined),
+    [],
+  );
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (!state) return null;
+
+  return (
+    <section className="card mb-4 p-4">
+      <Switch
+        checked={state.enabled}
+        disabled={busy || !state.supported}
+        label="Apply security updates by themselves"
+        hint={
+          state.supported
+            ? 'Checked daily. Security updates only, never a whole-system upgrade, and never a restart: Derailed says when one is needed and leaves the timing to you.'
+            : `${state.manager ?? 'This machine'} cannot separate security updates from the rest, so this stays off. The button above still applies everything, which is a bigger decision and reads like one.`
+        }
+        onChange={(next) => {
+          setBusy(true);
+          setError(null);
+          endpoints
+            .setAutomaticUpdates(next)
+            .then(load)
+            .catch(setError)
+            .finally(() => setBusy(false));
+        }}
+      />
+
+      {state.enabled && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-line border-t pt-3">
+          <button
+            type="button"
+            className="btn-ghost"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              setError(null);
+              setNote(null);
+              endpoints
+                .runSecurityUpdates()
+                .then((result) => {
+                  setNote(result.result);
+                  void load();
+                })
+                .catch(setError)
+                .finally(() => setBusy(false));
+            }}
+          >
+            {busy && <Spinner />}
+            Run them now
+          </button>
+          <p className="text-[12px] text-ink-faint">
+            {note ??
+              (state.lastRunAt
+                ? `Last run ${new Date(state.lastRunAt).toLocaleString()}. ${state.lastResult ?? ''}`
+                : 'Not run yet.')}
+          </p>
+        </div>
+      )}
+
+      <ErrorNote error={error} />
+    </section>
   );
 }

@@ -14,6 +14,7 @@ import {
   Menu,
   Moon,
   Plus,
+  RotateCw,
   Search,
   Settings2,
   ShieldAlert,
@@ -73,11 +74,45 @@ export function Layout() {
       <MobileNav />
       <main className="shell flex min-w-0 flex-1 flex-col">
         <InsecureNotice />
+        <RebootNotice />
         <Outlet />
       </main>
       <Toasts />
       {confetti && <Confetti onDone={stopConfetti} />}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * A restart is needed for some update to take effect.
+ *
+ * On every page rather than on the Updates page, because the whole point of this
+ * notice is that somebody has not gone looking. A kernel patch applied three weeks ago
+ * and never rebooted into is a machine running the old kernel and a person who
+ * believes it is patched.
+ *
+ * It says nothing about when to do it. That is a decision about somebody's visitors
+ * rather than about packages, and Derailed has no business picking the moment.
+ */
+function RebootNotice() {
+  const [reason, setReason] = useState<string | null>(null);
+
+  useEffect(() => {
+    endpoints
+      .automaticUpdates()
+      .then((state) => setReason(state.rebootRequired ? state.rebootReason : null))
+      .catch(() => undefined);
+  }, []);
+
+  if (!reason) return null;
+
+  return (
+    <div className="flex items-start gap-2.5 border-warn/30 border-b bg-warn-soft px-5 py-2.5">
+      <RotateCw className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
+      <p className="text-[13px] text-ink">
+        {reason} Your apps come back on their own afterwards, and you choose when.
+      </p>
     </div>
   );
 }

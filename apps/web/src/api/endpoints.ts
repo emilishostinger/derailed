@@ -620,6 +620,24 @@ export const endpoints = {
   whyBroken: (deploymentId: string) =>
     api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),
 
+  automaticUpdates: () =>
+    api
+      .get<{
+        automatic: {
+          enabled: boolean;
+          supported: boolean;
+          manager: string | null;
+          lastRunAt: number | null;
+          lastResult: string | null;
+          rebootRequired: boolean;
+          rebootReason: string | null;
+        };
+      }>('/updates/automatic')
+      .then((r) => r.automatic),
+  setAutomaticUpdates: (enabled: boolean) =>
+    api.put<{ automatic: unknown }>('/updates/automatic', { enabled }),
+  runSecurityUpdates: () => api.post<{ result: string }>('/updates/automatic/run'),
+
   webhooks: () =>
     api.get<{
       webhooks: {

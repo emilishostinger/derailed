@@ -122,6 +122,40 @@ function checkCommand(manager: PackageManager): string[] {
   }
 }
 
+/**
+ * Security updates only, where the manager can tell the difference.
+ *
+ * Three of these six can: apt through `unattended-upgrade`, which is the same tool
+ * Debian ships for exactly this, and dnf and yum through `--security`. Pacman and apk
+ * have no notion of a security update at all: Arch and Alpine ship one stream, and
+ * asking either for "just the security ones" gets you everything or nothing depending
+ * on how you spell it.
+ *
+ * So this returns null for those two rather than quietly upgrading the whole machine
+ * on a timer under a heading that says security. Somebody who wants that on Arch can
+ * still press the button, which says what it does.
+ */
+export function securityUpgradeCommand(manager: PackageManager): string[] | null {
+  switch (manager) {
+    case 'apt':
+      return [
+        'sh',
+        '-c',
+        'DEBIAN_FRONTEND=noninteractive unattended-upgrade -v 2>/dev/null || ' +
+          'DEBIAN_FRONTEND=noninteractive apt-get update -qq && ' +
+          "DEBIAN_FRONTEND=noninteractive apt-get -y -qq --only-upgrade install $(apt-get -s upgrade | grep -i securi | awk '{print $2}' | tr '\\n' ' ')",
+      ];
+    case 'dnf':
+      return ['dnf', '-y', '--security', 'upgrade'];
+    case 'yum':
+      return ['yum', '-y', '--security', 'update'];
+    case 'zypper':
+      return ['zypper', '--non-interactive', 'patch', '--category', 'security'];
+    default:
+      return null;
+  }
+}
+
 /** How to actually apply them. */
 export function upgradeCommand(manager: PackageManager): string[] {
   switch (manager) {

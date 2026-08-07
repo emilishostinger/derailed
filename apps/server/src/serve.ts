@@ -33,6 +33,7 @@ import { reconcile } from './runtime/reconcile.ts';
 import { startSleeper, stopSleeper } from './runtime/sleep.ts';
 import { startTrashSweep, stopTrashSweep } from './runtime/trash.ts';
 import { startUptime, stopUptime } from './runtime/uptime.ts';
+import { startAutoUpdates, stopAutoUpdates } from './system/autoupdate.ts';
 import { diskReport } from './system/disk.ts';
 import { detectServerIp, setCaddyHealthy, systemInfo } from './system/status.ts';
 import { loadSecretKey } from './util/crypto.ts';
@@ -169,6 +170,7 @@ export async function serve(): Promise<void> {
     console.log('\nShutting down.');
     stopDomainWatcher();
     stopSnapshots();
+    stopAutoUpdates();
     stopFreeDomainRenewal();
     stopBackupSchedule();
     stopDrills();
@@ -231,6 +233,7 @@ async function bootRuntime(): Promise<void> {
 
     startDomainWatcher();
     startSnapshots();
+    startAutoUpdates();
     // Renewing pushes a fresh certificate to Caddy, which only matters once Caddy is
     // up, hence its place here rather than beside the other timers.
     startFreeDomainRenewal(() => syncRoutes());

@@ -216,6 +216,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `GET · POST /webhooks` · `PATCH · DELETE /webhooks/:id` | Where to POST events. Owner only. The signing secret is never returned |
 | `POST /webhooks/:id/test` | Sends one through the ordinary path, signature included |
 | `GET /system/traffic?range=` | Every app's traffic added up, with a per-app breakdown |
+| `GET · PUT /updates/automatic` · `POST /updates/automatic/run` | Unattended security updates: state, switch, run now |
 | `POST /domains` | `{ hostname, alsoAddWww, primary: "apex" \| "www" }`. A name that resolves to a different machine is refused once; send `force: true` to mean it |
 | `PUT /domains/:id/service` | `{ serviceId }` or `{ serviceId: null }` |
 | `PUT /domains/:id/primary` | Swap which half of a pair people see |

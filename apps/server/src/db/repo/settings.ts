@@ -78,6 +78,16 @@ export const SETTINGS = {
   freeDomainExpiresAt: 'free_domain_expires_at',
   /** Why the last attempt failed, so the settings page can say so rather than sulk. */
   freeDomainError: 'free_domain_error',
+  /**
+   * Whether the operating system's security updates are applied without being asked.
+   *
+   * Off by default. Updating somebody's server on a timer is the sort of thing they
+   * have to choose, not discover.
+   */
+  autoSecurityUpdates: 'auto_security_updates',
+  /** When the last automatic run happened, so the page can say rather than guess. */
+  autoUpdateLastRun: 'auto_update_last_run',
+  autoUpdateLastResult: 'auto_update_last_result',
   backupSchedule: 'backup_schedule',
   backupKeep: 'backup_keep',
   backupKeepDays: 'backup_keep_days',

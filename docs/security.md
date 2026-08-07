@@ -197,3 +197,35 @@ walked around:
 What roles are not is isolation. Everybody here sees every project, and a member can
 deploy to any of them. If two people must not see each other's work, that is two
 servers.
+
+## Operating system security updates
+
+The **Updates** page lists what the machine has waiting, and can apply it. There is
+also a switch to apply the **security** ones by themselves, checked daily.
+
+It is off until you turn it on. Updating somebody's server on a timer is a decision,
+not a nicety.
+
+What it does is deliberately narrow, because "automatic updates" means very different
+things to different people and the gap between them is somebody's afternoon:
+
+- **Security updates only**, never a whole-system upgrade. The full upgrade is still a
+  button you press, which reads like the bigger decision it is.
+- **Only where the package manager can tell the difference.** apt (through
+  `unattended-upgrade`), dnf and yum (`--security`), and zypper (`patch --category
+  security`) can. Pacman and apk cannot: Arch and Alpine ship one stream, and asking
+  either for "just the security ones" gets you everything. On those two the switch
+  says so and stays off rather than quietly upgrading the machine under a heading that
+  says security.
+- **It never reboots.** Some updates only take effect after a restart, and the right
+  moment for that is a decision about your visitors rather than about packages.
+
+### The restart notice
+
+When a restart is needed, a line appears at the top of **every** page rather than only
+on Updates. That is the whole point of it: a kernel patch applied three weeks ago and
+never rebooted into is a machine running the old kernel and an owner who believes it is
+patched.
+
+It says nothing about when. Your apps come back on their own afterwards, and you choose
+the moment.
