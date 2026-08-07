@@ -620,7 +620,7 @@ export const endpoints = {
   whyBroken: (deploymentId: string) =>
     api.get<{ diagnosis: Diagnosis | null; lines: string[] }>(`/deployments/${deploymentId}/why`),
 
-  serverTraffic: (range: '24h' | '7d' | '30d') =>
+  serverTraffic: (range: '24h' | '7d' | '30d', scope?: { project?: string; service?: string }) =>
     api
       .get<{
         traffic: {
@@ -635,7 +635,11 @@ export const endpoints = {
           live: number;
           byService: { serviceId: string; name: string; requests: number; visitors: number }[];
         };
-      }>(`/system/traffic?range=${range}`)
+      }>(
+        `/system/traffic?range=${range}${scope?.project ? `&project=${scope.project}` : ''}${
+          scope?.service ? `&service=${scope.service}` : ''
+        }`,
+      )
       .then((r) => r.traffic),
 
   serverLogs: () =>

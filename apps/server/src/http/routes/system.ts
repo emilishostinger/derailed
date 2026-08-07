@@ -95,8 +95,23 @@ systemRoutes.get('/cost', (c) => c.json({ cost: costComparison() }));
 systemRoutes.get('/traffic', (c) => {
   const asked = c.req.query('range') ?? '24h';
   const range = asked === '7d' || asked === '30d' ? asked : '24h';
-  const report = trafficAcrossServer(range);
-  const named = new Map(listServices().map((service) => [service.id, service.name]));
+
+  // Scoped to one project when asked. The ids come from that project's own rows, so
+  // nothing typed reaches the query.
+  const projectId = c.req.query('project');
+  const serviceId = c.req.query('service');
+  const services = listServices();
+
+  const scope = serviceId
+    ? services.filter((service) => service.id === serviceId).map((service) => service.id)
+    : projectId
+      ? services
+          .filter((service) => service.projectId === projectId && service.kind === 'app')
+          .map((service) => service.id)
+      : undefined;
+
+  const report = trafficAcrossServer(range, scope);
+  const named = new Map(services.map((service) => [service.id, service.name]));
 
   return c.json({
     traffic: {

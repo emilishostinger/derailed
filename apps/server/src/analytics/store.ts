@@ -456,7 +456,11 @@ function previousWindow(
  * "Is the machine busy" is a different question from "how is this app doing", and
  * answering it previously meant opening every app in turn and adding up by eye.
  */
-export function trafficAcrossServer(range: keyof typeof RANGES): {
+export function trafficAcrossServer(
+  range: keyof typeof RANGES,
+  /** Only these apps, for a project's own figures. Undefined means the whole machine. */
+  serviceIds?: string[],
+): {
   range: keyof typeof RANGES;
   totals: {
     requests: number;
@@ -472,13 +476,23 @@ export function trafficAcrossServer(range: keyof typeof RANGES): {
   const { since } = RANGES[range];
   const from = since();
 
+  /**
+   * Scoping is done with an `IN` list of ids, never with anything typed. These come
+   * from a project's own service rows, so the only thing that varies between one call
+   * and the next is how many placeholders there are.
+   */
+  const scoped = serviceIds !== undefined;
+  const ids = serviceIds ?? [];
+  const where = (column = 'service_id') =>
+    scoped ? `${column} IN (${ids.map(() => '?').join(',') || 'NULL'})` : '1 = 1';
+
   const totals = db()
-    .query<{ requests: number; bots: number; bytes: number; ms: number }, [number]>(
+    .query<{ requests: number; bots: number; bytes: number; ms: number }, never[]>(
       `SELECT COALESCE(SUM(requests), 0) AS requests, COALESCE(SUM(bots), 0) AS bots,
               COALESCE(SUM(bytes), 0) AS bytes, COALESCE(SUM(ms_total), 0) AS ms
-         FROM traffic_hourly WHERE hour_start >= ?`,
+         FROM traffic_hourly WHERE ${where()} AND hour_start >= ?`,
     )
-    .get(from);
+    .get(...([...ids, from] as never[]));
 
   // An upper bound, and deliberately so.
   //
@@ -489,20 +503,21 @@ export function trafficAcrossServer(range: keyof typeof RANGES): {
   // hashes, which is "visitors, counted once per app", and the screen says so rather
   // than implying a precision that the storage cannot support.
   const visitors = db()
-    .query<{ visitors: number }, [number]>(
-      'SELECT COUNT(DISTINCT visitor_hash) AS visitors FROM traffic_visitors WHERE hour_start >= ?',
+    .query<{ visitors: number }, never[]>(
+      `SELECT COUNT(DISTINCT visitor_hash) AS visitors FROM traffic_visitors
+        WHERE ${where()} AND hour_start >= ?`,
     )
-    .get(from);
+    .get(...([...ids, from] as never[]));
 
   const byService = db()
-    .query<{ serviceId: string; requests: number; visitors: number }, [number, number]>(
+    .query<{ serviceId: string; requests: number; visitors: number }, never[]>(
       `SELECT h.service_id AS serviceId, SUM(h.requests) AS requests,
               (SELECT COUNT(DISTINCT v.visitor_hash) FROM traffic_visitors v
                 WHERE v.service_id = h.service_id AND v.hour_start >= ?) AS visitors
-         FROM traffic_hourly h WHERE h.hour_start >= ?
+         FROM traffic_hourly h WHERE ${where('h.service_id')} AND h.hour_start >= ?
         GROUP BY h.service_id ORDER BY requests DESC`,
     )
-    .all(from, from);
+    .all(...([from, ...ids, from] as never[]));
 
   const requests = totals?.requests ?? 0;
   return {
@@ -514,7 +529,7 @@ export function trafficAcrossServer(range: keyof typeof RANGES): {
       bytes: totals?.bytes ?? 0,
       avgMs: requests > 0 ? Math.round((totals?.ms ?? 0) / requests) : 0,
     },
-    live: liveVisitors(),
+    live: scoped ? ids.reduce((sum, id) => sum + liveVisitors(id), 0) : liveVisitors(),
     byService,
   };
 }

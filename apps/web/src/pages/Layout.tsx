@@ -184,6 +184,12 @@ function MobileNav() {
               <MobileLink to="/server" onGo={() => setOpen(false)}>
                 Server
               </MobileLink>
+              <MobileLink to="/logs" onGo={() => setOpen(false)}>
+                Logs
+              </MobileLink>
+              <MobileLink to="/analytics" onGo={() => setOpen(false)}>
+                Analytics
+              </MobileLink>
               <MobileLink to="/backups" onGo={() => setOpen(false)}>
                 Backups
               </MobileLink>
@@ -389,17 +395,35 @@ function Sidebar() {
                 // A target rather than a glyph. It had no padding, no hover and an
                 // instant flip, so pressing it felt like hitting a printed arrow.
                 // The row still does the folding; this is the part that says so.
+                // A translucent lift rather than a token colour, and `ink-muted`
+                // rather than `ink`. Both of the originals were wrong here.
+                //
+                // `hover:bg-surface-2` was the worse one. The sidebar is a
+                // `deep-surface`, and that class remaps the ink tokens to the rail set
+                // so text stays light on the violet canvas in both themes. It does not
+                // remap `surface-2`, which in the light theme is #f4f4f6 against a
+                // #120c29 canvas: a near-white chip on a deep violet rail.
+                //
+                // The obvious repair, `on-canvas-strong`, is exactly the background an
+                // active row already has, so on the row you are most likely to be on it
+                // is invisible. This has to read on three grounds: a plain row, a
+                // hovered one, and the active one. A translucent white lifts all three
+                // and needs to know nothing about which it is over.
+                //
+                // And `text-ink` in here resolves to #f4f4f5 whatever the theme, so the
+                // chevron went from faint straight to white, which is more than a hover
+                // on a secondary control should ever do.
                 <span
                   className={cx(
                     'group/chev -mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px]',
-                    'transition-colors duration-150 hover:bg-surface-2',
+                    'transition-colors duration-150 hover:bg-white/10',
                   )}
                 >
                   <ChevronDown
                     aria-hidden="true"
                     className={cx(
                       'h-3.5 w-3.5 text-ink-faint transition-[transform,color] duration-200 ease-out',
-                      'group-hover/chev:text-ink',
+                      'group-hover/chev:text-ink-muted',
                       !projectsOpen && '-rotate-90',
                     )}
                   />
@@ -440,10 +464,10 @@ function Sidebar() {
               doing" and not "what is this machine doing", and the second question is
               the one you ask when something is wrong and you do not yet know what. */}
           <NavItem to="/logs" icon={<ScrollText className="h-4 w-4" />}>
-            Output
+            Logs
           </NavItem>
           <NavItem to="/analytics" icon={<BarChart3 className="h-4 w-4" />}>
-            Visitors
+            Analytics
           </NavItem>
           <NavItem to="/backups" icon={<Archive className="h-4 w-4" />}>
             Backups

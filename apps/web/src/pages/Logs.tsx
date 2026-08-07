@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { live } from '../api/ws.ts';
 import { LogViewer } from '../components/LogViewer.tsx';
-import { cx } from '../components/ui.tsx';
+import { type ScopeOption, ScopePicker } from '../components/ScopePicker.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { PageHeader } from './Layout.tsx';
 
@@ -25,68 +25,38 @@ export function Logs() {
   const [only, setOnly] = useState<string | null>(null);
 
   /**
-   * Every app, labelled so no two buttons read the same.
+   * One option per app, grouped by project, plus everything.
    *
-   * Three apps called `index.html` give three identical filter buttons, and a filter
-   * you cannot tell from the one beside it is not a filter. The project name alone
-   * does not fix it, because they were all three in the same project; the slug is the
-   * only handle guaranteed unique, so a collision falls back to that.
+   * Names are not unique: three apps here are called `index.html`, all in one
+   * project, so a duplicated name falls back to the slug, which is the only handle
+   * guaranteed unique within a project.
    */
-  const apps = useMemo(() => {
-    const all = projects.flatMap((project) =>
-      (project.services ?? [])
-        .filter((service) => service.kind === 'app')
-        .map((service) => ({
-          id: service.id,
-          name: service.name,
-          slug: service.slug,
-          project: project.name,
-        })),
-    );
-    const seen = new Map<string, number>();
-    for (const app of all) seen.set(app.name, (seen.get(app.name) ?? 0) + 1);
+  const options = useMemo<ScopeOption[]>(() => {
+    const counted = new Map<string, number>();
+    for (const project of projects) {
+      for (const service of project.services ?? []) {
+        if (service.kind === 'app') counted.set(service.name, (counted.get(service.name) ?? 0) + 1);
+      }
+    }
 
-    return all.map((app) => ({
-      id: app.id,
-      name: (seen.get(app.name) ?? 0) > 1 ? `${app.project} / ${app.slug}` : app.name,
-    }));
+    return [
+      { value: '', label: 'Every app' },
+      ...projects.flatMap((project) =>
+        (project.services ?? [])
+          .filter((service) => service.kind === 'app')
+          .map((service) => ({
+            value: service.id,
+            label: (counted.get(service.name) ?? 0) > 1 ? service.slug : service.name,
+            group: project.name,
+          })),
+      ),
+    ];
   }, [projects]);
 
-  useEffect(() => {
-    endpoints
-      .serverLogs()
-      .then(setLines)
-      .catch(() => setLines([]));
-  }, []);
-
-  /**
-   * Live lines arrive per app, so this subscribes to every app rather than to one
-   * topic. The alternative is a server-wide log topic, which would send every line to
-   * everybody looking at anything, including the eight people not on this page.
-   */
-  useEffect(() => {
-    if (apps.length === 0) return;
-    const stop = live.subscribe(apps.map((app) => topics.service(app.id)));
-    const off = live.on((event) => {
-      if (event.type !== 'service.logs') return;
-      const app = apps.find((entry) => entry.id === event.serviceId);
-      if (!app) return;
-      setLines((current) =>
-        [
-          ...current,
-          ...event.lines.map((line) => ({
-            ...line,
-            serviceId: event.serviceId,
-            serviceName: app.name,
-          })),
-        ].slice(-2000),
-      );
-    });
-    return () => {
-      off();
-      stop();
-    };
-  }, [apps]);
+  const apps = useMemo(
+    () => options.filter((option) => option.value).map((option) => ({ id: option.value })),
+    [options],
+  );
 
   const shown = only ? lines.filter((line) => line.serviceId === only) : lines;
 
@@ -109,7 +79,7 @@ export function Logs() {
   return (
     <>
       <PageHeader
-        title="Output"
+        title="Logs"
         subtitle={
           lines.length === 0
             ? 'Nothing yet'
@@ -120,35 +90,12 @@ export function Logs() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-3 p-5">
           {apps.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                className={cx(
-                  'btn border text-[12px]',
-                  only === null
-                    ? 'border-accent bg-accent-soft text-ink'
-                    : 'border-line bg-surface-2 text-ink-muted hover:border-line-strong hover:text-ink',
-                )}
-                onClick={() => setOnly(null)}
-              >
-                Everything
-              </button>
-              {apps.map((app) => (
-                <button
-                  key={app.id}
-                  type="button"
-                  className={cx(
-                    'btn border text-[12px]',
-                    only === app.id
-                      ? 'border-accent bg-accent-soft text-ink'
-                      : 'border-line bg-surface-2 text-ink-muted hover:border-line-strong hover:text-ink',
-                  )}
-                  onClick={() => setOnly(app.id)}
-                >
-                  {app.name}
-                </button>
-              ))}
-            </div>
+            <ScopePicker
+              label="Showing"
+              value={only ?? ''}
+              options={options}
+              onChange={(next) => setOnly(next || null)}
+            />
           )}
 
           <LogViewer
