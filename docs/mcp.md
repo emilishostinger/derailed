@@ -47,6 +47,32 @@ run locally.
 | `add_domain` | Point a domain at an app |
 | `add_storage` | Attach a folder that survives redeploys |
 
+Building things is half of it. The other half is what you get asked next, and every
+one of these used to mean leaving the editor and opening the dashboard:
+
+| Tool | What it does |
+| --- | --- |
+| `get_metrics` | Processor and memory by the hour, with deploys marked. The way to answer "when did this start" |
+| `list_domains` | Every address, which app answers on it, whether DNS points here, whether it has a certificate |
+| `check_domain` | Look a domain up again now, after changing a record, rather than waiting |
+| `list_backups` | What copies exist, how big, and what the schedule keeps |
+| `back_up_now` | Back a project up immediately, off-site copy included |
+| `list_jobs` | Scheduled jobs, when each runs in words, and how the last few went |
+| `add_job` | Schedule a command, in an app or on the server itself |
+| `run_job` | Run one now, without waiting for its schedule |
+| `get_job_runs` | What a job printed the last few times |
+| `run_command` | Run one command inside an app or database and get its output |
+
+`run_command` is the one that is not a straight translation of an endpoint. The Terminal
+tab is an interactive shell over a websocket, which is not a shape an agent can use:
+there is no session to hold and no prompt to read. So it borrows a scheduled job, which
+already knows how to run one command inside a container and capture what it printed, runs
+it once, and deletes it. The schedule it is given is the thirty-first of February, so it
+cannot fire on its own in the moment between being created and being removed.
+
+It works on databases as well as apps, which is deliberate: `psql`, `mysqldump` and a
+one-off index rebuild all live inside a database container.
+
 Everything an agent does through these is the same as doing it in the dashboard: the
 same checks, the same warnings, the same audit trail in the deploy log.
 

@@ -371,4 +371,246 @@ export const TOOLS: McpTool[] = [
       return { keeping: volume.containerPath, note: 'Attached on the next deploy.' };
     },
   },
+
+  /**
+   * Everything below is the half an agent needs when something has already gone
+   * wrong, or when the job is operational rather than constructive. Deploying an app
+   * is what an agent gets asked to do; "is it up, when did memory start climbing,
+   * did the backup work, run the migrations" is what it gets asked next, and every
+   * one of those was a reason to leave the editor and open the dashboard.
+   */
+  {
+    name: 'list_backups',
+    description:
+      'Every backup on this server, with how big it is and what it holds, plus the schedule and how many are kept.',
+    inputSchema: { type: 'object', properties: {} },
+    async run(api) {
+      const [backups, retention] = await Promise.all([
+        api.get<{ backups: unknown[]; schedule: unknown }>('/backups'),
+        api.get<{ retention: unknown }>('/backups/retention'),
+      ]);
+      return { ...backups, ...retention };
+    },
+  },
+  {
+    name: 'back_up_now',
+    description:
+      'Make a backup of a project immediately, rather than waiting for its schedule. Copies it off the server too, if that is set up.',
+    inputSchema: {
+      type: 'object',
+      properties: { project: { type: 'string', description: 'Project name, slug or id' } },
+      required: ['project'],
+    },
+    async run(api, args) {
+      const project = await findProject(api, str(args, 'project'));
+      const result = await api.post<{
+        backup: { id: string; sizeBytes: number };
+        offsiteError: string | null;
+      }>('/backups', { projectId: project.id });
+      return {
+        backedUp: project.name,
+        sizeBytes: result.backup.sizeBytes,
+        // Said rather than thrown: the backup itself worked, and reporting a failure
+        // would be wrong. But a copy that did not leave the server is worth knowing.
+        offsite: result.offsiteError ?? 'copied off the server',
+      };
+    },
+  },
+  {
+    name: 'get_metrics',
+    description:
+      "An app's processor and memory over time, hourly, with its deploys marked. The way to answer 'when did this start'.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string', description: 'App name or id' },
+        range: { type: 'string', description: 'One of 24h, 7d or 30d. Defaults to 24h.' },
+      },
+      required: ['service'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      const asked = typeof args.range === 'string' ? args.range : '24h';
+      const range = ['24h', '7d', '30d'].includes(asked) ? asked : '24h';
+      const { metrics } = await api.get<{ metrics: unknown }>(
+        `/services/${service.id}/metrics?range=${range}`,
+      );
+      return { service: service.name, range, metrics };
+    },
+  },
+  {
+    name: 'list_domains',
+    description:
+      'Every web address on this server, which app answers on it, whether DNS points here and whether it has a certificate.',
+    inputSchema: { type: 'object', properties: {} },
+    async run(api) {
+      const { domains } = await api.get<{
+        domains: {
+          hostname: string;
+          serviceName: string | null;
+          dnsStatus: string;
+          tlsStatus: string;
+          kind: string;
+        }[];
+      }>('/domains');
+      return domains.map((domain) => ({
+        address: domain.hostname,
+        app: domain.serviceName ?? 'not pointed at anything yet',
+        kind: domain.kind,
+        dns: domain.dnsStatus,
+        certificate: domain.tlsStatus,
+      }));
+    },
+  },
+  {
+    name: 'check_domain',
+    description:
+      'Look up a domain again now, rather than waiting for the next automatic check. Use after changing a DNS record.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        domain: { type: 'string', description: 'The hostname, e.g. shop.example.com' },
+      },
+      required: ['domain'],
+    },
+    async run(api, args) {
+      const wanted = str(args, 'domain').toLowerCase();
+      const { domains } = await api.get<{ domains: { id: string; hostname: string }[] }>(
+        '/domains',
+      );
+      const match = domains.find((domain) => domain.hostname === wanted);
+      if (!match) {
+        throw new Error(
+          `${wanted} is not on this server. Known: ${domains.map((d) => d.hostname).join(', ') || 'none'}`,
+        );
+      }
+      const { domain } = await api.post<{ domain: unknown }>(`/domains/${match.id}/check`);
+      return domain;
+    },
+  },
+  {
+    name: 'list_jobs',
+    description:
+      'Scheduled jobs on this server, when each one runs in words, and how the last few runs went.',
+    inputSchema: { type: 'object', properties: {} },
+    async run(api) {
+      const { jobs } = await api.get<{ jobs: unknown[] }>('/jobs');
+      return jobs;
+    },
+  },
+  {
+    name: 'add_job',
+    description:
+      'Schedule a command to run inside an app, or on the server itself when no app is named. The schedule is five cron fields.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'What this job is for, in words' },
+        command: { type: 'string', description: 'The command to run' },
+        schedule: {
+          type: 'string',
+          description: 'Five cron fields: minute hour day month weekday. e.g. "0 3 * * *" for 3am',
+        },
+        service: {
+          type: 'string',
+          description: 'App to run it inside. Leave out to run on the server itself.',
+        },
+      },
+      required: ['name', 'command', 'schedule'],
+    },
+    async run(api, args) {
+      const service =
+        typeof args.service === 'string' && args.service.trim()
+          ? await findService(api, args.service.trim())
+          : null;
+      const { job } = await api.post<{ job: unknown }>('/jobs', {
+        serviceId: service?.id ?? null,
+        name: str(args, 'name'),
+        command: str(args, 'command'),
+        schedule: str(args, 'schedule'),
+      });
+      return job;
+    },
+  },
+  {
+    name: 'run_job',
+    description:
+      'Run a scheduled job once, right now, without waiting for its schedule. Returns what it printed.',
+    inputSchema: {
+      type: 'object',
+      properties: { job: { type: 'string', description: 'Job name or id' } },
+      required: ['job'],
+    },
+    async run(api, args) {
+      const needle = str(args, 'job').toLowerCase();
+      const { jobs } = await api.get<{ jobs: { id: string; name: string }[] }>('/jobs');
+      const match =
+        jobs.find((job) => job.id === needle) ??
+        jobs.find((job) => job.name.toLowerCase() === needle);
+      if (!match) {
+        throw new Error(
+          `No job called "${needle}". Known: ${jobs.map((j) => j.name).join(', ') || 'none'}`,
+        );
+      }
+      return await api.post<unknown>(`/jobs/${match.id}/run`);
+    },
+  },
+  {
+    name: 'get_job_runs',
+    description: 'What a scheduled job did the last few times it ran, including what it printed.',
+    inputSchema: {
+      type: 'object',
+      properties: { job: { type: 'string', description: 'Job name or id' } },
+      required: ['job'],
+    },
+    async run(api, args) {
+      const needle = str(args, 'job').toLowerCase();
+      const { jobs } = await api.get<{ jobs: { id: string; name: string }[] }>('/jobs');
+      const match =
+        jobs.find((job) => job.id === needle) ??
+        jobs.find((job) => job.name.toLowerCase() === needle);
+      if (!match) throw new Error(`No job called "${needle}".`);
+      const { runs } = await api.get<{ runs: unknown[] }>(`/jobs/${match.id}/runs`);
+      return runs;
+    },
+  },
+  {
+    name: 'run_command',
+    description:
+      "Run one command inside a running app and return what it printed. For migrations, a cache clear, or looking at something. This is the app's own container, not the server.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string', description: 'App name or id' },
+        command: { type: 'string', description: 'The command to run, e.g. "npm run migrate"' },
+      },
+      required: ['service', 'command'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      const command = str(args, 'command');
+
+      /**
+       * Through a job that runs once and is then removed, rather than a new endpoint.
+       *
+       * The Terminal tab is an interactive shell over a websocket, which is not a
+       * shape an agent can use: there is no session to hold and no prompt to read.
+       * A job already knows how to run one command inside a container, capture what
+       * it printed, and record how it went, so this borrows all of that. The `0 0 31
+       * 2 *` is the thirty-first of February, which never comes, so the job cannot
+       * fire on its own between being created and being deleted.
+       */
+      const { job } = await api.post<{ job: { id: string } }>('/jobs', {
+        serviceId: service.id,
+        name: `Run once: ${command}`.slice(0, 80),
+        command,
+        schedule: '0 0 31 2 *',
+      });
+      try {
+        return await api.post<unknown>(`/jobs/${job.id}/run`);
+      } finally {
+        await api.del(`/jobs/${job.id}`).catch(() => undefined);
+      }
+    },
+  },
 ];
