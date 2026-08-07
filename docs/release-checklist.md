@@ -69,13 +69,20 @@ version of this page implied.
 
 ```sh
 cd dist-release
-sha256sum derailed-linux-x64 derailed-linux-arm64 > checksums.txt
-gh release create vX.Y.Z derailed-linux-x64 derailed-linux-arm64 checksums.txt \
+sha256sum derailed-linux-x64 derailed-linux-arm64 \
+          derailed-linux-x64-musl derailed-linux-arm64-musl > checksums.txt
+gh release create vX.Y.Z \
+  derailed-linux-x64 derailed-linux-arm64 \
+  derailed-linux-x64-musl derailed-linux-arm64-musl checksums.txt \
   --title "vX.Y.Z" --notes-file notes.md
 ```
 
+All four, not two. This snippet used to list only the glibc pair, which contradicted
+the build section above it and would have shipped a release that Alpine machines could
+download a checksum for but not a binary.
+
 - [ ] Tag pushed (`git tag vX.Y.Z && git push --tags`)
-- [ ] Release contains both binaries and `checksums.txt`
+- [ ] Release contains all four binaries and `checksums.txt`
 - [ ] `checksums.txt` was generated from the binaries actually uploaded. The installer
       and `derailed update` both refuse a release whose checksum is missing or wrong,
       so a stale one is a broken release, not a warning
