@@ -10,6 +10,8 @@ interface ProjectRow {
   slug: string;
   created_at: number;
   backup_schedule?: string | null;
+  memory_limit_mb?: number | null;
+  cpu_limit_millis?: number | null;
   deleted_at?: number | null;
 }
 
@@ -17,6 +19,8 @@ const toProject = (row: ProjectRow): Project => ({
   id: row.id,
   name: row.name,
   slug: row.slug,
+  memoryLimitMb: row.memory_limit_mb ?? null,
+  cpuLimitMillis: row.cpu_limit_millis ?? null,
   createdAt: row.created_at,
   backupSchedule:
     row.backup_schedule === 'daily' || row.backup_schedule === 'weekly'
@@ -27,6 +31,35 @@ const toProject = (row: ProjectRow): Project => ({
 
 export function setProjectBackupSchedule(id: string, schedule: string): Project | null {
   db().query('UPDATE projects SET backup_schedule = ? WHERE id = ?').run(schedule, id);
+  return findProject(id);
+}
+
+/**
+ * The ceiling for everything in this project.
+ *
+ * Null means no limit, which is the default and stays the default: a cap somebody did
+ * not ask for is a container killed for a reason nobody can find.
+ */
+export function setProjectLimits(
+  id: string,
+  limits: { memoryLimitMb?: number | null; cpuLimitMillis?: number | null },
+): Project | null {
+  const assignments: string[] = [];
+  const values: (number | null)[] = [];
+
+  if (limits.memoryLimitMb !== undefined) {
+    assignments.push('memory_limit_mb = ?');
+    values.push(limits.memoryLimitMb);
+  }
+  if (limits.cpuLimitMillis !== undefined) {
+    assignments.push('cpu_limit_millis = ?');
+    values.push(limits.cpuLimitMillis);
+  }
+  if (!assignments.length) return findProject(id);
+
+  db()
+    .query(`UPDATE projects SET ${assignments.join(', ')} WHERE id = ?`)
+    .run(...values, id);
   return findProject(id);
 }
 

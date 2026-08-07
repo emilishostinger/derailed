@@ -208,6 +208,7 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | | |
 | --- | --- |
 | `GET /domains` | Every address on the server |
+| `PUT /projects/:id/limits` | `{ memoryLimitMb, cpuLimitMillis }`, per app in the project. Null for no limit |
 | `GET · PUT /projects/:id/env` | Variables shared by every app in the project. An app's own value wins |
 | `GET · POST /webhooks` · `PATCH · DELETE /webhooks/:id` | Where to POST events. Owner only. The signing secret is never returned |
 | `POST /webhooks/:id/test` | Sends one through the ordinary path, signature included |

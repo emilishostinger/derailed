@@ -80,6 +80,16 @@ export interface Project {
   createdAt: number;
   /** How often this project is backed up on its own. */
   backupSchedule: BackupSchedule;
+  /**
+   * A ceiling for every app in this project, or null for none.
+   *
+   * Applied per container rather than shared out between them: the app that takes a
+   * box down is one runaway process, and capping each one caps the damage without
+   * the limit changing every time something is added.
+   */
+  memoryLimitMb?: number | null;
+  /** Thousandths of a core. 500 is half a core. */
+  cpuLimitMillis?: number | null;
   /** When it was deleted, if it was. Deleted things are kept for a week. */
   deletedAt?: number | null;
   services?: Service[];

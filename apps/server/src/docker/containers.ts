@@ -53,6 +53,8 @@ export interface CreateContainerSpec {
   /** volume name → path inside the container */
   volumes?: Record<string, string>;
   memoryLimitMb?: number | null;
+  /** Thousandths of a core. 500 is half a core, 2000 is two. */
+  cpuMillis?: number | null;
   restartPolicy?: 'no' | 'unless-stopped' | 'always';
   healthcheck?: { test: string[]; intervalSeconds?: number; retries?: number };
   user?: string;
@@ -117,6 +119,10 @@ export async function createContainer(spec: CreateContainerSpec): Promise<string
       Binds: Object.entries(spec.volumes ?? {}).map(([name, path]) => `${name}:${path}`),
       RestartPolicy: { Name: spec.restartPolicy ?? 'unless-stopped' },
       Memory: spec.memoryLimitMb ? spec.memoryLimitMb * 1024 * 1024 : 0,
+      // Docker counts cpu in billionths of a core. A limit rather than a share, so a
+      // runaway loop is throttled whether or not anything else wants the processor:
+      // shares only take effect under contention, which is one moment too late.
+      NanoCpus: spec.cpuMillis ? spec.cpuMillis * 1_000_000 : 0,
       NetworkMode: spec.network,
       ExtraHosts: spec.extraHosts ?? [],
       LogConfig: { Type: 'json-file', Config: { 'max-size': '10m', 'max-file': '3' } },

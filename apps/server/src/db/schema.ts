@@ -720,4 +720,21 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_traffic_live_minute ON traffic_live(minute_start);
     `,
   },
+  {
+    id: 28,
+    name: 'a ceiling per project',
+    sql: `
+      -- A memory limit existed per app, and had to be set per app, which means it was
+      -- set on the app somebody was already worried about and on none of the others.
+      -- The app that takes the box down is by definition the one nobody expected.
+      --
+      -- A ceiling for everything in a project is the version people will actually
+      -- use: one number, set once, applying to whatever gets added later.
+      ALTER TABLE projects ADD COLUMN memory_limit_mb INTEGER;
+
+      -- Thousandths of a core, so half a core is 500 and there is no floating point
+      -- anywhere near a value that ends up in a container spec.
+      ALTER TABLE projects ADD COLUMN cpu_limit_millis INTEGER;
+    `,
+  },
 ];

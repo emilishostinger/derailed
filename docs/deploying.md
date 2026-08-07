@@ -204,6 +204,29 @@ Shared variables appear on each app's Variables tab under **Set for you**, greye
 the tab still answers the question it exists to answer: what will actually be set when
 this runs.
 
+## Limits, so one app cannot take the server down
+
+**Project menu → Limits** sets a ceiling for every app in the project: memory in
+megabytes, processor in cores.
+
+A memory limit already existed per app, and had to be set per app, which means it got
+set on the app somebody was already worried about and on none of the others. The app
+that takes a box down is by definition the one nobody expected.
+
+**Each applies per app, not shared between them.** A quota divided among apps changes
+every time you add one, and the thing this is for is a single runaway process: capping
+each container caps the damage, and the number keeps meaning the same thing next month.
+
+**An app's own memory limit wins.** A number typed on the app's own settings was meant,
+and a project ceiling quietly lowering it would make that field a lie.
+
+The processor limit is a limit rather than a share, so a runaway loop is throttled
+whether or not anything else happens to want the processor at that moment. Shares only
+take effect under contention, which is one moment too late.
+
+Both are given to a container when it starts, so each app picks the change up on its
+next deploy.
+
 ## Builds, and the machine they run on
 
 **Two builds do not run at once on a small server.** How many are allowed is worked

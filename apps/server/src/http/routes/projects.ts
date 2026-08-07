@@ -5,6 +5,7 @@ import {
   createProject,
   findProject,
   renameProject,
+  setProjectLimits,
   softDeleteProject,
 } from '../../db/repo/projects.ts';
 import { listServices } from '../../db/repo/services.ts';
@@ -78,6 +79,52 @@ projectRoutes.put('/:id/env', async (c) => {
   // say "redeploy for this to take effect" have to be looking at fresh services.
   emitProject(project.id);
   return c.json({ vars: listProjectEnv(project.id), redeployNeeded: true });
+});
+
+/**
+ * A ceiling for everything in this project.
+ *
+ * Applied per container rather than shared out between them. A quota divided among
+ * apps changes every time one is added, and the thing it is meant to stop is one
+ * runaway process: capping each container caps the damage, and keeps the number on
+ * this screen meaning the same thing next month.
+ */
+projectRoutes.put('/:id/limits', async (c) => {
+  const project = findProject(c.req.param('id'));
+  if (!project) throw notFound('That project');
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    memoryLimitMb?: number | null;
+    cpuLimitMillis?: number | null;
+  };
+
+  if (body.memoryLimitMb !== undefined && body.memoryLimitMb !== null) {
+    // Docker refuses anything under 6 MB, and an app given 6 MB is an app that is
+    // killed before it prints anything. Below 64 the limit is the bug.
+    if (!Number.isInteger(body.memoryLimitMb) || body.memoryLimitMb < 64) {
+      throw badRequest(
+        'A memory ceiling has to be at least 64 MB.',
+        'Below that an app is killed before it finishes starting, which looks like a crash rather than a limit.',
+      );
+    }
+  }
+  if (body.cpuLimitMillis !== undefined && body.cpuLimitMillis !== null) {
+    if (!Number.isInteger(body.cpuLimitMillis) || body.cpuLimitMillis < 100) {
+      throw badRequest(
+        'A processor ceiling has to be at least a tenth of a core.',
+        'Written in thousandths: 500 is half a core, 2000 is two.',
+      );
+    }
+  }
+
+  const updated = setProjectLimits(project.id, {
+    memoryLimitMb: body.memoryLimitMb,
+    cpuLimitMillis: body.cpuLimitMillis,
+  });
+  emitProject(project.id);
+  // Containers are given their limits when they start, so nothing changes until each
+  // app is deployed again. Said rather than implied, like every other variable.
+  return c.json({ project: updated && presentProject(updated), redeployNeeded: true });
 });
 
 projectRoutes.patch('/:id', async (c) => {

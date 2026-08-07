@@ -577,7 +577,12 @@ interface LaunchInput {
   job: Job;
   deployment: Deployment;
   service: Service;
-  project: { id: string; slug: string };
+  project: {
+    id: string;
+    slug: string;
+    memoryLimitMb?: number | null;
+    cpuLimitMillis?: number | null;
+  };
   log: DeploymentLog;
   imageTag: string;
   port: number;
@@ -629,7 +634,12 @@ async function launch(input: LaunchInput): Promise<void> {
     // Published on loopback only: lets Derailed health-check it and makes local
     // debugging possible without exposing anything to the internet.
     ports: { [port]: { host: '127.0.0.1', port: 0 } },
-    memoryLimitMb: service.memoryLimitMb,
+    // The app's own limit if it has one, and the project's ceiling otherwise. That
+    // direction rather than the smaller of the two: somebody who set a number on one
+    // app meant that number, and having the project quietly lower it would make the
+    // field on the app screen a lie.
+    memoryLimitMb: service.memoryLimitMb ?? project.memoryLimitMb ?? null,
+    cpuMillis: project.cpuLimitMillis ?? null,
     restartPolicy: 'unless-stopped',
   });
   updateDeployment(deployment.id, { containerId, imageTag });

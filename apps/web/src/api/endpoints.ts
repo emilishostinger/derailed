@@ -129,6 +129,11 @@ export const endpoints = {
   stopService: (id: string) => api.post<{ service: Service }>(`/services/${id}/stop`),
   restartService: (id: string) => api.post<{ service: Service }>(`/services/${id}/restart`),
 
+  setProjectLimits: (
+    projectId: string,
+    limits: { memoryLimitMb: number | null; cpuLimitMillis: number | null },
+  ) => api.put<{ project: Project }>(`/projects/${projectId}/limits`, limits),
+
   projectEnv: (projectId: string) =>
     api
       .get<{ vars: { key: string; value: string }[] }>(`/projects/${projectId}/env`)
