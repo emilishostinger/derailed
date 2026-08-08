@@ -865,4 +865,21 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN wal_archive INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    id: 33,
+    name: 'a service can keep the name its neighbours call it',
+    sql: `
+      -- A compose file's services find each other by their written names, and those
+      -- names allow characters a slug does not (my_db). The import keeps the original
+      -- as an extra network alias, so an app whose configuration says my_db:5432
+      -- still finds its database without anybody editing anything.
+      ALTER TABLE services ADD COLUMN alias TEXT;
+
+      -- Not everything in a compose file speaks HTTP: a Redis, a worker, a queue
+      -- consumer. Holding those to "answer on a port or be thrown away" would fail
+      -- every one of them at deploy time. 'http' is what every app already means;
+      -- 'started' means the container staying up is the answer.
+      ALTER TABLE services ADD COLUMN health_check TEXT NOT NULL DEFAULT 'http';
+    `,
+  },
 ];

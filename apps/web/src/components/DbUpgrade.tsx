@@ -182,7 +182,7 @@ export function PitrPanel({ service }: { service: Service }) {
   }, [service.id]);
 
   useEffect(load, [load]);
-  if (!state || !state.supported) return null;
+  if (!state?.supported) return null;
 
   return (
     <div className="space-y-3 rounded-[var(--radius-card)] border border-line p-4">

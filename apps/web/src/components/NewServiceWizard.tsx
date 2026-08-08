@@ -1,12 +1,12 @@
-import type { DetectResult } from '@derailed/shared';
-import { Box, ChevronLeft, Database, GitBranch, Sparkles, Upload } from 'lucide-react';
+import type { DetectResult, ImportPlan } from '@derailed/shared';
+import { Box, ChevronLeft, Database, GitBranch, Layers, Sparkles, Upload } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useProjects } from '../stores/projects.ts';
 import { BrandTile, brandByName } from './TechIcon.tsx';
 import { cx, ErrorNote, Field, Modal, Select, Spinner } from './ui.tsx';
 
-type Mode = 'choose' | 'apps' | 'github' | 'image' | 'upload' | 'database';
+type Mode = 'choose' | 'apps' | 'github' | 'image' | 'upload' | 'database' | 'compose';
 
 /**
  * The make-or-break moment: paste a link, and Derailed tells you what it found in
@@ -28,6 +28,7 @@ export function NewServiceWizard({
     image: 'Run a Docker image',
     upload: 'Upload your files',
     database: 'Add a database',
+    compose: 'Import a docker-compose project',
   };
 
   return (
@@ -48,6 +49,7 @@ export function NewServiceWizard({
       {mode === 'image' && <FromImage projectId={projectId} onDone={onClose} />}
       {mode === 'upload' && <FromUpload projectId={projectId} onDone={onClose} />}
       {mode === 'database' && <FromCatalog projectId={projectId} onDone={onClose} />}
+      {mode === 'compose' && <FromCompose projectId={projectId} onDone={onClose} />}
     </Modal>
   );
 }
@@ -87,6 +89,134 @@ function Choose({ onPick }: { onPick: (mode: Mode) => void }) {
         body="PostgreSQL, MySQL or Redis, ready in a few seconds and private by default."
         onClick={() => onPick('database')}
       />
+      <Choice
+        icon={<Layers className="h-5 w-5" />}
+        title="Import a docker-compose project"
+        body="A repository with a compose file becomes linked services, storage and all. You never edit the YAML."
+        onClick={() => onPick('compose')}
+      />
+    </div>
+  );
+}
+
+/**
+ * Compose as an import: inspect first, so what is about to happen is on the
+ * screen before anything exists; then one press builds it all.
+ */
+function FromCompose({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+  const load = useProjects((s) => s.load);
+  const [repoUrl, setRepoUrl] = useState('');
+  const [inspecting, setInspecting] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [plan, setPlan] = useState<ImportPlan | null>(null);
+  const [composeFile, setComposeFile] = useState('');
+
+  async function inspect(event: FormEvent) {
+    event.preventDefault();
+    setInspecting(true);
+    setError(null);
+    setPlan(null);
+    try {
+      const found = await endpoints.inspectImport(repoUrl.trim());
+      setPlan(found.plan);
+      setComposeFile(found.composeFile);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setInspecting(false);
+    }
+  }
+
+  async function apply() {
+    if (!plan) return;
+    setApplying(true);
+    setError(null);
+    try {
+      await endpoints.applyImport(projectId, plan);
+      await load();
+      onDone();
+    } catch (err) {
+      setError(err);
+      setApplying(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <form onSubmit={inspect} className="space-y-3">
+        <Field
+          label="Repository with a compose file"
+          hint="Derailed reads the file once and turns it into ordinary services. Nothing is created until you say so."
+        >
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="github.com/someone/project"
+              value={repoUrl}
+              onChange={(event) => setRepoUrl(event.target.value)}
+            />
+            <button
+              type="submit"
+              className="btn-secondary"
+              disabled={inspecting || !repoUrl.trim()}
+            >
+              {inspecting && <Spinner />}
+              Look inside
+            </button>
+          </div>
+        </Field>
+      </form>
+
+      <ErrorNote error={error} />
+
+      {plan && (
+        <>
+          <p className="text-[13px] text-ink-muted">
+            {composeFile} describes {plan.services.length}{' '}
+            {plan.services.length === 1 ? 'service' : 'services'}:
+          </p>
+          <ul className="divide-y divide-line rounded-[var(--radius-card)] border border-line">
+            {plan.services.map((service) => (
+              <li key={service.name} className="px-3 py-2">
+                <p className="text-[13px] font-medium text-ink">{service.name}</p>
+                <p className="text-[12px] text-ink-muted">
+                  {service.source === 'image'
+                    ? `Runs ${service.image}`
+                    : `Built from the repository${service.rootDir ? `, in ${service.rootDir}` : ''}`}
+                  {service.port ? ` · answers on ${service.port}` : ''}
+                  {service.volumes.length
+                    ? ` · keeps ${service.volumes.length} ${service.volumes.length === 1 ? 'folder' : 'folders'}`
+                    : ''}
+                  {service.dependsOn.length
+                    ? ` · starts after ${service.dependsOn.join(', ')}`
+                    : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+
+          {plan.warnings.length > 0 && (
+            <div className="rounded-[var(--radius-card)] border border-line bg-sunken px-3 py-2">
+              <p className="eyebrow mb-1">Worth knowing before you press the button</p>
+              <ul className="list-disc space-y-1 pl-4">
+                {plan.warnings.map((warning) => (
+                  <li key={warning} className="text-[12px] text-ink-muted">
+                    {warning}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button type="button" className="btn-primary" disabled={applying} onClick={apply}>
+              {applying && <Spinner />}
+              Import {plan.services.length === 1 ? 'it' : 'them all'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { dbUpgradeRoutes } from './routes/dbupgrades.ts';
 import { deploymentRoutes, serviceDeploymentRoutes } from './routes/deployments.ts';
 import { detectRoutes } from './routes/detect.ts';
 import { domainRoutes, serviceDomainRoutes } from './routes/domains.ts';
+import { importRoutes, projectImportRoutes } from './routes/import.ts';
 import { jobRoutes, serviceJobRoutes } from './routes/jobs.ts';
 import { mailRoutes } from './routes/mail.ts';
 import { peopleRoutes } from './routes/people.ts';
@@ -111,6 +112,8 @@ export function createApp() {
   api.route('/system', systemRoutes);
   api.route('/mail', mailRoutes);
   api.route('/detect', detectRoutes);
+  api.route('/import', importRoutes);
+  api.route('/projects', projectImportRoutes);
   api.route('/projects', projectRoutes);
   api.route('/projects', projectServiceRoutes);
   api.route('/projects', projectTemplateRoutes);

@@ -165,6 +165,20 @@ export interface Service {
    */
   walArchive?: boolean;
 
+  /**
+   * An extra name this service answers to on the project network. Set by the
+   * compose import, where neighbours address it by the name written in the file.
+   */
+  alias?: string | null;
+
+  /**
+   * What "started" means for this service. 'http' is what every app already
+   * meant: answer on the port or be thrown away. 'started' is for the things a
+   * compose file brings that never speak HTTP, a Redis, a worker: the container
+   * staying up is the answer.
+   */
+  healthCheck?: 'http' | 'started';
+
   createdAt: number;
   updatedAt: number;
   /** When it was deleted, if it was. Deleted things are kept for a week. */
@@ -270,6 +284,37 @@ export interface PitrState {
   /** The earliest moment a restore can land on, or null before the first base copy. */
   oldestMoment: number | null;
   sizeBytes: number;
+}
+
+/**
+ * One service as the compose import understands it, before anything is created.
+ * The plan travels to the browser, can be looked at, and comes back to be
+ * applied, so it is validated as hard on the way back in as any other request.
+ */
+export interface ImportPlanService {
+  /** The name written in the file. Kept as a network alias. */
+  name: string;
+  source: 'image' | 'repo';
+  image: string | null;
+  /** Build context, relative to the repository root. */
+  rootDir: string | null;
+  dockerfilePath: string | null;
+  command: string[] | null;
+  port: number | null;
+  env: { key: string; value: string }[];
+  /** Container paths that become managed storage. */
+  volumes: string[];
+  dependsOn: string[];
+  memoryLimitMb: number | null;
+}
+
+export interface ImportPlan {
+  source: 'compose';
+  repoUrl: string;
+  branch: string | null;
+  services: ImportPlanService[];
+  /** Everything the file asked for that will not be honoured, said plainly. */
+  warnings: string[];
 }
 
 /** What the update check knows about one app's image. */

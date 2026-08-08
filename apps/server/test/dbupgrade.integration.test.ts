@@ -11,12 +11,7 @@ import { listDbUpgrades } from '../src/db/repo/dbupgrades.ts';
 import { createProject } from '../src/db/repo/projects.ts';
 import { findService } from '../src/db/repo/services.ts';
 import { ping } from '../src/docker/client.ts';
-import {
-  destroyContainer,
-  findContainerByName,
-  inspectContainer,
-  listContainers,
-} from '../src/docker/containers.ts';
+import { destroyContainer, findContainerByName, listContainers } from '../src/docker/containers.ts';
 import { LABELS, labelFilter } from '../src/docker/labels.ts';
 import { projectNetworkName, removeNetwork } from '../src/docker/networks.ts';
 import { listVolumes, removeVolume } from '../src/docker/volumes.ts';

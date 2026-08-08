@@ -347,6 +347,18 @@ export const endpoints = {
   pitrRestore: (serviceId: string, at: number) =>
     api.post<{ started: true }>(`/services/${serviceId}/pitr/restore`, { at }),
 
+  inspectImport: (repoUrl: string, branch?: string, rootDir?: string) =>
+    api.post<{
+      plan: import('@derailed/shared').ImportPlan;
+      composeFile: string;
+      suggestedName: string;
+    }>('/import/inspect', { repoUrl, branch, rootDir }),
+  applyImport: (projectId: string, plan: import('@derailed/shared').ImportPlan) =>
+    api.post<{ services: import('@derailed/shared').Service[]; warnings: string[] }>(
+      `/projects/${projectId}/import`,
+      { plan },
+    ),
+
   tokens: () =>
     api
       .get<{

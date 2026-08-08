@@ -197,6 +197,59 @@ export const autoUpdateRequest = z.object({
 });
 export type AutoUpdateRequest = z.infer<typeof autoUpdateRequest>;
 
+/** The name a compose service is written as. Docker's own charset for one. */
+const composeName = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/);
+
+export const importInspectRequest = z.object({
+  repoUrl: z.string().trim().min(1).max(500),
+  branch: gitBranch,
+  rootDir: z.string().trim().max(400).optional(),
+});
+export type ImportInspectRequest = z.infer<typeof importInspectRequest>;
+
+/**
+ * The plan, on its way back in. It was shown to a person and may have been
+ * edited by anything, so every field is held to the same standard as a request
+ * typed from scratch: only known fields, tight charsets, hard caps.
+ */
+export const importPlanService = z.object({
+  name: composeName,
+  source: z.enum(['image', 'repo']),
+  image: z.string().trim().min(1).max(300).nullable(),
+  rootDir: z.string().trim().max(400).nullable(),
+  dockerfilePath: z.string().trim().max(400).nullable(),
+  command: z.array(z.string().max(2000)).max(100).nullable(),
+  port: z.number().int().min(1).max(65535).nullable(),
+  env: z
+    .array(
+      z.object({
+        key: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z_][A-Za-z0-9_.-]*$/),
+        value: z.string().max(10_000),
+      }),
+    )
+    .max(500),
+  volumes: z.array(z.string().trim().min(1).max(400)).max(50),
+  dependsOn: z.array(composeName).max(50),
+  memoryLimitMb: z.number().int().min(64).max(65536).nullable(),
+});
+
+export const applyImportPlanRequest = z.object({
+  plan: z.object({
+    source: z.literal('compose'),
+    repoUrl: z.string().trim().min(1).max(500),
+    branch: z.string().trim().max(200).nullable(),
+    services: z.array(importPlanService).min(1).max(40),
+    warnings: z.array(z.string().max(1000)).max(100),
+  }),
+});
+export type ApplyImportPlanRequest = z.infer<typeof applyImportPlanRequest>;
+
 export const upgradeDatabaseRequest = z.object({
   version: z.string().trim().min(1).max(20),
 });

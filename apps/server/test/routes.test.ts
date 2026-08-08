@@ -75,6 +75,9 @@ const ROUTES: [string, string][] = [
   ['GET', '/api/services/nope/pitr'],
   ['PUT', '/api/services/nope/pitr'],
   ['POST', '/api/services/nope/pitr/restore'],
+  // Compose import
+  ['POST', '/api/import/inspect'],
+  ['POST', '/api/projects/nope/import'],
 ];
 
 describe('every route the dashboard calls is mounted', () => {

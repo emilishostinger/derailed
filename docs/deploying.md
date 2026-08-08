@@ -127,6 +127,41 @@ Add a fine-grained GitHub personal access token with read access to the reposito
 the app's **Settings** tab. It is encrypted at rest and never sent back to the browser;
 the dashboard only ever shows whether one is saved.
 
+## From a docker-compose file
+
+Half the self-hosted software on the internet ships as a compose file. Point Derailed
+at a repository containing one, **Add something → Import a docker-compose project**,
+and the file is read once and turned into the same objects every other project is made
+of: each service a container on the map, its `volumes` as managed storage, its
+`environment` in the Variables tab, `depends_on` as start order. You never edit the
+YAML, and the YAML is never consulted again.
+
+The import is two steps on purpose. **Look inside** clones the repository, reads the
+file and shows the plan: which services, what each runs, what storage it keeps, and,
+above all, what will *not* be honoured, said per service in plain language. Privileged
+mode, host networking, devices, custom entrypoints and their friends are refused by a
+managed server; the import says so on the screen before anything exists, rather than
+failing at deploy time or quietly meaning something else. Then one press builds it.
+
+Worth knowing:
+
+- **The written names keep working.** A compose file's services find each other by
+  name, underscores and all, and those names survive as network aliases. An app whose
+  configuration says `my_db:5432` still finds its database without anybody editing
+  anything.
+- **Services without a web port are welcome.** A Redis, a worker, an app that only its
+  nginx neighbour reaches: these never answer HTTP, so their health check is "keeps
+  running" and no web address is generated for them.
+- **Bound folders become fresh storage.** `./data:/data` mounts a folder of the
+  machine the file was written for. That folder is not here; the import creates
+  managed storage at the same path and says the contents did not come along.
+- **`${VARIABLES}`** are filled from the `.env` beside the file, the way compose fills
+  them. Anything unset comes through empty, with a note, and real values belong in the
+  Variables tab afterwards.
+- **Start order is creation order.** Compose's `condition: service_healthy` cannot be
+  promised by a build queue; apps that retry their connections, which is nearly all of
+  them, are fine, and the plan says so when a file relies on it.
+
 ## From a zip
 
 Drag a zip onto the **Upload a website** option. Useful when there is no repository, or

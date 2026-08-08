@@ -37,6 +37,8 @@ interface ServiceRow {
   snapshot_every_hours?: number | null;
   auto_update?: 0 | 1;
   wal_archive?: 0 | 1;
+  alias?: string | null;
+  health_check?: 'http' | 'started';
   created_at: number;
   updated_at: number;
   deleted_at?: number | null;
@@ -80,6 +82,8 @@ function toService(row: ServiceRow): Service {
     snapshotEveryHours: row.snapshot_every_hours ?? null,
     autoUpdate: row.auto_update === 1,
     walArchive: row.wal_archive === 1,
+    alias: row.alias ?? null,
+    healthCheck: row.health_check ?? 'http',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at ?? null,
@@ -172,6 +176,10 @@ export interface NewAppService {
   dockerfilePath?: string | null;
   port?: number | null;
   healthPath?: string;
+  /** An extra name this service answers to on the project network. */
+  alias?: string | null;
+  /** 'http' answers on a port; 'started' just has to keep running. */
+  healthCheck?: 'http' | 'started';
 }
 
 export interface NewDatabaseService {
@@ -209,8 +217,8 @@ export function createAppService(input: NewAppService): Service {
       `INSERT INTO services
         (id, project_id, kind, name, slug, source, image, framework, command, repo_url, branch,
          root_dir, build_strategy, dockerfile_path, port, health_path, instances_desired,
-         created_at, updated_at)
-       VALUES (?, ?, 'app', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+         alias, health_check, created_at, updated_at)
+       VALUES (?, ?, 'app', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -228,6 +236,8 @@ export function createAppService(input: NewAppService): Service {
       input.dockerfilePath ?? null,
       input.port ?? null,
       input.healthPath ?? '/',
+      input.alias ?? null,
+      input.healthCheck ?? 'http',
       now,
       now,
     );

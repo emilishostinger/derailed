@@ -71,6 +71,7 @@ Derailed makes it five minutes in a browser, and keeps making sense afterwards.
 | ✅ **Backups that prove they restore** | Once a month Derailed opens the newest one and checks every database dump and stored folder inside it is complete, then says so. Every other tool tells you a backup was made; this is the part anyone actually cares about. |
 | 🪃 **Updates that take a backup first** | Updating an app is: back it up, update it, check it still answers. A version that never answers is thrown away while the old one keeps serving, and one press puts the exact previous version back. Per-app automatic updates, if you want them. |
 | 🌱 **Databases that grow up safely** | Postgres 16 to 17 is a button: copy first, new engine proves itself on a fresh volume, old engine kept stopped for a week. And for Postgres alone, a real point-in-time restore: wind back to a *moment*, not just to the nearest copy. |
+| 🧩 **A `docker-compose` repository just works** | Point Derailed at a repo with a compose file and get a project of linked services: containers on the map, volumes as storage, `depends_on` as start order. Whatever can't be honoured is said plainly at import time, not discovered at deploy time. You never edit the YAML. |
 | 🤖 **Runs from your editor** | An MCP server, so Claude Code, Cursor or Codex can deploy, read logs and add domains in the same conversation where you write the code. |
 | 🖼️ **Your apps, not a process list** | Every tile carries the site's own icon and title, read from the thing that is actually running. Turn on screenshots and it carries a picture too. |
 | 🗺️ **A map, not a wall of panels** | The project view *is* the topology: what is running, what talks to what, what is on fire. |
@@ -214,7 +215,7 @@ It has not yet been through a thousand other people's edge cases.
 Run it for side projects and internal tools first, keep backups, and
 [tell me what breaks](../../issues). That is the fastest way to make it better.
 
-Not there yet: `docker-compose` repositories, more than one server.
+Not there yet: more than one server.
 
 <br>
 

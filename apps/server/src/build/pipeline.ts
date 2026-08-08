@@ -421,6 +421,32 @@ async function waitForHealthy(
   log: DeploymentLog,
   signal: AbortSignal,
 ): Promise<void> {
+  // A service that never speaks HTTP, a Redis a compose file brought, a worker,
+  // proves itself by staying up. Ten seconds catches the crash-on-boot class of
+  // failure, which is nearly all of it, without demanding an answer that will
+  // never come.
+  if (service.healthCheck === 'started') {
+    log.write(`Waiting to see ${service.name} keeps running…`);
+    const settled = Date.now() + 10_000;
+    while (Date.now() < settled) {
+      if (signal.aborted) throw new Cancelled();
+      const state = await inspectContainer(containerId);
+      if (state && !state.State.Running && state.State.Status !== 'created') {
+        const tail = await tailRuntimeLogs(containerId, log);
+        throw new FriendlyError(
+          state.State.OOMKilled
+            ? `${service.name} ran out of memory as soon as it started.`
+            : `${service.name} started and then stopped straight away (exit code ${state.State.ExitCode}).`,
+          'The last lines of its output are above. They usually say what went wrong.',
+          tail,
+        );
+      }
+      await Bun.sleep(500);
+    }
+    log.write('Still running. Good enough.');
+    return;
+  }
+
   const inspected = await inspectContainer(containerId);
   const hostPort = Number(inspected?.NetworkSettings.Ports?.[`${port}/tcp`]?.[0]?.HostPort ?? 0);
   const healthPath = safeHealthPath(service.healthPath);
@@ -506,6 +532,9 @@ async function cleanupFailedContainer(deploymentId: string): Promise<void> {
 
 /** Every app gets a working web address the moment it first goes live. */
 function ensureGeneratedDomain(service: Service): void {
+  // Except the ones that never answer the web: an address that can only 502
+  // teaches somebody the product is broken, on an app that is working perfectly.
+  if (service.healthCheck === 'started') return;
   const serverIp = getSetting(SETTINGS.serverIp);
   if (!serverIp) return;
   const base = appBaseDomain();
@@ -630,7 +659,9 @@ async function launch(input: LaunchInput): Promise<void> {
       role: 'app',
     }),
     network,
-    aliases: [service.slug, name],
+    // The imported name too, when there is one: a compose neighbour's config says
+    // `my_db:5432`, and that name has to keep answering after the import.
+    aliases: [service.slug, name, ...(service.alias ? [service.alias] : [])],
     // Published on loopback only: lets Derailed health-check it and makes local
     // debugging possible without exposing anything to the internet.
     ports: { [port]: { host: '127.0.0.1', port: 0 } },

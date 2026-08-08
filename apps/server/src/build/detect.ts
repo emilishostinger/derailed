@@ -90,7 +90,7 @@ export async function detectRepo(input: DetectInput): Promise<DetectResult> {
 
   if (existsSync(join(base, 'docker-compose.yml')) || existsSync(join(base, 'compose.yaml'))) {
     warnings.push(
-      "This project has a docker-compose file. Derailed will run the app itself, but won't set up the other services in that file yet.",
+      'This project has a docker-compose file. Importing it instead sets up everything in that file as linked services.',
     );
   }
 

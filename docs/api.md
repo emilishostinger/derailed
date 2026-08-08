@@ -98,6 +98,13 @@ Creating a service:
 | `DELETE /volumes/:id` | Removes storage, and what is in it. Owner only |
 | `GET /services/:id/domains` · `POST` | Its addresses |
 
+## Importing
+
+| | |
+| --- | --- |
+| `POST /import/inspect` | `{ repoUrl, branch?, rootDir? }`. Clones shallowly, reads the compose file, answers with a plan and its warnings. Creates nothing |
+| `POST /projects/:id/import` | `{ plan }` from inspect, possibly edited. Creates the services in dependency order, with storage, variables and aliases, and deploys them in the same order |
+
 ## Off-site backups and drills
 
 | | |
