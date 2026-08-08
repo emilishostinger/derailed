@@ -43,6 +43,7 @@ import { trashRoutes } from './routes/trash.ts';
 import { updateRoutes } from './routes/updates.ts';
 import { serviceVolumeRoutes, volumeRoutes } from './routes/volumes.ts';
 import { webhookRoutes } from './routes/webhooks.ts';
+import { wordPressRoutes } from './routes/wordpress.ts';
 import { serveApp } from './static.ts';
 import { renderStatusPage } from './statuspage.ts';
 
@@ -133,6 +134,7 @@ export function createApp() {
   api.route('/projects', projectTemplateRoutes);
   api.route('/services', serviceRoutes);
   api.route('/services', appUpdateRoutes);
+  api.route('/services', wordPressRoutes);
   api.route('/services', dbUpgradeRoutes);
   api.route('/services', messageRoutes);
   api.route('/services', botRoutes);

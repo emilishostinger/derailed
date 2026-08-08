@@ -19,6 +19,7 @@ about five minutes.
 - **[Files and app email](files.md)**: browsing an app's storage, and letting it send mail
 - **[Forms](forms.md)**: working forms on a plain site, one attribute, no backend
 - **[Pictures the right size](images.md)**: `/_img/photo.jpg?w=800`, resized and re-encoded on the fly
+- **[WordPress superpowers](wordpress.md)**: passwordless wp-admin, backed-up updates, staging with push-to-live
 - **[A copy per branch](previews.md)**: every branch gets its own running app, and loses it
 - **[Scheduled jobs](jobs.md)**: cron, in plain words, with the output kept
 - **[Who can see your apps](access.md)**: passwords, address lists and maintenance mode

@@ -44,6 +44,13 @@ interface Rule {
  */
 const OWNER_ONLY: Rule[] = [
   {
+    // Push-to-live writes the staging copy's database and files over production's,
+    // which is a restore in a party hat, and restores are an owner's.
+    path: /^\/services\/[^/]+\/wordpress\/staging\/push$/,
+    methods: ['POST'],
+    why: 'Only an owner can push staging over the live site, because it overwrites what is there now.',
+  },
+  {
     path: /^\/people(\/|$)/,
     why: 'Only an owner can change who has access.',
   },

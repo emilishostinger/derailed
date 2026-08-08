@@ -31,6 +31,7 @@ import {
   SquareTerminal,
   Table2,
   Users,
+  Wand2,
   Wrench,
   X,
 } from 'lucide-react';
@@ -63,6 +64,7 @@ import { UpdatesTab } from './UpdatesTab.tsx';
 import { cx, ErrorNote, Spinner, StatusPill, Switch } from './ui.tsx';
 import { useDrawerWidth } from './useDrawerWidth.ts';
 import { WhyBroken } from './WhyBroken.tsx';
+import { WordPressTab } from './WordPressTab.tsx';
 
 type Tab =
   | 'overview'
@@ -75,6 +77,7 @@ type Tab =
   | 'browse'
   | 'files'
   | 'edit'
+  | 'wordpress'
   | 'deployments'
   | 'variables'
   | 'connection'
@@ -150,9 +153,14 @@ export function ServiceDrawer({
     domains.find((domain) => domain.kind === 'custom' && domain.tlsStatus === 'active') ??
     domains.find((domain) => domain.tlsStatus === 'active') ??
     domains[0];
+  const isWordPress = service.source === 'image' && (service.image ?? '').startsWith('wordpress');
   const entries: NavEntry[] = isApp
     ? [
         { kind: 'tab', tab: 'overview', label: 'Overview', icon: LayoutDashboard },
+        // The most-run app on earth gets house treatment, one obvious tab of it.
+        ...((isWordPress
+          ? [{ kind: 'tab', tab: 'wordpress', label: 'WordPress', icon: Wand2 }]
+          : []) as NavEntry[]),
         {
           kind: 'group',
           key: 'activity',
@@ -393,6 +401,7 @@ export function ServiceDrawer({
           {tab === 'snapshots' && <Snapshots service={service} />}
           {tab === 'files' && <FilesTab service={service} />}
           {tab === 'edit' && <SiteEditorTab service={service} />}
+          {tab === 'wordpress' && <WordPressTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}
           {tab === 'settings' && <Settings service={service} onClose={onClose} />}

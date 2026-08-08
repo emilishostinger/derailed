@@ -93,6 +93,12 @@ Creating a service:
 | `PUT /services/:id/source` | `{ path, contents, deploy? }`. Saves, and publishes through the ordinary deploy unless `deploy` is false. New paths welcome |
 | `GET /services/:id/source/error-page/:kind` | A clean starting 404 or 500 page for the editor |
 | `GET /services/:id/images` · `PUT` | Whether `/_img/…?w=…` resizes this app's pictures. Turning it on starts the shared sidecar |
+| `GET /services/:id/wordpress` | Whether this is a WordPress app, and its staging copy if one exists |
+| `POST /services/:id/wordpress/login` | A one-time wp-admin sign-in link. Works once, dies in five minutes |
+| `GET /services/:id/wordpress/updates` | Waiting plugin, theme and core updates, versions included |
+| `POST /services/:id/wordpress/update` | `{ what }`: plugins, themes, core or all. Whole-project backup first, always |
+| `POST /services/:id/wordpress/staging` | Build the staging copy: cloned database, copied files, rewritten links |
+| `POST /services/:id/wordpress/staging/push` | Staging's data and files become live's. Backup first; owner only, like every restore |
 | `GET /services/:id/sleep` · `PUT` · `POST /services/:id/wake` | Pause when quiet, and wake it |
 | `PUT /services/:id/access` | Password, `allowFrom`, `blockFrom`, maintenance. The password is hashed and never returned. Blocking your own address is refused once; send `force: true` to mean it |
 | `GET /system/my-address` | The address this request arrived from, for the "add mine" button |

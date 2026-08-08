@@ -155,6 +155,28 @@ export const endpoints = {
     api.put<{ vars?: EnvVar[]; staged?: boolean; pending?: number }>(`/services/${serviceId}/env`, {
       vars,
     }),
+  wordPressState: (serviceId: string) =>
+    api.get<{ isWordPress: boolean; staging: { id: string; name: string } | null }>(
+      `/services/${serviceId}/wordpress`,
+    ),
+  wordPressLogin: (serviceId: string) =>
+    api.post<{ url: string }>(`/services/${serviceId}/wordpress/login`),
+  wordPressUpdates: (serviceId: string) =>
+    api.get<{
+      updates: {
+        core: { current: string; available: string | null };
+        plugins: { name: string; version: string; available: string }[];
+        themes: { name: string; version: string; available: string }[];
+      };
+    }>(`/services/${serviceId}/wordpress/updates`),
+  wordPressUpdate: (serviceId: string, what: 'plugins' | 'themes' | 'core' | 'all') =>
+    api.post<{ backupId: string; report: string }>(`/services/${serviceId}/wordpress/update`, {
+      what,
+    }),
+  wordPressStaging: (serviceId: string) =>
+    api.post<{ staging: Service }>(`/services/${serviceId}/wordpress/staging`),
+  wordPressPush: (serviceId: string) =>
+    api.post<{ backupId: string }>(`/services/${serviceId}/wordpress/staging/push`),
   imagesEnabled: (serviceId: string) =>
     api.get<{ enabled: boolean }>(`/services/${serviceId}/images`).then((r) => r.enabled),
   setImages: (serviceId: string, enabled: boolean) =>

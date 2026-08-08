@@ -84,6 +84,13 @@ const ROUTES: [string, string][] = [
   // Is anything leaking or known-broken?
   ['GET', '/api/system/scan'],
   ['POST', '/api/system/scan'],
+  // WordPress superpowers
+  ['GET', '/api/services/nope/wordpress'],
+  ['POST', '/api/services/nope/wordpress/login'],
+  ['GET', '/api/services/nope/wordpress/updates'],
+  ['POST', '/api/services/nope/wordpress/update'],
+  ['POST', '/api/services/nope/wordpress/staging'],
+  ['POST', '/api/services/nope/wordpress/staging/push'],
   // Pictures the right size
   ['GET', '/api/services/nope/images'],
   ['PUT', '/api/services/nope/images'],
