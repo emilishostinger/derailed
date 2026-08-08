@@ -57,8 +57,22 @@ export function resolveClientIp(peer: string | null | undefined, forwarded: stri
   }
   if (!isPrivateAddress(peer)) return peer;
 
-  const first = forwarded?.split(',')[0]?.trim();
-  return first || peer;
+  // The socket belongs to our own proxy, so the forwarded header is the only way to see
+  // the real caller. But the *last* public entry, not the first. Caddy appends the
+  // address it actually saw to whatever `X-Forwarded-For` arrived, so a caller who sends
+  // `X-Forwarded-For: 6.6.6.6` turns it into `6.6.6.6, <their real address>`: the first
+  // value is theirs to invent and the last is the one Caddy vouched for. Taking the
+  // leftmost handed every password guess a fresh identity again, the exact hole this
+  // function exists to close. Private hops on the tail (the docker bridge) are stepped
+  // over, so the answer is the outermost address our own side is willing to stand behind.
+  const hops = (forwarded ?? '')
+    .split(',')
+    .map((hop) => hop.trim())
+    .filter(Boolean);
+  for (let i = hops.length - 1; i >= 0; i--) {
+    if (!isPrivateAddress(hops[i])) return hops[i]!;
+  }
+  return peer;
 }
 
 /**

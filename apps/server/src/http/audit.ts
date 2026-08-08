@@ -1,7 +1,8 @@
 import type { Context } from 'hono';
 import { db } from '../db/index.ts';
 import { newId } from '../util/ids.ts';
-import type { AppEnv } from './auth.ts';
+import { resolveClientIp } from '../util/net.ts';
+import { type AppEnv, peerAddress } from './auth.ts';
 
 /**
  * Who did what.
@@ -50,7 +51,11 @@ export function record(
         action,
         subject ?? null,
         detail ?? null,
-        c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+        // The same trust rule as the rate limiter: `X-Forwarded-For` is only worth
+        // reading when the socket itself is our own proxy, or anyone talking to
+        // Derailed directly could stamp whatever source IP they liked onto their own
+        // entry in the record of who did what.
+        resolveClientIp(peerAddress(c), c.req.header('x-forwarded-for') ?? null),
       );
   } catch {
     // Nothing to do about it, and nothing worth breaking over.

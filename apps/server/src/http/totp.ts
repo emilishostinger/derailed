@@ -78,18 +78,31 @@ export function codeFor(secret: string, step: number): string | null {
  * of thing that is free to get right and embarrassing to get wrong.
  */
 export function verifyCode(secret: string, code: string, at = Date.now()): boolean {
+  return verifyCodeStep(secret, code, at) !== null;
+}
+
+/**
+ * Which time step a code was right for, or null if it was not right at all.
+ *
+ * The step is what makes "this code, once" possible: the caller can remember the last
+ * one somebody signed in with and refuse anything at or before it, so a code read over
+ * a shoulder is good until the next tick and no further. A plain yes/no cannot express
+ * that, because two different sign-ins a few seconds apart share the same yes.
+ */
+export function verifyCodeStep(secret: string, code: string, at = Date.now()): number | null {
   const clean = code.replace(/\s/g, '');
-  if (!/^\d{6}$/.test(clean)) return false;
+  if (!/^\d{6}$/.test(clean)) return null;
 
   const step = Math.floor(at / 1000 / PERIOD_SECONDS);
   for (let drift = -DRIFT_STEPS; drift <= DRIFT_STEPS; drift++) {
-    const expected = codeFor(secret, step + drift);
-    if (!expected) return false;
+    const candidate = step + drift;
+    const expected = codeFor(secret, candidate);
+    if (!expected) return null;
     const a = Buffer.from(expected);
     const b = Buffer.from(clean);
-    if (a.length === b.length && timingSafeEqual(a, b)) return true;
+    if (a.length === b.length && timingSafeEqual(a, b)) return candidate;
   }
-  return false;
+  return null;
 }
 
 /** The URL behind the QR code every authenticator app scans. */

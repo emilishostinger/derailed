@@ -66,6 +66,20 @@ describe('a viewer', () => {
     expect(mayCall('viewer', 'GET', '/api/backups/offsite').ok).toBe(false);
   });
 
+  test('cannot read a live secret, even though it is a read', () => {
+    // The "any read is fine" shortcut has an exception: a read that hands back a secret
+    // rather than a view of one. A viewer is the role you give a client, and these two
+    // come back in the clear.
+    expect(mayCall('viewer', 'GET', '/api/services/s1/env').ok).toBe(false);
+    expect(mayCall('viewer', 'GET', '/api/services/s1/connection').ok).toBe(false);
+    // The archive is the most concentrated secret on the machine; downloading it is an
+    // owner's, whatever the method.
+    expect(mayCall('viewer', 'GET', '/api/backups/b1/download').ok).toBe(false);
+    // But an ordinary read of the same app is still fine, or the role would be pointless.
+    expect(mayCall('viewer', 'GET', '/api/services/s1').ok).toBe(true);
+    expect(mayCall('viewer', 'GET', '/api/services/s1/logs').ok).toBe(true);
+  });
+
   test('may change nothing at all, whatever the route', () => {
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
       for (const path of [
@@ -147,10 +161,32 @@ describe('a member', () => {
     expect(mayCall('member', 'POST', '/api/tokens').ok).toBe(false);
   });
 
+  test('cannot publish a database to the internet, download a backup, or restore one', () => {
+    // Opening a port on the host and putting the engine on the public internet is the
+    // machine, not the app. And the archive is every database in one file: taking it
+    // off the server, or rolling a project back over what is live, are the owner's.
+    expect(mayCall('member', 'POST', '/api/services/s1/expose').ok).toBe(false);
+    expect(mayCall('member', 'GET', '/api/backups/b1/download').ok).toBe(false);
+    expect(mayCall('member', 'POST', '/api/backups/b1/restore').ok).toBe(false);
+    // Saving retention prunes across every project at once, so it is not a member's.
+    expect(mayCall('member', 'PUT', '/api/backups/retention').ok).toBe(false);
+  });
+
+  test('may still make and delete an individual backup, and schedule one', () => {
+    // The boundary is the data leaving or being written over, not the housekeeping.
+    expect(mayCall('member', 'POST', '/api/backups').ok).toBe(true);
+    expect(mayCall('member', 'DELETE', '/api/backups/b1').ok).toBe(true);
+    expect(mayCall('member', 'PUT', '/api/backups/schedule').ok).toBe(true);
+  });
+
   test('may still read the things it cannot change', () => {
     expect(mayCall('member', 'GET', '/api/system/stats').ok).toBe(true);
     expect(mayCall('member', 'GET', '/api/backups/offsite').ok).toBe(false);
     expect(mayCall('member', 'GET', '/api/alerts').ok).toBe(true);
+    // The secrets a viewer is kept from are a member's to read: a member already holds
+    // them, and needs them to do the job.
+    expect(mayCall('member', 'GET', '/api/services/s1/env').ok).toBe(true);
+    expect(mayCall('member', 'GET', '/api/services/s1/connection').ok).toBe(true);
   });
 });
 

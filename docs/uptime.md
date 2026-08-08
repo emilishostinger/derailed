@@ -76,3 +76,13 @@ that is silently empty.
 A site that stops answering raises an [alert](alerts.md), separately from a crash.
 That distinction matters: an app whose container is running while its site answers
 nothing is exactly the case a crash alert cannot see.
+
+## Only public addresses
+
+The monitor makes its request from the server, on a timer, and the server sits inside a
+network your apps and databases share. So a name that resolves onto this machine or its
+private network is refused before the request is made, rather than quietly reporting
+whether the thing behind it answered. It is the same rule the template fetcher follows,
+and it is here for the same reason: the address is one a member can set, not only an
+owner, and the panel should not become a way to knock on the doors it is meant to guard.
+See [security](security.md#addresses-derailed-will-fetch-on-your-say-so).

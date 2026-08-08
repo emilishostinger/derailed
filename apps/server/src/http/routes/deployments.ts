@@ -97,6 +97,10 @@ deploymentRoutes.get('/:id/changes', (c) => {
  * when something is wrong.
  */
 deploymentRoutes.get('/:id/search', async (c) => {
+  // Its siblings all check the deploy is real first; this one skipped it and answered a
+  // cheerful empty result for a deploy that was never here, where every other route
+  // says 404.
+  if (!findDeployment(c.req.param('id'))) throw notFound('That deploy');
   const url = new URL(c.req.url);
   const result = await searchDeploymentLog(c.req.param('id'), {
     query: url.searchParams.get('q') ?? undefined,

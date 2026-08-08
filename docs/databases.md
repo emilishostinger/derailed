@@ -56,7 +56,11 @@ so nothing outside can connect. That is the right default and it is worth keepin
 
 If you need an external connection, for a desktop client or a migration tool, the settings
 let you publish a port. Do it deliberately, use the firewall, and turn it off
-afterwards. A database on the open internet is found by scanners within hours.
+afterwards. A database on the open internet is found by scanners within hours. Publishing
+is an owner's decision, not a member's: it opens a port on the machine, which is the
+server itself rather than the app in front of it. Reading the connection string, which
+includes the password in the clear, is kept from a viewer for the same reason a variable's
+value is.
 
 The safer route is an SSH tunnel from your own machine:
 

@@ -20,9 +20,11 @@ import {
   countUsers,
   createUser,
   findUserByEmail,
+  setTotpLastStep,
   setTotpSecret,
   storeRecoveryCodes,
   totpEnabled,
+  totpLastStep,
   totpSecret,
   updateEmail,
   updatePassword,
@@ -47,7 +49,13 @@ import {
   tooManyRequests,
   unauthorized,
 } from '../errors.ts';
-import { generateRecoveryCodes, generateSecret, otpauthUrl, verifyCode } from '../totp.ts';
+import {
+  generateRecoveryCodes,
+  generateSecret,
+  otpauthUrl,
+  verifyCode,
+  verifyCodeStep,
+} from '../totp.ts';
 
 export const loginLimiter = new RateLimiter(5, 60_000);
 const setupLimiter = new RateLimiter(10, 60_000);
@@ -143,8 +151,24 @@ authRoutes.post('/login', async (c) => {
       return c.json({ needsCode: true }, 200);
     }
 
-    const ok = (secret && verifyCode(secret, supplied)) || useRecoveryCode(record.id, supplied);
-    if (!ok) throw unauthorized('That code is not right.');
+    let authed = false;
+    if (secret) {
+      const step = verifyCodeStep(secret, supplied);
+      if (step !== null) {
+        // A code is good for its whole 30-second step and one either side, which is a
+        // window wide enough to replay. Once a step has let someone in, nothing at or
+        // before it may again, so a code seen over a shoulder is spent the moment it is
+        // used rather than a minute and a half later.
+        const last = totpLastStep(record.id);
+        if (last !== null && step <= last) {
+          throw unauthorized('That code has already been used. Wait for the next one.');
+        }
+        setTotpLastStep(record.id, step);
+        authed = true;
+      }
+    }
+    if (!authed && useRecoveryCode(record.id, supplied)) authed = true;
+    if (!authed) throw unauthorized('That code is not right.');
   }
 
   loginLimiter.reset(ip);

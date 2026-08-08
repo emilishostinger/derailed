@@ -7,7 +7,7 @@ import { createDomain } from '../src/db/repo/domains.ts';
 import { createProject } from '../src/db/repo/projects.ts';
 import { createAppService } from '../src/db/repo/services.ts';
 import { createApp } from '../src/http/app.ts';
-import { historyFor, summaryFor } from '../src/runtime/uptime.ts';
+import { checkNow, historyFor, summaryFor } from '../src/runtime/uptime.ts';
 import { loadSecretKey } from '../src/util/crypto.ts';
 
 /**
@@ -43,6 +43,46 @@ function call(method: string, path: string, body?: unknown) {
     body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
   });
 }
+
+/**
+ * A monitor fetches a name somebody typed, on a timer, from inside the network the apps
+ * and databases sit on, and it is reachable by a member, not just an owner. So it is
+ * exactly the "arbitrary address from somebody who is not necessarily an owner" that the
+ * template fetcher is, and it is held to the same rule: a name that lands on this machine
+ * or its private network is refused before a single connection is opened. Otherwise the
+ * check's own result, "answered" or "could not be reached", is a scanner for the one part
+ * of the network the panel is meant to keep to itself.
+ */
+describe('a monitor pointed at the inside of the network', () => {
+  test('refuses to probe it, and never opens the connection', async () => {
+    const project = createProject('Probe');
+    const service = createAppService({
+      projectId: project.id,
+      name: 'Web',
+      source: 'image',
+      image: 'nginx:alpine',
+      repoUrl: null,
+      branch: null,
+    });
+    // A name that resolves onto this machine. `checkNow` builds `http://localhost/` from
+    // it, and the guard resolves the host before dialling.
+    const domain = createDomain(service.id, 'localhost', 'custom');
+
+    const realFetch = globalThis.fetch;
+    let dialled = false;
+    globalThis.fetch = (async () => {
+      dialled = true;
+      throw new Error('the probe should never have dialled a blocked address');
+    }) as unknown as typeof fetch;
+    try {
+      const result = await checkNow(domain.id);
+      expect(result.up).toBe(false);
+      expect(dialled).toBe(false);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
 
 describe('the record of what happened', () => {
   test('says nothing about a domain nothing has checked', () => {

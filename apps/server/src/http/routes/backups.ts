@@ -191,9 +191,14 @@ backupRoutes.get('/:id/download', async (c) => {
 });
 
 backupRoutes.post('/:id/restore', async (c) => {
+  const id = c.req.param('id');
+  // The same existence check the delete route makes, and for the same reason: a
+  // missing backup is a 404, not a 400 buried inside the restore machinery.
+  if (!(await Bun.file(backupFile(id)).exists())) throw notFound('That backup');
   const body = (await c.req.json().catch(() => ({}))) as { projectId?: string };
   if (!body.projectId) throw badRequest('Which project should this be restored into?');
-  const report = await restoreBackup(c.req.param('id'), body.projectId);
+  if (!findProject(body.projectId)) throw notFound('That project');
+  const report = await restoreBackup(id, body.projectId);
   return c.json({ report });
 });
 

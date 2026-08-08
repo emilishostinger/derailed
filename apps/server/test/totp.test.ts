@@ -6,6 +6,7 @@ import {
   generateSecret,
   otpauthUrl,
   verifyCode,
+  verifyCodeStep,
 } from '../src/http/totp.ts';
 
 /**
@@ -78,6 +79,49 @@ describe('checking a code', () => {
   test('ignores the spaces some apps put in', () => {
     const code = codeFor(secret, step) ?? '';
     expect(verifyCode(secret, `${code.slice(0, 3)} ${code.slice(3)}`, now)).toBe(true);
+  });
+});
+
+/**
+ * The step a code was good for, which is what makes a code single-use.
+ *
+ * The login flow remembers the last step somebody signed in with and refuses anything
+ * at or before it. A boolean cannot express that, because a code and its neighbour a
+ * few seconds later are both simply "yes"; the step tells them apart.
+ */
+describe('which step a code belongs to', () => {
+  const secret = generateSecret();
+  const now = 1_700_000_000_000;
+  const step = Math.floor(now / 1000 / 30);
+
+  test('names the step it matched, so a used one can be refused next time', () => {
+    expect(verifyCodeStep(secret, codeFor(secret, step) ?? '', now)).toBe(step);
+    expect(verifyCodeStep(secret, codeFor(secret, step - 1) ?? '', now)).toBe(step - 1);
+    expect(verifyCodeStep(secret, codeFor(secret, step + 1) ?? '', now)).toBe(step + 1);
+  });
+
+  test('is null when the code is wrong, the same as a plain refusal', () => {
+    expect(verifyCodeStep(secret, codeFor(secret, step - 5) ?? '', now)).toBeNull();
+    expect(verifyCodeStep(secret, '000000x', now)).toBeNull();
+  });
+
+  test('drives single use: the step the caller stored blocks a replay of that code', () => {
+    // What the login handler does, in miniature: accept, remember the step, then refuse
+    // any code whose step is not strictly newer, which is exactly a replay of the same
+    // one (and its drift neighbours) inside the same window.
+    const supplied = codeFor(secret, step) ?? '';
+    const accepted = verifyCodeStep(secret, supplied, now);
+    expect(accepted).toBe(step);
+
+    let last = accepted;
+    const replay = verifyCodeStep(secret, supplied, now + 5_000);
+    expect(replay !== null && replay <= (last ?? -1)).toBe(true); // would be rejected
+
+    // A genuinely later code, a step on, is greater than what was stored, so it passes.
+    const nextStepCode = codeFor(secret, step + 1) ?? '';
+    const next = verifyCodeStep(secret, nextStepCode, now + 30_000);
+    expect(next !== null && next > (last ?? -1)).toBe(true);
+    last = next;
   });
 });
 

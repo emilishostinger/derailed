@@ -54,6 +54,21 @@ describe('which address a rate limit is held against', () => {
     expect(resolveClientIp('172.17.0.1', '203.0.113.9, 172.17.0.1')).toBe('203.0.113.9');
   });
 
+  test('a caller cannot prepend a made-up address to escape the limiter', () => {
+    // Caddy appends the address it actually saw to whatever `X-Forwarded-For` arrived,
+    // so a caller who sends `X-Forwarded-For: 6.6.6.6` becomes `6.6.6.6, <them>`. The
+    // first entry is theirs to invent and rotate; the last public one is the address our
+    // own proxy vouched for. Taking the leftmost handed every guess a fresh identity.
+    expect(resolveClientIp('172.17.0.1', '6.6.6.6, 203.0.113.9')).toBe('203.0.113.9');
+    expect(resolveClientIp('172.17.0.1', '6.6.6.6, 7.7.7.7, 203.0.113.9')).toBe('203.0.113.9');
+    // Even with a private hop appended after it by the docker bridge.
+    expect(resolveClientIp('172.17.0.1', '6.6.6.6, 203.0.113.9, 172.17.0.1')).toBe('203.0.113.9');
+  });
+
+  test('a forwarded chain that is all private falls back to the peer', () => {
+    expect(resolveClientIp('172.17.0.1', '10.0.0.5, 172.17.0.1')).toBe('172.17.0.1');
+  });
+
   test('a private peer with nothing forwarded is just that peer', () => {
     expect(resolveClientIp('172.17.0.1', null)).toBe('172.17.0.1');
   });

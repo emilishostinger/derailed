@@ -72,9 +72,31 @@ export type CreateProjectRequest = z.infer<typeof createProjectRequest>;
 export const patchProjectRequest = z.object({ name: projectName });
 export type PatchProjectRequest = z.infer<typeof patchProjectRequest>;
 
+/**
+ * A git branch name, the way `git` itself will accept it.
+ *
+ * It ends up as an argument to `git clone --branch` and, elsewhere, inside
+ * `refs/heads/<branch>`. `--branch <value>` is the option-argument form, so a leading
+ * dash is not argument injection today, but "not exploitable at this one call site" is
+ * a property of the call site, not of the value, and the value outlives the call site.
+ * So it is pinned to what a real ref can hold: letters, numbers, and the four
+ * punctuation marks a branch name actually uses, no `..`, and no leading dash.
+ */
+const gitBranch = z
+  .string()
+  .trim()
+  .max(200)
+  .refine(
+    (value) =>
+      value === '' ||
+      (/^[A-Za-z0-9._/-]+$/.test(value) && !value.startsWith('-') && !value.includes('..')),
+    { message: 'A branch name can hold letters, numbers, and . _ - / only.' },
+  )
+  .optional();
+
 export const detectRequest = z.object({
   repoUrl: z.string().trim().min(1, 'Paste a GitHub link.'),
-  branch: z.string().trim().max(200).optional(),
+  branch: gitBranch,
   rootDir: z.string().trim().max(400).optional(),
 });
 export type DetectRequest = z.infer<typeof detectRequest>;
@@ -109,7 +131,7 @@ export const createAppServiceRequest = z
     source: z.enum(['repo', 'image', 'upload']).optional(),
     repoUrl: z.string().trim().optional(),
     image: z.string().trim().max(300).optional(),
-    branch: z.string().trim().max(200).optional(),
+    branch: gitBranch,
     rootDir: z.string().trim().max(400).optional(),
     buildStrategy: z.enum(['auto', 'dockerfile', 'nixpacks']).optional(),
     dockerfilePath: z.string().trim().max(400).optional(),
@@ -140,7 +162,7 @@ export type CreateServiceRequest = z.infer<typeof createServiceRequest>;
 
 export const patchServiceRequest = z.object({
   name: serviceName.optional(),
-  branch: z.string().trim().max(200).optional(),
+  branch: gitBranch,
   rootDir: z.string().trim().max(400).nullable().optional(),
   buildStrategy: z.enum(['auto', 'dockerfile', 'nixpacks']).optional(),
   dockerfilePath: z.string().trim().max(400).nullable().optional(),

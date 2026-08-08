@@ -9,12 +9,15 @@ is safe enough for what you are about to put on it.
 - Ten characters minimum, everywhere: setting the account up, changing the password,
   and `derailed reset-password` all ask for the same thing.
 - Sign-in is rate limited to five attempts a minute, counted against the address the
-  connection actually came from. `X-Forwarded-For` is only read when the connection
-  came from Caddy itself, so a caller off the internet cannot rename themselves into a
-  fresh allowance on every request. There is a second, looser ceiling of thirty a
-  minute against the socket itself, which covers the case where the header can be
-  believed and the thing writing it is a container that should not be trusted.
-  A successful sign-in clears both.
+  connection actually came from. `X-Forwarded-For` is only read when the connection came
+  from Caddy itself, and then it is the address Caddy *added*, the last hop rather than
+  the first: Caddy appends the real caller to whatever the caller sent, so the value on
+  the left is theirs to invent and rotate and the one on the right is the one our own
+  proxy vouched for. Reading the leftmost handed every guess a fresh allowance, which is
+  the whole thing this is meant to stop. There is a second, looser ceiling of thirty a
+  minute against the socket itself, which covers the case where the header can be believed
+  and the thing writing it is a container that should not be trusted. A successful sign-in
+  clears both.
 - An unknown email is verified against a decoy hash so response timing does not reveal
   which accounts exist.
 - Sessions are random opaque ids in an `HttpOnly`, `SameSite=Lax`, `Secure` cookie.
@@ -94,10 +97,20 @@ used to be "https only" applied to the address that was typed and to nothing aft
 so an ordinary https link answering `302 Location: http://169.254.169.254/` walked past
 it and arrived over plain http.
 
+The **uptime monitor** is held to the same rule, and for the same reason: a member, not
+only an owner, can add a domain and have Derailed fetch it on a timer from inside the
+network. A name that resolves onto this machine or its private network is refused before
+the connection is opened, so the check's own result, "answered" or "could not be reached",
+cannot be turned into a scanner for the databases and admin panels the panel is meant to
+keep to itself. It does not follow redirects at all, so a public name cannot bounce it
+inward on a second hop either.
+
 Alert channels and webhooks are deliberately *not* held to this. Those are owner-only,
 and an owner pointing them at an ntfy server on their own LAN is a self-hosting setup
-working as intended rather than an attack. The template fetcher is the one that takes an
-arbitrary address from somebody who is not necessarily an owner.
+working as intended rather than an attack. The template fetcher and the uptime monitor
+are the ones that take an arbitrary address from somebody who is not necessarily an owner,
+and the line is exactly there: whether the address came from a hand that already has the
+run of the machine.
 
 ## Uploads
 
@@ -183,6 +196,12 @@ rather than an error. The browser has to know to ask, and "wrong password" would
 lie. The rate limit is not reset until both have passed, so a correct password does not
 buy unlimited attempts at the code.
 
+A code is good for one sign-in and no more. TOTP accepts a code for its whole 30-second
+step and one either side, which is a window wide enough to replay a code caught over a
+shoulder or read off a proxy. So the step a sign-in actually used is remembered, and any
+code at or before it is refused: the second attempt with the same six digits is turned
+away even while they are still on the screen.
+
 ## Where you are signed in
 
 The same page lists every session: the device, roughly, when it started, and the
@@ -190,8 +209,10 @@ address it came from. Anything that is not the one you are using can be signed o
 
 ## Who did what
 
-Every change is recorded: who, what, when, and from where. Reads are not, because a log
-of every page anybody looked at would bury the three lines that matter.
+Every change is recorded: who, what, when, and from where. The "from where" is the same
+trusted address the rate limiter uses, not the raw header, so a caller cannot stamp an
+invented source IP onto their own line in the record. Reads are not recorded, because a
+log of every page anybody looked at would bury the three lines that matter.
 
 It is kept for a year and is on the **Settings** page. On a one-person server it is a
 memory aid. The moment a second person has access, it is the difference between a
@@ -209,7 +230,7 @@ route added next Tuesday is not on it, and nothing fails until it matters. Here 
 route is covered the moment it exists, and widening access has to be written down on
 purpose.
 
-Two things worth being explicit about, because they are the places a role could be
+A few things worth being explicit about, because they are the places a role could be
 walked around:
 
 - **The terminal is closed to viewers.** A prompt inside a container would bypass every
@@ -224,6 +245,24 @@ walked around:
   field in the request body, and the rules match on paths, so a member could write one
   and press Run. The route now asks, and server jobs are hidden from a member's list and
   their output kept back, for the same reason the token list is.
+- **A backup archive is treated like the token list.** It holds every database in the
+  project in full, so downloading one is owner-only, reads included. Restoring one, which
+  writes over what is live, and changing the retention that prunes every project at once,
+  are owner-only too. Making, deleting and scheduling an individual backup stay a
+  member's: the housekeeping is theirs, the data leaving or being overwritten is not.
+- **Publishing a database to the internet is owner-only.** It opens a port on the machine,
+  which is the server rather than the app, however much it reads like a per-database
+  toggle.
+- **A live secret is not a viewer's, even on a `GET`.** The "any read is fine for a
+  viewer" shortcut has an exception for a read that hands back the thing itself rather
+  than a view of it: an app's variables, a database's connection string. A viewer is the
+  role for a client, and a client should not walk out with the keys.
+- **The file browser is for apps, not databases.** A database keeps its data in a volume
+  registered exactly as an app's storage is, so without a guard a member could delete the
+  files under a running Postgres, the irreversible loss the owner-only volume rule exists
+  to prevent, and a viewer could stream the database out a file at a time. Every `files`
+  route refuses a database outright; its data is reached through Browse, snapshots and
+  backups instead.
 
 What roles are not is isolation. Everybody here sees every project, and a member can
 deploy to any of them. If two people must not see each other's work, that is two

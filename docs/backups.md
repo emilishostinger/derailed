@@ -69,6 +69,13 @@ A copy nobody questions is the one that turns out to be empty on the day it matt
 **Download** gives you the `.tar.gz`. Keep it somewhere that is not this server: a
 backup on the same disk as the thing it protects is not a backup.
 
+Downloading is an owner's, not a member's. The archive is every database in the project
+in one file, so it is as sensitive as the list of API tokens, and treated the same way.
+Restoring, which writes over what is live, and changing how many copies are kept, which
+prunes across every project at once, are owners' too. Making, deleting and scheduling an
+individual backup stay a member's: the housekeeping is theirs, the data leaving the
+machine or being overwritten is not.
+
 To inspect one:
 
 ```sh

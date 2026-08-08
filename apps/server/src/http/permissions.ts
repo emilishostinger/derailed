@@ -110,6 +110,58 @@ const OWNER_ONLY: Rule[] = [
     methods: ['DELETE'],
     why: 'Only an owner can delete storage, because what is in it does not come back.',
   },
+  {
+    // Publishing a database maps a port on the host and puts the engine on the public
+    // internet. Members run the apps; opening a hole in the machine to the outside is
+    // the server itself, and belongs with the owner.
+    path: /^\/services\/[^/]+\/expose(\/|$)/,
+    methods: ['POST'],
+    why: 'Only an owner can publish a database to the internet.',
+  },
+  {
+    // A backup archive is the most concentrated secret on the machine: every database's
+    // contents, in one file. Making backups is a member's job, but the raw archive
+    // leaving the server, and rolling a project's data back over what is live, are the
+    // same kind of decision as moving the whole install, which is already owner-only.
+    // The archive itself is treated like the token list: even reading it is an owner's.
+    path: /^\/backups\/[^/]+\/download$/,
+    why: 'Only an owner can download a backup, because it holds every database in full.',
+  },
+  {
+    path: /^\/backups\/[^/]+\/restore$/,
+    methods: ['POST'],
+    why: 'Only an owner can restore a backup, because it writes over what is there now.',
+  },
+  {
+    // Saving retention prunes on the way out, across every project at once, so a member
+    // could set "keep 1" and take the recovery history down to a single copy each.
+    path: /^\/backups\/retention$/,
+    methods: ['PUT'],
+    why: 'Only an owner can change how many backups are kept, because saving it prunes.',
+  },
+];
+
+/**
+ * Reads that are not for a viewer.
+ *
+ * The role table's shortcut is "any read is fine for a viewer", and for almost
+ * everything it is: looking is the whole point of the role. The exception is a read
+ * that hands back a live secret rather than a view of one. An app's variables and a
+ * database's connection string both come back in the clear, and a viewer, who is
+ * explicitly the role you give a client or someone you are showing a problem to, would
+ * walk out with the keys. A member may read them, because a member already holds them.
+ */
+const NOT_FOR_VIEWERS: Rule[] = [
+  {
+    path: /^\/services\/[^/]+\/env$/,
+    methods: ['GET'],
+    why: 'The variables include secrets, so only a member or owner can read them.',
+  },
+  {
+    path: /^\/services\/[^/]+\/connection$/,
+    methods: ['GET'],
+    why: 'A connection string includes the database password, so it is not for a viewer.',
+  },
 ];
 
 export interface Decision {
@@ -140,11 +192,21 @@ export function mayCall(role: UserRole, method: string, path: string): Decision 
     return { ok: false, why: rule.why };
   }
 
-  if (role === 'viewer' && !isRead(method)) {
-    return {
-      ok: false,
-      why: 'You can look at everything here, but not change it.',
-    };
+  if (role === 'viewer') {
+    // A viewer's reads are free, except the handful that return a secret rather than a
+    // view of one. Checked before the "reads are fine" shortcut, for the same reason
+    // the owner-only list is: a GET is exactly how you would walk out with them.
+    for (const rule of NOT_FOR_VIEWERS) {
+      if (!rule.path.test(route)) continue;
+      if (rule.methods && !rule.methods.includes(method.toUpperCase())) continue;
+      return { ok: false, why: rule.why };
+    }
+    if (!isRead(method)) {
+      return {
+        ok: false,
+        why: 'You can look at everything here, but not change it.',
+      };
+    }
   }
 
   return { ok: true };

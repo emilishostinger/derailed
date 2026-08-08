@@ -319,8 +319,16 @@ browseRoutes.post('/:id/snapshots/:snapshotId/restore', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That database');
 
+  // The snapshot restores into whichever database it belongs to, so the `:id` in the
+  // URL was decorative: a mismatched pair quietly put the snapshot's own data back
+  // rather than refusing. Make the two agree, so the address means what it says.
+  const snapshotId = c.req.param('snapshotId');
+  if (!listSnapshots(service.id).some((snapshot) => snapshot.id === snapshotId)) {
+    throw notFound('That copy');
+  }
+
   try {
-    await restoreSnapshot(c.req.param('snapshotId'));
+    await restoreSnapshot(snapshotId);
   } catch (err) {
     throw badRequest(
       err instanceof Error ? err.message : 'That copy could not be put back.',

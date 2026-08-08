@@ -84,8 +84,13 @@ function Link({ href, children }: { href: string; children: ReactNode }) {
       </RouterLink>
     );
   }
-  // Anything else leaves the dashboard. `noopener` matters even on links we trust,
-  // since the handbook points at registrars and at GitHub.
+  // Anything else leaves the dashboard, but only over http(s). The handbook is bundled
+  // from the repo at build time, so a `javascript:` href cannot reach here today; the
+  // guard is so that stays true if this renderer is ever pointed at text from anywhere
+  // else. An href we will not vouch for renders as plain words, not a link.
+  if (!/^https?:\/\//i.test(href)) return <>{children}</>;
+  // `noopener` matters even on links we trust, since the handbook points at registrars
+  // and at GitHub.
   return (
     <a
       href={href}

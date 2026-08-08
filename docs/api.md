@@ -59,9 +59,9 @@ Creating a service:
 | `POST /services/:id/start` · `/stop` · `/restart` | Control it |
 | `GET · PUT · POST /services/:id/snapshots` | Copies of one database: list, set the interval, take one now |
 | `GET /services/:id/snapshots/at?at=` | Which copy would be used for a moment, without restoring |
-| `POST /services/:id/snapshots/:snapshotId/restore` | Puts one back. No undo |
+| `POST /services/:id/snapshots/:snapshotId/restore` | Puts one back, into the database the snapshot belongs to. The `:id` and the snapshot must agree. No undo |
 | `GET /services/:id/template` | This app as a `.derailed.json` template file. Secrets are placeheld or renamed on the way out |
-| `GET /services/:id/files?path=` | Browse an app's storage |
+| `GET /services/:id/files?path=` | Browse an app's storage. Apps only: a database keeps its data in storage too, and its raw files are not a thing to hand-edit or stream out, so every `files` route refuses one |
 | `GET /services/:id/files/read?path=` · `PUT /services/:id/files` | Read and write one file, as text, up to 512 KB |
 | `GET /services/:id/files/download?path=` | Stream one file out, as bytes |
 | `POST /services/:id/files/upload?path=&name=` | The file **is** the request body, up to 200 MB. Replaces one of the same name, and lands owned by whoever owns the folder |
@@ -73,9 +73,9 @@ Creating a service:
 | `GET /system/my-address` | The address this request arrived from, for the "add mine" button |
 | `POST /services/:id/upload` | `multipart/form-data` with `file`, a zip, up to 200 MB |
 | `PUT /services/:id/repo-token` | `{ token }` for a private repository, or `null` to clear |
-| `GET /services/:id/env` · `PUT` | Environment variables |
+| `GET /services/:id/env` · `PUT` | Environment variables. The values are secrets, so a viewer cannot read them; a member or owner can |
 | `GET /services/:id/traffic?range=24h\|7d\|30d` | Visitor figures |
-| `GET /services/:id/connection` | Database credentials and ready-made commands |
+| `GET /services/:id/connection` | Database credentials and ready-made commands. Holds the password in the clear, so not for a viewer |
 | `GET /services/:id/tables` | `{ kind, tables }`. `kind` is `sql`, `documents` or `keys`, and decides which of the rest apply |
 | `GET /services/:id/tables/:table?limit=&offset=` | A page of one table or collection, with `primaryKey` and a total |
 | `PUT /services/:id/tables/:table/cell` | `{ key, column, value }`. One cell. `value: null` is a real null |
@@ -237,9 +237,9 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `GET /backups` | Copies, schedules, retention and when the last run was |
 | `POST /backups` | `{ projectId }` |
 | `PUT /backups/schedule` | `{ projectId, schedule: "off" \| "daily" \| "weekly" }` |
-| `PUT /backups/retention` | `{ keep, keepDays }` |
-| `GET /backups/:id/download` | The `.tar.gz` itself |
-| `POST /backups/:id/restore` | `{ projectId }` |
+| `PUT /backups/retention` | `{ keep, keepDays }`. Owner only: saving prunes across every project at once |
+| `GET /backups/:id/download` | The `.tar.gz` itself. Owner only: it holds every database in the project in full, so it is as sensitive as the token list |
+| `POST /backups/:id/restore` | `{ projectId }`. Owner only: it writes over what is there now. 404 if there is no such copy |
 | `DELETE /backups/:id` | Remove a copy. 404 if there is no such copy |
 
 ## The machine
@@ -268,6 +268,20 @@ Deleting is undoable for seven days. See [trash](trash.md).
 
 Owners only, reads included. Everything else in this reference is refused to a viewer on
 any method but `GET`, and refused to a member where it changes the server itself.
+
+Two edges to that rule, both because the shape of a request does not always tell you what
+it hands back or reaches:
+
+- **A handful of reads are still owner-or-member, not viewer.** A `GET` that returns a
+  live secret rather than a view of one is not a viewer's: an app's variables
+  (`GET /services/:id/env`), a database's connection string (`GET /services/:id/connection`),
+  and a backup archive (`GET /backups/:id/download`, which is every database in the
+  project). A viewer is the role for a client or for showing somebody a problem, and none
+  of those should walk out with the keys.
+- **A handful of member-shaped writes are owner-only.** Publishing a database to the
+  internet (`POST /services/:id/expose`) opens a port on the machine; downloading,
+  restoring or pruning backups moves or overwrites the data itself. Making and deleting an
+  individual backup, and scheduling them, stay a member's.
 
 ## Accounts
 

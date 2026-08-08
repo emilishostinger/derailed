@@ -134,16 +134,22 @@ describe('signing in once it is on', () => {
     expect(response.status).toBe(401);
   });
 
-  test('signs in with a right password and a right code', async () => {
+  test('signs in with a right password and a right code, once', async () => {
     const code = codeFor(secret, Math.floor(Date.now() / 1000 / 30)) ?? '';
-    const response = await call(
-      'POST',
-      '/api/auth/login',
-      { email: EMAIL, password: PASSWORD, code },
-      false,
-    );
+    const body = { email: EMAIL, password: PASSWORD, code };
+    const response = await call('POST', '/api/auth/login', body, false);
     expect(response.status).toBe(200);
     expect(response.headers.get('set-cookie') ?? '').toContain('=');
+
+    // And not a second time with the same code. A TOTP code is valid for a whole step
+    // and one either side, wide enough to replay one seen over a shoulder or off a
+    // proxy. Once it has signed someone in, the step it belonged to is spent.
+    loginLimiter.resetAll();
+    peerLimiter.resetAll();
+    const replay = await call('POST', '/api/auth/login', body, false);
+    expect(replay.status).toBe(401);
+    const failure = (await replay.json()) as { error: { message: string } };
+    expect(failure.error.message).toMatch(/already been used/i);
   });
 });
 

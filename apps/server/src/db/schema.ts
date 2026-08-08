@@ -761,4 +761,16 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN snapshot_every_hours INTEGER;
     `,
   },
+  {
+    id: 30,
+    name: 'a used two-factor code cannot be used twice',
+    sql: `
+      -- A TOTP code is valid for a whole 30-second step, and Derailed allows one step
+      -- either side for a slow phone clock, so a six-digit code shoulder-surfed or read
+      -- off a proxy was good for a minute and a half and for as many sign-ins as anyone
+      -- could type in it. Remembering the last step a person actually signed in with,
+      -- and refusing anything at or before it, makes a code good exactly once.
+      ALTER TABLE users ADD COLUMN totp_last_step INTEGER;
+    `,
+  },
 ];

@@ -15,8 +15,8 @@ somebody has to hold in their head, and the questions people actually ask are on
 | | What they can do |
 | --- | --- |
 | **Owner** | Everything. Change the server, decide who else is here, delete things. |
-| **Member** | Run the apps: deploy, restart, read logs, change variables, add domains, take backups. Not delete an app or its storage, and nothing server-shaped. |
-| **Viewer** | Look at everything. Change nothing at all. |
+| **Member** | Run the apps: deploy, restart, read logs, change variables, add domains, take backups. Not delete an app or its storage, not publish a database to the internet, and nothing server-shaped. |
+| **Viewer** | Look at everything. Change nothing at all, and not read the handful of things that are a secret rather than a view of one: an app's variables, a database's password, a backup archive. |
 
 Whoever set the server up is an owner, and so is every account that existed before this
 feature arrived.
@@ -35,6 +35,11 @@ Owners only:
 - Updating Derailed itself
 - Where alerts are sent, and how the server sends email
 - Where backups go, and moving to another server
+- Downloading a backup archive, restoring one, and setting how many are kept. The archive
+  is every database in the project in one file, restoring writes over what is live, and
+  retention prunes every project at once. Making, deleting and scheduling an individual
+  backup stay a member's.
+- Publishing a database to the internet, which opens a port on the machine
 - The trash: emptying it, and putting things back
 - Publishing a status page, because it is visible to anybody
 - Deleting an app or a project

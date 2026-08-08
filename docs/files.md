@@ -61,6 +61,13 @@ The storage folder itself cannot be renamed or deleted here. It is a mount point
 removing it would leave the app pointed at a folder that is no longer there. Remove
 storage on the **Storage** tab, where it is clear that the data goes with it.
 
+The browser is for apps, not databases. A database keeps its data in a volume too, but
+its files on disk are the engine's own business: editing them by hand corrupts it, and a
+member deleting one would be the irreversible loss that deleting the storage is kept to an
+owner to prevent. So the tab is not offered for a database, and the routes behind it
+refuse one. Look inside a database through **Browse**, and keep copies through snapshots
+and backups.
+
 ## Letting an app send email
 
 Every self-hosted app needs to send email and almost every one fails at it: WordPress

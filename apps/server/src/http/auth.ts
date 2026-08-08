@@ -177,8 +177,31 @@ export class RateLimiter {
     }
     recent.push(now);
     this.hits.set(key, recent);
-    if (this.hits.size > 5000) this.hits.clear();
+    if (this.hits.size > 5000) this.evict(now);
     return true;
+  }
+
+  /**
+   * Keeps the map bounded without handing everyone a fresh allowance.
+   *
+   * The old line here was `this.hits.clear()`, which at five thousand distinct keys wiped
+   * every counter at once: an attacker who could mint keys, by varying a header the
+   * limiter still trusted, could deliberately cross that line to reset a victim's window.
+   * A key whose hits have all aged out is already indistinguishable from one that was
+   * never here, so those go first; only if that is not enough do we drop the oldest
+   * entries the map was inserted with, which are the least likely to be mid-attack.
+   */
+  private evict(now: number): void {
+    for (const [key, times] of this.hits) {
+      if (times.every((t) => now - t >= this.windowMs)) this.hits.delete(key);
+    }
+    if (this.hits.size <= 5000) return;
+    const excess = this.hits.size - 4000;
+    let dropped = 0;
+    for (const key of this.hits.keys()) {
+      if (dropped++ >= excess) break;
+      this.hits.delete(key);
+    }
   }
 
   reset(key: string): void {
@@ -194,6 +217,11 @@ export class RateLimiter {
    */
   resetAll(): void {
     this.hits.clear();
+  }
+
+  /** How many keys are held right now. For the test that checks the map stays bounded. */
+  size(): number {
+    return this.hits.size;
   }
 }
 

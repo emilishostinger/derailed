@@ -157,6 +157,21 @@ export function totpEnabled(userId: string): boolean {
   return !!row?.totp_confirmed_at;
 }
 
+/** The last time step a code from this account was accepted at sign-in, or null. */
+export function totpLastStep(userId: string): number | null {
+  const row = db()
+    .query<{ totp_last_step: number | null }, [string]>(
+      'SELECT totp_last_step FROM users WHERE id = ?',
+    )
+    .get(userId);
+  return row?.totp_last_step ?? null;
+}
+
+/** Records the step just used, so the same code cannot open the door a second time. */
+export function setTotpLastStep(userId: string, step: number): void {
+  db().query('UPDATE users SET totp_last_step = ? WHERE id = ?').run(step, userId);
+}
+
 /** Stored hashed, and single-use: a code that has been spent is spent. */
 export function storeRecoveryCodes(userId: string, codes: string[]): void {
   db().query('DELETE FROM recovery_codes WHERE user_id = ?').run(userId);

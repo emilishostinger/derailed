@@ -5,6 +5,7 @@ import { allDomains, findDomain } from '../db/repo/domains.ts';
 import { findService } from '../db/repo/services.ts';
 import { publicPortSuffix } from '../proxy/caddy.ts';
 import { newId } from '../util/ids.ts';
+import { resolvesToBlockedAddress } from '../util/net.ts';
 
 /**
  * Whether your sites are actually up.
@@ -43,6 +44,15 @@ async function probe(
 ): Promise<{ up: boolean; status?: number; ms: number; reason?: string }> {
   const started = Date.now();
   try {
+    // A monitor fetches a name somebody typed, on a timer, from inside the network the
+    // apps and databases sit on. Without this a member could point a domain at
+    // `169.254.169.254` or a neighbour's database port and read back, from the check's
+    // result, whether it answered: a scanner for the one part of the network the panel
+    // is meant to keep to itself. `redirect: 'manual'` below stops a public name from
+    // walking us there in a second hop, and this stops the first one.
+    if (await resolvesToBlockedAddress(new URL(url).hostname)) {
+      return { up: false, ms: Date.now() - started, reason: 'could not be reached' };
+    }
     const response = await fetch(url, {
       redirect: 'manual',
       signal: AbortSignal.timeout(15_000),

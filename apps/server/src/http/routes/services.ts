@@ -1,5 +1,5 @@
 import { schemas, topics } from '@derailed/shared';
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
 import { trafficFor } from '../../analytics/store.ts';
 import { normalizeRepoUrl, resolveDefaultBranch } from '../../build/git.ts';
 import { queueDeployment } from '../../build/pipeline.ts';
@@ -496,6 +496,31 @@ serviceRoutes.get('/:id/mail', (c) => {
   if (!service) throw notFound('That service');
   return c.json({ enabled: appCanSendMail(service.id), available: mailCredentials() !== null });
 });
+
+/**
+ * The file browser is for an app's storage, never a database's.
+ *
+ * A database keeps its data in an attached volume too, registered the same way an app's
+ * is, so without this every route below would reach the raw files under a running
+ * Postgres or MySQL. A member could delete them, which is the irreversible loss the
+ * owner-only volume rule exists to prevent but reached by another door, and a viewer,
+ * whose reads are otherwise free, could stream the database out a file at a time. A
+ * database is looked at through Browse, snapshots and backups; its bytes on disk are not
+ * something anyone edits by hand. One guard in front of the routes rather than a check
+ * inside each, so the browse route added next to these is covered without being asked.
+ */
+const filesAreForAppsOnly: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const service = findService(c.req.param('id') ?? '');
+  if (!service) throw notFound('That service');
+  if (service.kind !== 'app') {
+    throw badRequest(
+      'The file browser is for apps. A database is managed through Browse and backups.',
+    );
+  }
+  await next();
+};
+serviceRoutes.use('/:id/files', filesAreForAppsOnly);
+serviceRoutes.use('/:id/files/*', filesAreForAppsOnly);
 
 /**
  * An app's own storage, browsable.
