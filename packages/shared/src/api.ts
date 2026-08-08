@@ -197,6 +197,11 @@ export const autoUpdateRequest = z.object({
 });
 export type AutoUpdateRequest = z.infer<typeof autoUpdateRequest>;
 
+export const formsToggleRequest = z.object({
+  enabled: z.boolean(),
+});
+export type FormsToggleRequest = z.infer<typeof formsToggleRequest>;
+
 /** The name a compose service is written as. Docker's own charset for one. */
 const composeName = z
   .string()

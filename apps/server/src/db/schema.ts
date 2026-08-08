@@ -882,4 +882,26 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN health_check TEXT NOT NULL DEFAULT 'http';
     `,
   },
+  {
+    id: 34,
+    name: 'forms on any site',
+    sql: `
+      -- A folder of HTML gets working forms with no backend, no service and no
+      -- account: the proxy catches the POST a static site could never answer, and
+      -- what was submitted lands here, one row per message, the fields as JSON.
+      CREATE TABLE form_submissions (
+        id         TEXT PRIMARY KEY,
+        service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        form       TEXT NOT NULL,
+        data       TEXT NOT NULL,
+        ip         TEXT,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_form_submissions_service ON form_submissions(service_id, created_at DESC);
+
+      -- Per app. On for dragged-in folders from now on, because they are who this is
+      -- for; off elsewhere, because an app with its own backend answers its own POSTs.
+      ALTER TABLE services ADD COLUMN forms INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

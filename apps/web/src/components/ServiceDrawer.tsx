@@ -27,6 +27,7 @@ import { FilesTab } from './FilesTab.tsx';
 import { JobsTab } from './JobsTab.tsx';
 import { LogsTab } from './LogsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
+import { MessagesTab } from './MessagesTab.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
 import { Snapshots } from './Snapshots.tsx';
@@ -44,6 +45,7 @@ type Tab =
   | 'overview'
   | 'snapshots'
   | 'updates'
+  | 'messages'
   | 'traffic'
   | 'logs'
   | 'metrics'
@@ -112,6 +114,7 @@ export function ServiceDrawer({
         ['traffic', 'Visitors'],
         ['metrics', 'Load'],
         ['deployments', 'Deploys'],
+        ['messages', 'Messages'],
         // Only image-run apps update this way; a repository app updates by deploying.
         ...(service.source === 'image' ? ([['updates', 'Updates']] as [Tab, string][]) : []),
         ['variables', 'Variables'],
@@ -308,6 +311,7 @@ export function ServiceDrawer({
           {tab === 'traffic' && <TrafficTab service={service} />}
           {tab === 'deployments' && <Deployments service={service} />}
           {tab === 'updates' && <UpdatesTab service={service} />}
+          {tab === 'messages' && <MessagesTab service={service} />}
           {tab === 'variables' && <EnvEditor serviceId={service.id} />}
           {tab === 'connection' && <ConnectionTab service={service} />}
           {tab === 'storage' && <StorageTab service={service} />}

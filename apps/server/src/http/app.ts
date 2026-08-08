@@ -19,6 +19,7 @@ import { dbUpgradeRoutes } from './routes/dbupgrades.ts';
 import { deploymentRoutes, serviceDeploymentRoutes } from './routes/deployments.ts';
 import { detectRoutes } from './routes/detect.ts';
 import { domainRoutes, serviceDomainRoutes } from './routes/domains.ts';
+import { messageRoutes, publicFormRoutes } from './routes/forms.ts';
 import { importRoutes, projectImportRoutes } from './routes/import.ts';
 import { jobRoutes, serviceJobRoutes } from './routes/jobs.ts';
 import { mailRoutes } from './routes/mail.ts';
@@ -86,6 +87,10 @@ export function createApp() {
   });
 
   const api = new Hono<AppEnv>();
+  // Ahead of the CSRF check, deliberately: a form on somebody's static site is an
+  // ordinary browser POST with no special header, and the CSRF token protects the
+  // dashboard's session, which this endpoint neither reads nor has.
+  api.route('/public', publicFormRoutes);
   api.use('*', requireCsrfHeader);
 
   api.get('/health', (c) => c.json({ ok: true, version: VERSION }));
@@ -120,6 +125,7 @@ export function createApp() {
   api.route('/services', serviceRoutes);
   api.route('/services', appUpdateRoutes);
   api.route('/services', dbUpgradeRoutes);
+  api.route('/services', messageRoutes);
   api.route('/services', serviceDeploymentRoutes);
   api.route('/services', serviceDomainRoutes);
   api.route('/services', connectionRoutes);

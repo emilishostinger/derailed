@@ -78,6 +78,11 @@ const ROUTES: [string, string][] = [
   // Compose import
   ['POST', '/api/import/inspect'],
   ['POST', '/api/projects/nope/import'],
+  // Forms
+  ['GET', '/api/services/nope/messages'],
+  ['PUT', '/api/services/nope/messages/settings'],
+  ['DELETE', '/api/services/nope/messages/some'],
+  ['GET', '/api/services/nope/messages/export'],
 ];
 
 describe('every route the dashboard calls is mounted', () => {

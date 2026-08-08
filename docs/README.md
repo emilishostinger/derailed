@@ -17,6 +17,7 @@ about five minutes.
 - **[Storage](storage.md)**: what survives a redeploy, and what does not
 - **[Backups](backups.md)**: schedules, retention, restoring, taking a copy away
 - **[Files and app email](files.md)**: browsing an app's storage, and letting it send mail
+- **[Forms](forms.md)**: working forms on a plain site, one attribute, no backend
 - **[A copy per branch](previews.md)**: every branch gets its own running app, and loses it
 - **[Scheduled jobs](jobs.md)**: cron, in plain words, with the output kept
 - **[Who can see your apps](access.md)**: passwords, address lists and maintenance mode

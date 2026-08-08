@@ -40,7 +40,7 @@ import { DeploymentLog, logPathFor } from './deploylog.ts';
 import { detectRepo, resolvePort, safeJoin } from './detect.ts';
 import { cloneRepo, FriendlyError } from './git.ts';
 import { generateDockerfile, NIXPACKS_DOCKERFILE } from './nixpacks.ts';
-import { detectSite, writeSiteDockerfile } from './site.ts';
+import { detectSite, injectFormsInto, writeSiteDockerfile } from './site.ts';
 import { createTarContext } from './tar.ts';
 import { hasUpload, uploadDir } from './upload.ts';
 
@@ -304,6 +304,13 @@ async function run(job: Job): Promise<void> {
       log.write(
         kind === 'php' ? 'Serving this with PHP and Apache.' : 'Serving these files as they are.',
       );
+      // `<form data-derailed="contact">` gets the plumbing the markup implies.
+      const forms = await injectFormsInto(buildDir).catch(() => 0);
+      if (forms > 0) {
+        log.write(
+          `Wired up ${forms} form${forms === 1 ? '' : 's'}. What people submit lands on the Messages tab.`,
+        );
+      }
     }
     checkpoint();
 

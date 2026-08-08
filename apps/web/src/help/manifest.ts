@@ -72,6 +72,11 @@ export const HELP: HelpGroup[] = [
         blurb: 'What is in one, how many are kept, and how restoring works.',
       },
       {
+        slug: 'forms',
+        title: 'Forms',
+        blurb: 'Working forms on a plain site: one attribute, no backend.',
+      },
+      {
         slug: 'analytics',
         title: 'Visitor figures',
         blurb: 'How visitors are counted and what is deliberately not kept.',

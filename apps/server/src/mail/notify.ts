@@ -46,7 +46,7 @@ export function noticeFor(items: UpdateItem[], rebootRequired: boolean): UpdateN
  * The one place that decides, so the daily notice and the "send a test" button
  * cannot end up taking different routes and disagreeing about whether it works.
  */
-async function deliver(account: ReturnType<typeof mailAccount>, mail: Mail): Promise<void> {
+export async function deliver(account: ReturnType<typeof mailAccount>, mail: Mail): Promise<void> {
   if (!account) throw new Error('Nothing is set up to send with.');
   if (mailSettings().delivery === 'server') return sendDirect(account, mail);
   return sendMail(account, mail);

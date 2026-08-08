@@ -347,6 +347,22 @@ export const endpoints = {
   pitrRestore: (serviceId: string, at: number) =>
     api.post<{ started: true }>(`/services/${serviceId}/pitr/restore`, { at }),
 
+  messages: (serviceId: string) =>
+    api.get<{
+      enabled: boolean;
+      total: number;
+      submissions: {
+        id: string;
+        form: string;
+        fields: Record<string, string>;
+        createdAt: number;
+      }[];
+    }>(`/services/${serviceId}/messages`),
+  setFormsEnabled: (serviceId: string, enabled: boolean) =>
+    api.put<{ enabled: boolean }>(`/services/${serviceId}/messages/settings`, { enabled }),
+  deleteMessage: (serviceId: string, messageId: string) =>
+    api.delete<{ ok: true }>(`/services/${serviceId}/messages/${messageId}`),
+
   inspectImport: (repoUrl: string, branch?: string, rootDir?: string, format?: string) =>
     api.post<{
       plan: import('@derailed/shared').ImportPlan;

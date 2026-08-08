@@ -39,6 +39,7 @@ interface ServiceRow {
   wal_archive?: 0 | 1;
   alias?: string | null;
   health_check?: 'http' | 'started';
+  forms?: 0 | 1;
   created_at: number;
   updated_at: number;
   deleted_at?: number | null;
@@ -84,6 +85,7 @@ function toService(row: ServiceRow): Service {
     walArchive: row.wal_archive === 1,
     alias: row.alias ?? null,
     healthCheck: row.health_check ?? 'http',
+    forms: row.forms === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at ?? null,
@@ -180,6 +182,8 @@ export interface NewAppService {
   alias?: string | null;
   /** 'http' answers on a port; 'started' just has to keep running. */
   healthCheck?: 'http' | 'started';
+  /** Whether the proxy catches this app's form posts. */
+  forms?: boolean;
 }
 
 export interface NewDatabaseService {
@@ -217,8 +221,8 @@ export function createAppService(input: NewAppService): Service {
       `INSERT INTO services
         (id, project_id, kind, name, slug, source, image, framework, command, repo_url, branch,
          root_dir, build_strategy, dockerfile_path, port, health_path, instances_desired,
-         alias, health_check, created_at, updated_at)
-       VALUES (?, ?, 'app', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+         alias, health_check, forms, created_at, updated_at)
+       VALUES (?, ?, 'app', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -238,6 +242,9 @@ export function createAppService(input: NewAppService): Service {
       input.healthPath ?? '/',
       input.alias ?? null,
       input.healthCheck ?? 'http',
+      // On for dragged-in folders unless said otherwise: they are who forms are
+      // for, and they have no backend of their own to break.
+      (input.forms ?? input.source === 'upload') ? 1 : 0,
       now,
       now,
     );
@@ -320,6 +327,7 @@ const UPDATABLE: Record<string, string> = {
   autoUpdate: 'auto_update',
   dbVersion: 'db_version',
   walArchive: 'wal_archive',
+  forms: 'forms',
 };
 
 export function updateService(

@@ -179,6 +179,13 @@ export interface Service {
    */
   healthCheck?: 'http' | 'started';
 
+  /**
+   * Whether the proxy catches this app's form posts and turns them into
+   * messages. On by default for dragged-in folders, which have no backend of
+   * their own to answer a POST.
+   */
+  forms?: boolean;
+
   createdAt: number;
   updatedAt: number;
   /** When it was deleted, if it was. Deleted things are kept for a week. */

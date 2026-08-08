@@ -34,6 +34,12 @@ export interface RouteSpec {
    * Absent means the whole domain, which is what almost every route is.
    */
   pathPrefix?: string | null;
+  /**
+   * Set when this app's form posts are caught by Derailed. The POST a static
+   * site could never answer is sent back to the panel instead, carrying which
+   * service it belongs to, and becomes a message.
+   */
+  forms?: { serviceId: string; panelUpstream: string; panelPort: number } | null;
 }
 
 /**
@@ -101,6 +107,7 @@ interface CaddyServer {
 interface CaddyMatcher {
   host?: string[];
   path?: string[];
+  method?: string[];
   /** "http" or "https", lets one server treat the two ports differently. */
   protocol?: string;
   not?: ({ path: string[] } | { remote_ip: { ranges: string[] } })[];
@@ -404,6 +411,22 @@ function routeFor(route: RouteSpec): CaddyRoute {
     };
   }
 
+  const proxyToApp = {
+    handler: 'reverse_proxy',
+    upstreams: [{ dial: `${route.upstream}:${route.port}` }],
+    headers: {
+      request: {
+        set: {
+          'X-Forwarded-Host': ['{http.request.host}'],
+          'X-Forwarded-Proto': ['{http.request.scheme}'],
+        },
+      },
+    },
+    health_checks: {
+      passive: { fail_duration: '10s', max_fails: 3 },
+    },
+  };
+
   return {
     match: [matcherFor(route)],
     handle: [
@@ -412,25 +435,55 @@ function routeFor(route: RouteSpec): CaddyRoute {
         routes: [
           {
             handle: [
+              // Access first, then forms, then the app: a password-protected
+              // site's forms are exactly as private as its pages.
               ...accessHandlers(route.access),
-              {
-                handler: 'reverse_proxy',
-                upstreams: [{ dial: `${route.upstream}:${route.port}` }],
-                headers: {
-                  request: {
-                    set: {
-                      'X-Forwarded-Host': ['{http.request.host}'],
-                      'X-Forwarded-Proto': ['{http.request.scheme}'],
+              ...(route.forms
+                ? [
+                    {
+                      handler: 'subroute',
+                      routes: [formsRoute(route.forms), { handle: [proxyToApp] }],
                     },
-                  },
-                },
-                health_checks: {
-                  passive: { fail_duration: '10s', max_fails: 3 },
-                },
-              },
+                  ]
+                : [proxyToApp]),
             ],
           },
         ],
+      },
+    ],
+    terminal: true,
+  };
+}
+
+/**
+ * The POST a static site could never answer, turned into a message.
+ *
+ * Every POST on the app, not a magic path: a form with no `action` posts to the
+ * page it is on, which is exactly what the drag-in-a-folder markup does. The
+ * request is rewritten to the panel's public form endpoint with the service's
+ * identity attached, so the handler knows whose Messages tab it belongs on.
+ */
+function formsRoute(forms: {
+  serviceId: string;
+  panelUpstream: string;
+  panelPort: number;
+}): unknown {
+  return {
+    match: [{ method: ['POST'] }],
+    handle: [
+      { handler: 'rewrite', uri: '/api/public/form' },
+      {
+        handler: 'reverse_proxy',
+        upstreams: [{ dial: `${forms.panelUpstream}:${forms.panelPort}` }],
+        headers: {
+          request: {
+            set: {
+              'X-Derailed-Service': [forms.serviceId],
+              'X-Derailed-Form-Host': ['{http.request.host}'],
+              'X-Forwarded-For': ['{http.request.remote.host}'],
+            },
+          },
+        },
       },
     ],
     terminal: true,

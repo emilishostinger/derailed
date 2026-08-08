@@ -1,4 +1,4 @@
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
@@ -58,6 +58,52 @@ export async function writeSiteDockerfile(dir: string, kind: SiteKind): Promise<
   const contents = kind === 'php' ? phpDockerfile() : staticDockerfile();
   await Bun.write(join(dir, SITE_DOCKERFILE), contents);
   return SITE_DOCKERFILE;
+}
+
+/**
+ * Makes `<form data-derailed="contact">` mean what it looks like it means.
+ *
+ * An attribute does not travel with a POST and a form without a method GETs, so
+ * the markup alone cannot work. Netlify solved this at build time and so does
+ * this: each such form gains `method="post"` when it names none, and a hidden
+ * `_derailed` field carrying the form's name, so the submission says which form
+ * it came from. The site's own files on disk are never touched; only the copy
+ * being built is.
+ */
+export function injectFormPlumbing(html: string): { html: string; forms: number } {
+  let forms = 0;
+  const rewritten = html.replace(
+    /<form\b([^>]*)\bdata-derailed=["']([A-Za-z0-9 _-]{1,80})["']([^>]*)>/gi,
+    (whole, before: string, name: string, after: string) => {
+      forms++;
+      const hasMethod = /\bmethod\s*=/i.test(before) || /\bmethod\s*=/i.test(after);
+      const opening = hasMethod
+        ? whole
+        : `<form${before} data-derailed="${name}"${after} method="post">`;
+      return `${opening}\n<input type="hidden" name="_derailed" value="${name}">`;
+    },
+  );
+  return { html: rewritten, forms };
+}
+
+/** Runs the rewrite over every page in the folder being built. */
+export async function injectFormsInto(dir: string): Promise<number> {
+  let total = 0;
+  const entries = await readdir(dir, { withFileTypes: true, recursive: true }).catch(() => []);
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const name = entry.name.toLowerCase();
+    if (!name.endsWith('.html') && !name.endsWith('.htm') && !name.endsWith('.php')) continue;
+    const path = join(entry.parentPath ?? dir, entry.name);
+    const text = await readFile(path, 'utf8').catch(() => null);
+    if (!text?.includes('data-derailed')) continue;
+    const { html, forms } = injectFormPlumbing(text);
+    if (forms > 0) {
+      await Bun.write(path, html);
+      total += forms;
+    }
+  }
+  return total;
 }
 
 function staticDockerfile(): string {

@@ -80,7 +80,9 @@ export type ServerEvent =
   /** A backup-first update moved from one stage to the next. */
   | { type: 'service.appupdate'; update: AppUpdate }
   /** A database major-version upgrade moved from one stage to the next. */
-  | { type: 'service.dbupgrade'; upgrade: DbUpgrade };
+  | { type: 'service.dbupgrade'; upgrade: DbUpgrade }
+  /** Somebody filled in a form on this app's site. */
+  | { type: 'service.message'; serviceId: string };
 
 /** The stages of claiming a free address, in the order they happen. */
 export type FreeDomainStep = 'point' | 'tool' | 'certificate' | 'addresses' | 'done';

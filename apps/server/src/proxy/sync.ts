@@ -76,6 +76,10 @@ export function currentRoutes(): RouteSpec[] {
         blockFrom: service.access?.blockFrom ?? null,
         maintenance: service.access?.maintenance ?? false,
       },
+      // The POST a static site could never answer becomes a message instead.
+      forms: service.forms
+        ? { serviceId: service.id, panelUpstream: HOST_GATEWAY, panelPort }
+        : null,
     });
   }
 
