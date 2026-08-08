@@ -24,6 +24,7 @@ about five minutes.
 - **[Uptime](uptime.md)**: is it actually up, ninety days of history, and a public status page
 - **[Alerts](alerts.md)**: being told when something breaks, without it becoming noise
 - **[Disk space](disk.md)**: what is using it, freeing it up safely, and swap
+- **[The computer in your cupboard](cupboard.md)**: an old laptop as a $0/month server, reachable from anywhere
 - **[Moving servers](moving.md)**: taking everything with you, and what deliberately stays
 - **[Trash](trash.md)**: deleting is undoable for a week, and what that does and does not cover
 - **[Visitor figures](analytics.md)**: how visits are counted, and what is never kept

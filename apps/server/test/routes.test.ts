@@ -81,6 +81,10 @@ const ROUTES: [string, string][] = [
   // Bots
   ['GET', '/api/services/nope/bots'],
   ['PUT', '/api/services/nope/bots'],
+  // The cupboard computer
+  ['GET', '/api/system/tailscale'],
+  ['POST', '/api/system/tailscale/connect'],
+  ['PUT', '/api/system/tailscale/funnel'],
   // One login in front of any app
   ['GET', '/api/services/nope/login'],
   ['PUT', '/api/services/nope/login'],

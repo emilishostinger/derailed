@@ -16,6 +16,7 @@ import {
 import { MoveServer } from '../components/MoveServer.tsx';
 import { People } from '../components/People.tsx';
 import { Security } from '../components/Security.tsx';
+import { Tailscale } from '../components/Tailscale.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
 import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
 import { Webhooks } from '../components/Webhooks.tsx';
@@ -120,6 +121,10 @@ export function Settings() {
 
               <Section title="Update emails">
                 <UpdateEmails />
+              </Section>
+
+              <Section title="Reach this server from anywhere">
+                <Tailscale />
               </Section>
 
               <Section title="Moving to another server">

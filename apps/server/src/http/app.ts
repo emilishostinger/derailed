@@ -35,6 +35,7 @@ import {
   uptimeRoutes,
 } from './routes/status.ts';
 import { systemRoutes } from './routes/system.ts';
+import { tailscaleRoutes } from './routes/tailscale.ts';
 import { projectTemplateRoutes, templateRoutes } from './routes/templates.ts';
 import { tokenRoutes } from './routes/tokens.ts';
 import { trashRoutes } from './routes/trash.ts';
@@ -120,6 +121,7 @@ export function createApp() {
   api.use('*', enforceRole);
   api.route('/people', peopleRoutes);
   api.route('/system', systemRoutes);
+  api.route('/system/tailscale', tailscaleRoutes);
   api.route('/mail', mailRoutes);
   api.route('/detect', detectRoutes);
   api.route('/import', importRoutes);

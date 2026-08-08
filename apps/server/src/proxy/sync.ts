@@ -7,6 +7,7 @@ import { findProject } from '../db/repo/projects.ts';
 import { accessFor, containerName, findService } from '../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
+import { isTailnetHostname } from '../system/tailscale.ts';
 import { wallsFor } from './botguard.ts';
 import { buildCaddyConfig, HOST_GATEWAY, pushCaddyConfig } from './caddy.ts';
 import { isCoveredByFreeDomain, loadedCertificates } from './freedomain.ts';
@@ -59,14 +60,19 @@ export function currentRoutes(): RouteSpec[] {
     // so holding these back for a DNS check would delay a padlock that already works.
     const ipBased = isIpBasedHostname(domain.hostname);
     const free = isCoveredByFreeDomain(domain.hostname);
-    if (!ipBased && !free && domain.dnsStatus !== 'ok') continue;
+    // A tailnet name never has public DNS to check: Tailscale answers it for the
+    // devices that may see it, and Funnel answers it for everyone else. TLS is
+    // terminated by tailscaled with its own certificate, so Caddy serves these
+    // over its plain listener the way it serves sslip.io names.
+    const tailnet = isTailnetHostname(domain.hostname);
+    if (!ipBased && !free && !tailnet && domain.dnsStatus !== 'ok') continue;
 
     const auth = accessFor(service.id);
     routes.push({
       hostname: domain.hostname,
       upstream: containerName(project.slug, service.slug, deployment.id),
       port: resolvePort(service.port, null),
-      https: !ipBased,
+      https: !ipBased && !tailnet,
       providedCert: free,
       pathPrefix: domain.pathPrefix ?? null,
       // The grown-up door, when it is on: individual accounts instead of the

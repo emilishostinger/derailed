@@ -347,6 +347,24 @@ export const endpoints = {
   pitrRestore: (serviceId: string, at: number) =>
     api.post<{ started: true }>(`/services/${serviceId}/pitr/restore`, { at }),
 
+  tailscale: () =>
+    api.get<{
+      installed: boolean;
+      connected: boolean;
+      dnsName: string | null;
+      ip: string | null;
+      tailnet: string | null;
+      funnelOn: boolean;
+      funnelServiceId: string | null;
+    }>('/system/tailscale'),
+  installTailscale: () => api.post<{ ok: boolean; message: string }>('/system/tailscale/install'),
+  connectTailscale: (authKey?: string) =>
+    api.post<{ ok: boolean; loginUrl?: string }>('/system/tailscale/connect', { authKey }),
+  setFunnel: (serviceId: string | null) =>
+    api.put<{ funnelServiceId: string | null; hostname?: string }>('/system/tailscale/funnel', {
+      serviceId,
+    }),
+
   appLogin: (serviceId: string) =>
     api.get<{
       loginRequired: boolean;

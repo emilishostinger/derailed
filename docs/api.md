@@ -267,6 +267,15 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `POST /backups/:id/restore` | `{ projectId }`. Owner only: it writes over what is there now. 404 if there is no such copy |
 | `DELETE /backups/:id` | Remove a copy. 404 if there is no such copy |
 
+## The cupboard computer
+
+| | |
+| --- | --- |
+| `GET /system/tailscale` | Installed, connected, the box's `ts.net` name and tailnet address, and which app the funnel serves |
+| `POST /system/tailscale/install` | The official installer, Linux only. Owner only, like everything under /system |
+| `POST /system/tailscale/connect` | `{ authKey? }`. Without one, answers with the sign-in link to open on a device that is already yours |
+| `PUT /system/tailscale/funnel` | `{ serviceId }` shares that app at the `ts.net` name with real HTTPS; `{ serviceId: null }` closes the funnel |
+
 ## The machine
 
 | | |
