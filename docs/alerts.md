@@ -26,6 +26,8 @@ On by default:
 - The disk is filling up, or memory is running out
 - A certificate is about to expire, or a domain stops pointing here
 - A backup fails, or [turns out not to restore](backups.md)
+- The [daily scan](security.md#is-anything-leaking-or-known-broken) finds a leak or a
+  known hole
 
 Off by default: **a deploy works.** A message every time something goes right is the
 fastest way to teach yourself to ignore the messages, and then to miss the one that

@@ -122,4 +122,6 @@ export const SETTINGS = {
   statusPageTitle: 'status_page_title',
   /** The most recent restore drill, stored whole as JSON. */
   drillLast: 'drill_last',
+  /** The most recent leak-and-holes scan, stored whole as JSON. */
+  scanLast: 'scan_last',
 } as const;

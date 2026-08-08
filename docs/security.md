@@ -60,6 +60,37 @@ does not protect against someone who is already root on the machine, because the
 read the key too. Nothing that runs on one box can protect against that, and claiming
 otherwise would be the lie.
 
+## Is anything leaking or known-broken?
+
+Once a day, and behind a **Check now** button on the Server page, Derailed runs two
+quiet scans and reports in plain verdicts:
+
+- **Things shaped like live keys, where they should never be.** The tip of each app's
+  repository (and any uploaded files) is checked for AWS keys, GitHub and GitLab
+  tokens, Slack and Stripe and cloud API keys, private key blocks, and database
+  addresses with the password written in. A value that is both an environment
+  variable and a string in the files is called out separately, because that secret is
+  leading a double life. And a variable named like a secret whose value is still
+  `changeme` is called what it is: the password nobody changed.
+
+  Lines that say `example` or `placeholder` are left alone. A scanner that flags
+  every documentation snippet trains people to dismiss it, and a dismissed scanner
+  is no scanner.
+
+  The report never contains the secret itself, only where it sits and a masked
+  prefix. Even so, a map to the secrets is not for viewers, and running a fresh scan
+  is an owner's button, because it clones repositories to look inside.
+
+- **Known holes in the images behind the apps.** When [Trivy](https://trivy.dev) is
+  installed, each deployed image is checked for known vulnerabilities rated high or
+  critical, and the verdict is wired to the update button that already exists: *"the
+  image behind blog has a known hole, a newer image is published, updating is one
+  press."* Without Trivy the report says images were not checked, rather than
+  quietly narrowing what "nothing found" means.
+
+New findings arrive through the ordinary [alert channels](alerts.md). The same
+finding is not repeated day after day; fixing it and regressing brings it back.
+
 ## The network
 
 - Apps publish their port on `127.0.0.1` only. Visitors reach them through Caddy.

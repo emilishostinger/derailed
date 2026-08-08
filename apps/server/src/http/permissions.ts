@@ -162,6 +162,13 @@ const NOT_FOR_VIEWERS: Rule[] = [
     methods: ['GET'],
     why: 'A connection string includes the database password, so it is not for a viewer.',
   },
+  {
+    // Not a secret itself, but a map to them: which keys look live and exactly
+    // where each one sits is precisely the tour a viewer should not be given.
+    path: /^\/system\/scan$/,
+    methods: ['GET'],
+    why: 'The scan report says where secrets live, so it is not for a viewer.',
+  },
 ];
 
 export interface Decision {

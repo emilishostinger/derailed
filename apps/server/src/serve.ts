@@ -39,6 +39,7 @@ import { startUptime, stopUptime } from './runtime/uptime.ts';
 import { startAppUpdates, stopAppUpdates } from './system/appupdate.ts';
 import { startAutoUpdates, stopAutoUpdates } from './system/autoupdate.ts';
 import { diskReport } from './system/disk.ts';
+import { startScans, stopScans } from './system/scan.ts';
 import { detectServerIp, setCaddyHealthy, systemInfo } from './system/status.ts';
 import { loadSecretKey } from './util/crypto.ts';
 
@@ -182,6 +183,7 @@ export async function serve(): Promise<void> {
     stopSnapshots();
     stopAutoUpdates();
     stopAppUpdates();
+    stopScans();
     stopDbUpgradeSweep();
     stopPitrSweep();
     stopFreeDomainRenewal();
@@ -248,6 +250,7 @@ async function bootRuntime(): Promise<void> {
     startSnapshots();
     startAutoUpdates();
     startAppUpdates();
+    startScans();
     startDbUpgradeSweep();
     startPitrSweep();
     // Renewing pushes a fresh certificate to Caddy, which only matters once Caddy is

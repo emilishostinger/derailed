@@ -81,6 +81,9 @@ const ROUTES: [string, string][] = [
   // Bots
   ['GET', '/api/services/nope/bots'],
   ['PUT', '/api/services/nope/bots'],
+  // Is anything leaking or known-broken?
+  ['GET', '/api/system/scan'],
+  ['POST', '/api/system/scan'],
   // The cupboard computer
   ['GET', '/api/system/tailscale'],
   ['POST', '/api/system/tailscale/connect'],

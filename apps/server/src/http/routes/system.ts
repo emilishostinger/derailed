@@ -32,6 +32,7 @@ import { diskReport, freeUpSpace } from '../../system/disk.ts';
 import { runDoctor } from '../../system/doctor.ts';
 import { openPorts } from '../../system/firewall.ts';
 import { otherSoftware } from '../../system/others.ts';
+import { lastScan, runScan } from '../../system/scan.ts';
 import { serverStats } from '../../system/stats.ts';
 import { detectServerIp, systemInfo } from '../../system/status.ts';
 import { addSwap, SwapError, swapState } from '../../system/swap.ts';
@@ -139,6 +140,17 @@ systemRoutes.put('/previews', async (c) => {
 });
 
 systemRoutes.get('/doctor', async (c) => c.json({ report: await runDoctor() }));
+
+/**
+ * Is anything leaking or known-broken?
+ *
+ * The GET answers from the last run rather than scanning on the way in, because a
+ * scan clones repositories and can take a minute; a page load should not. The POST
+ * is the honest button: run it now, wait, get the report.
+ */
+systemRoutes.get('/scan', (c) => c.json({ scan: lastScan() }));
+
+systemRoutes.post('/scan', async (c) => c.json({ scan: await runScan() }));
 
 /**
  * Puts right whatever the doctor offered to. Deliberately a fixed set of named

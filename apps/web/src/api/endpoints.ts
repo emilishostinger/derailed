@@ -27,6 +27,7 @@ import type {
   Project,
   QueryResult,
   SavedQuery,
+  SecurityScan,
   Service,
   SwapState,
   TableSummary,
@@ -854,6 +855,8 @@ export const endpoints = {
   refreshPreview: (serviceId: string) => api.post<unknown>(`/services/${serviceId}/preview`),
 
   doctor: () => api.get<{ report: DoctorReport }>('/system/doctor').then((r) => r.report),
+  lastScan: () => api.get<{ scan: SecurityScan | null }>('/system/scan').then((r) => r.scan),
+  runScan: () => api.post<{ scan: SecurityScan }>('/system/scan').then((r) => r.scan),
   doctorFix: (action: DoctorFix) =>
     api.post<{ report: DoctorReport }>(`/system/doctor/fix/${action}`).then((r) => r.report),
 

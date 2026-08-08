@@ -195,6 +195,8 @@ only when the job has no app attached. See [jobs](jobs.md#jobs-that-belong-to-th
 | --- | --- |
 | `GET /system/doctor` | Run every check and report |
 | `POST /system/doctor/fix/:action` | Put one thing right. `restart-proxy`, `reclaim-disk` or `add-swap` |
+| `GET /system/scan` | The last leak-and-holes report. Not for viewers: it is a map to the secrets |
+| `POST /system/scan` | Run the scan now. Clones repositories, so it can take a minute. Owner only, like every /system write |
 
 ## The machine's disk
 

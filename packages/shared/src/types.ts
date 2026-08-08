@@ -641,6 +641,43 @@ export interface CostComparison {
   summary: string;
 }
 
+/**
+ * One thing the security scan found, said plainly.
+ *
+ * Never the secret itself: `evidence` is a masked prefix for key-shaped findings,
+ * or the weak value verbatim when the finding is that the value is weak, in which
+ * case saying it is the point.
+ */
+export interface ScanFinding {
+  /** Stable across runs of the same situation, so "new since last scan" means something. */
+  id: string;
+  kind: 'repo-secret' | 'env-weak' | 'env-in-repo' | 'image-holes';
+  /** The verdict, in one sentence a person can act on. */
+  verdict: string;
+  /** What to do about it. */
+  action: string;
+  serviceId: string | null;
+  serviceName: string | null;
+  /** For repo findings, where it was seen: `path:line`. */
+  where: string | null;
+  evidence: string | null;
+  /** For image findings, whether pressing the update button is likely to help. */
+  updateHelps?: boolean;
+  severity: 'critical' | 'warn';
+}
+
+/** The whole scan, as the dashboard shows it. */
+export interface SecurityScan {
+  at: number;
+  tookMs: number;
+  findings: ScanFinding[];
+  /** How much was looked at, so "nothing found" has weight. */
+  checked: { repos: number; envVars: number; images: number };
+  /** Whether the image scanner (Trivy) was available, and what to do if not. */
+  imageScanner: 'ok' | 'missing' | 'failed';
+  summary: string;
+}
+
 /** Where alerts can be sent. One shape for every destination. */
 export type AlertChannelKind = 'discord' | 'slack' | 'telegram' | 'ntfy' | 'webhook';
 
@@ -655,6 +692,7 @@ export interface AlertChannel {
 
 /** The things worth being told about. */
 export type AlertEventKind =
+  | 'security.finding'
   | 'app.crashed'
   | 'app.crashloop'
   | 'deploy.failed'
