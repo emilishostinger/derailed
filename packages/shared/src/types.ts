@@ -112,6 +112,11 @@ export interface Project {
   memoryLimitMb?: number | null;
   /** Thousandths of a core. 500 is half a core. */
   cpuLimitMillis?: number | null;
+  /**
+   * Whether edits to variables, settings and domains wait on a review screen and
+   * apply together, instead of landing one by one as they are saved.
+   */
+  reviewChanges?: boolean;
   /** When it was deleted, if it was. Deleted things are kept for a week. */
   deletedAt?: number | null;
   services?: Service[];
@@ -639,6 +644,35 @@ export interface CostComparison {
   /** When the prices were last checked, so an old figure is obviously old. */
   pricesCheckedAt: string;
   summary: string;
+}
+
+/** What kind of edit is waiting. Each applies exactly as the live route would have. */
+export type PendingChangeKind = 'env' | 'project-env' | 'setting' | 'domain-attach';
+
+/**
+ * One edit, waiting to be applied.
+ *
+ * The summary and diff were written when it was staged, because that is when the
+ * "before" they describe was true. Variable values never appear in either.
+ */
+export interface PendingChange {
+  id: string;
+  projectId: string;
+  serviceId: string | null;
+  serviceName?: string | null;
+  kind: PendingChangeKind;
+  summary: string;
+  diff: string[];
+  createdAt: number;
+  createdBy: string | null;
+}
+
+/** Which variables moved and when. Never their values. */
+export interface EnvHistoryEntry {
+  id: string;
+  at: number;
+  by: string | null;
+  changes: { key: string; change: 'added' | 'removed' | 'changed' }[];
 }
 
 /** One key that can open the machine over SSH. Public halves only, of course. */

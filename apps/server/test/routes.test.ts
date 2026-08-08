@@ -84,6 +84,13 @@ const ROUTES: [string, string][] = [
   // Is anything leaking or known-broken?
   ['GET', '/api/system/scan'],
   ['POST', '/api/system/scan'],
+  // What will change
+  ['GET', '/api/projects/nope/pending'],
+  ['POST', '/api/projects/nope/pending/apply'],
+  ['DELETE', '/api/projects/nope/pending'],
+  ['PUT', '/api/projects/nope/review'],
+  ['GET', '/api/projects/nope/env/history'],
+  ['GET', '/api/services/nope/env/history'],
   // SSH keys, and the toggle that matters
   ['GET', '/api/system/ssh'],
   ['POST', '/api/system/ssh/keys'],

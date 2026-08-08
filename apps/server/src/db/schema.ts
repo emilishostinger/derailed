@@ -986,4 +986,44 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN health_command TEXT;
     `,
   },
+  {
+    id: 39,
+    name: 'what will change, collected and applied together',
+    sql: `
+      -- Per project, off by default: editing applies immediately, the way it always
+      -- has. Switched on, edits to variables, settings and domains collect into a
+      -- queue with a human-readable diff, and one press applies them together.
+      ALTER TABLE projects ADD COLUMN review_changes INTEGER NOT NULL DEFAULT 0;
+
+      -- One row per waiting edit. The payload is the request that would have run,
+      -- as JSON; the summary and diff are written at staging time, because that is
+      -- when the "before" they describe was true.
+      CREATE TABLE pending_changes (
+        id         TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        service_id TEXT REFERENCES services(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL,
+        payload    TEXT NOT NULL,
+        summary    TEXT NOT NULL,
+        diff       TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        created_by TEXT
+      );
+      CREATE INDEX idx_pending_project ON pending_changes(project_id, created_at);
+
+      -- Which variables moved and when, never their values. "What changed and when"
+      -- is the question the night after something broke; the values are secrets and
+      -- history is where secrets go to be forgotten about.
+      CREATE TABLE env_history (
+        id         TEXT PRIMARY KEY,
+        service_id TEXT REFERENCES services(id) ON DELETE CASCADE,
+        project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+        at         INTEGER NOT NULL,
+        by         TEXT,
+        changes    TEXT NOT NULL
+      );
+      CREATE INDEX idx_env_history_service ON env_history(service_id, at DESC);
+      CREATE INDEX idx_env_history_project ON env_history(project_id, at DESC);
+    `,
+  },
 ];

@@ -1,4 +1,7 @@
-import { schemas, topics } from '@derailed/shared';
+import { type Service, schemas, topics } from '@derailed/shared';
+
+type PatchServiceRequest = schemas.PatchServiceRequest;
+
 import { Hono, type MiddlewareHandler } from 'hono';
 import { trafficFor } from '../../analytics/store.ts';
 import { normalizeRepoUrl, resolveDefaultBranch } from '../../build/git.ts';
@@ -18,7 +21,15 @@ import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.t
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
 import { ShareError, shareTemplate } from '../../catalog/share.ts';
 import { listDomains } from '../../db/repo/domains.ts';
-import { effectiveEnv, replaceUserEnv } from '../../db/repo/env.ts';
+import { effectiveEnv, listEnv, replaceUserEnv } from '../../db/repo/env.ts';
+import {
+  countPending,
+  envDiff,
+  envDiffLines,
+  envHistoryFor,
+  recordEnvHistory,
+  stageChange,
+} from '../../db/repo/pending.ts';
 import { findProject } from '../../db/repo/projects.ts';
 import {
   createAppService,
@@ -219,6 +230,47 @@ serviceRoutes.get('/:id', (c) => {
   return c.json({ service: presentService(service) });
 });
 
+/**
+ * The PATCH itself, as a function, because it now has two callers: the route below
+ * when edits apply as they always have, and the review queue when a project has
+ * asked for changes to wait and land together.
+ */
+export async function applyServicePatch(
+  serviceId: string,
+  patch: PatchServiceRequest,
+): Promise<Service> {
+  const updated = updateService(
+    serviceId,
+    patch as Record<string, string | number | boolean | null>,
+  );
+  if (!updated) throw notFound('That service');
+
+  // Turning either of these on notes where things stand today, so switching it on
+  // does not immediately rebuild an app that is already running that very commit or
+  // release.
+  if (patch.deployOnRelease === true && !updated.lastReleaseTag) {
+    await adoptCurrentRelease(updated.id).catch(() => null);
+  }
+  if (patch.deployOnPush === true && !updated.lastPushedSha) {
+    await adoptCurrentCommit(updated.id).catch(() => null);
+  }
+  return findService(updated.id) ?? updated;
+}
+
+/** The settings half of the review diff: which fields move, said with their values. */
+export function settingDiffLines(service: Service, patch: PatchServiceRequest): string[] {
+  const lines: string[] = [];
+  const show = (value: unknown) =>
+    value === null || value === undefined || value === '' ? '(unset)' : String(value);
+  for (const [key, next] of Object.entries(patch)) {
+    if (next === undefined) continue;
+    const current = (service as unknown as Record<string, unknown>)[key];
+    if (current === next || (current == null && next === null)) continue;
+    lines.push(`${key}: was ${show(current)}, now ${show(next)}`);
+  }
+  return lines;
+}
+
 serviceRoutes.patch('/:id', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
@@ -241,23 +293,25 @@ serviceRoutes.patch('/:id', async (c) => {
     );
   }
 
-  const updated = updateService(
-    service.id,
-    patch as Record<string, string | number | boolean | null>,
-  );
-  if (!updated) throw notFound('That service');
-
-  // Turning either of these on notes where things stand today, so switching it on
-  // does not immediately rebuild an app that is already running that very commit or
-  // release.
-  if (patch.deployOnRelease === true && !updated.lastReleaseTag) {
-    await adoptCurrentRelease(updated.id).catch(() => null);
+  // A project in review mode collects the edit instead of applying it. Validation
+  // has already run: a change that could never apply must be refused now, not
+  // discovered on the review screen.
+  if (findProject(service.projectId)?.reviewChanges) {
+    const diff = settingDiffLines(service, patch);
+    if (diff.length === 0) return c.json({ service: presentService(service) });
+    stageChange({
+      projectId: service.projectId,
+      serviceId: service.id,
+      kind: 'setting',
+      payload: patch,
+      summary: `Settings on ${service.name}`,
+      diff,
+      by: c.get('user').email,
+    });
+    return c.json({ staged: true, pending: countPending(service.projectId) }, 202);
   }
-  if (patch.deployOnPush === true && !updated.lastPushedSha) {
-    await adoptCurrentCommit(updated.id).catch(() => null);
-  }
 
-  const after = findService(updated.id) ?? updated;
+  const after = await applyServicePatch(service.id, patch);
   emitService(after.id);
   await syncRoutes();
   return c.json({ service: presentService(after) });
@@ -900,9 +954,35 @@ serviceRoutes.put('/:id/env', async (c) => {
     seen.add(entry.key);
   }
 
+  const before = listEnv(service.id).filter((entry) => entry.source === 'user');
+  const diff = envDiff(before, vars);
+
+  // A project in review mode collects the edit instead of applying it.
+  if (findProject(service.projectId)?.reviewChanges) {
+    if (diff.length === 0) return c.json({ vars: effectiveEnv(service.id) });
+    stageChange({
+      projectId: service.projectId,
+      serviceId: service.id,
+      kind: 'env',
+      payload: { vars },
+      summary: `Variables on ${service.name}`,
+      diff: envDiffLines(diff),
+      by: c.get('user').email,
+    });
+    return c.json({ staged: true, pending: countPending(service.projectId) }, 202);
+  }
+
   replaceUserEnv(service.id, vars);
+  recordEnvHistory({ serviceId: service.id }, diff, c.get('user').email);
   emitService(service.id);
   return c.json({ vars: effectiveEnv(service.id) });
+});
+
+/** Which variables moved and when. Never their values; that is the whole design. */
+serviceRoutes.get('/:id/env/history', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  return c.json({ history: envHistoryFor({ serviceId: service.id }) });
 });
 
 serviceRoutes.get('/:id/domains', (c) => {

@@ -25,6 +25,7 @@ import { messageRoutes, publicFormRoutes } from './routes/forms.ts';
 import { importRoutes, projectImportRoutes } from './routes/import.ts';
 import { jobRoutes, serviceJobRoutes } from './routes/jobs.ts';
 import { mailRoutes } from './routes/mail.ts';
+import { pendingRoutes } from './routes/pending.ts';
 import { peopleRoutes } from './routes/people.ts';
 import { projectRoutes } from './routes/projects.ts';
 import { projectServiceRoutes, serviceRoutes } from './routes/services.ts';
@@ -126,6 +127,7 @@ export function createApp() {
   api.route('/detect', detectRoutes);
   api.route('/import', importRoutes);
   api.route('/projects', projectImportRoutes);
+  api.route('/projects', pendingRoutes);
   api.route('/projects', projectRoutes);
   api.route('/projects', projectServiceRoutes);
   api.route('/projects', projectTemplateRoutes);

@@ -2,6 +2,14 @@ import { schemas, topics } from '@derailed/shared';
 import { Hono } from 'hono';
 import { listProjectEnv, replaceProjectEnv } from '../../db/repo/env.ts';
 import {
+  countPending,
+  envDiff,
+  envDiffLines,
+  envHistoryFor,
+  recordEnvHistory,
+  stageChange,
+} from '../../db/repo/pending.ts';
+import {
   createProject,
   findProject,
   renameProject,
@@ -71,11 +79,36 @@ projectRoutes.put('/:id/env', async (c) => {
     seen.add(entry.key);
   }
 
+  const diff = envDiff(listProjectEnv(project.id), vars);
+
+  // A project in review mode collects the edit instead of applying it.
+  if (project.reviewChanges) {
+    if (diff.length === 0) return c.json({ vars: listProjectEnv(project.id) });
+    stageChange({
+      projectId: project.id,
+      serviceId: null,
+      kind: 'project-env',
+      payload: { vars },
+      summary: 'Shared variables',
+      diff: envDiffLines(diff),
+      by: c.get('user').email,
+    });
+    return c.json({ staged: true, pending: countPending(project.id) }, 202);
+  }
+
   replaceProjectEnv(project.id, vars);
+  recordEnvHistory({ projectId: project.id }, diff, c.get('user').email);
   // Every app in the project is now running with a stale set, so the screens that
   // say "redeploy for this to take effect" have to be looking at fresh services.
   emitProject(project.id);
   return c.json({ vars: listProjectEnv(project.id), redeployNeeded: true });
+});
+
+/** Which shared variables moved and when. Never their values. */
+projectRoutes.get('/:id/env/history', (c) => {
+  const project = findProject(c.req.param('id'));
+  if (!project) throw notFound('That project');
+  return c.json({ history: envHistoryFor({ projectId: project.id }) });
 });
 
 /**

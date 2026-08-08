@@ -1,10 +1,11 @@
-import { Archive, ArrowRight, Gauge, Pencil, Trash2, Variable } from 'lucide-react';
+import { Archive, ArrowRight, ClipboardList, Gauge, Pencil, Trash2, Variable } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
 import { DeleteProject, RenameProject } from '../pages/Layout.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { ContextMenu, useContextMenu } from './ContextMenu.tsx';
+import { PendingChangesDialog } from './PendingChanges.tsx';
 import { ProjectLimits } from './ProjectLimits.tsx';
 import { SharedVariables } from './SharedVariables.tsx';
 
@@ -41,7 +42,9 @@ export function useProjectActions({
   const navigate = useNavigate();
   const load = useProjects((s) => s.load);
   const menu = useContextMenu();
-  const [dialog, setDialog] = useState<'rename' | 'delete' | 'env' | 'limits' | null>(null);
+  const [dialog, setDialog] = useState<'rename' | 'delete' | 'env' | 'limits' | 'review' | null>(
+    null,
+  );
   const [note, setNote] = useState<string | null>(null);
 
   const element = (
@@ -73,6 +76,11 @@ export function useProjectActions({
             label: 'Limits',
             icon: <Gauge className="h-3.5 w-3.5" />,
             onSelect: () => setDialog('limits'),
+          },
+          {
+            label: 'What will change',
+            icon: <ClipboardList className="h-3.5 w-3.5" />,
+            onSelect: () => setDialog('review'),
           },
           {
             label: 'Back it up',
@@ -113,6 +121,10 @@ export function useProjectActions({
       {dialog === 'env' && <SharedVariables id={id} name={name} onClose={() => setDialog(null)} />}
 
       {dialog === 'limits' && <ProjectLimits id={id} name={name} onClose={() => setDialog(null)} />}
+
+      {dialog === 'review' && (
+        <PendingChangesDialog projectId={id} projectName={name} onClose={() => setDialog(null)} />
+      )}
 
       {dialog === 'delete' && (
         <DeleteProject

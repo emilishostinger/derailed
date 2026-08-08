@@ -13,7 +13,8 @@ import {
   setDomainPath,
   setRedirect,
 } from '../../db/repo/domains.ts';
-import { listProjects } from '../../db/repo/projects.ts';
+import { countPending, stageChange } from '../../db/repo/pending.ts';
+import { findProject, listProjects } from '../../db/repo/projects.ts';
 import { findService } from '../../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../../db/repo/settings.ts';
 import { checkDns, wwwVariant } from '../../proxy/dns.ts';
@@ -166,6 +167,31 @@ domainRoutes.put('/:id/service', async (c) => {
   return c.json({ domain: updated });
 });
 
+/**
+ * The attach itself, as a function, because it has two callers: the route below
+ * when edits apply as they always have, and the review queue when a project has
+ * asked for changes to wait and land together. Validation stays with the caller;
+ * this is the part that changes production.
+ */
+export async function attachHostnames(serviceId: string, wanted: string[]): Promise<void> {
+  for (const candidate of wanted) {
+    // A domain already added but not yet in use is claimed rather than duplicated.
+    const existing = findDomainByHostname(candidate);
+    if (existing) attachDomain(existing.id, serviceId);
+    else createDomain(serviceId, candidate, 'custom');
+  }
+  for (const domain of listDomains(serviceId)) {
+    if (domain.kind === 'custom' && domain.dnsStatus === 'unchecked') {
+      await checkDomain(domain.id);
+    }
+  }
+}
+
+/** The route's validation, shared with apply so a staged change is re-checked. */
+export function assertHostnamesUsable(wanted: string[], serviceId: string): void {
+  for (const candidate of wanted) assertUsable(candidate, serviceId);
+}
+
 /** POST /services/:id/domains, for adding one from inside an app. */
 serviceDomainRoutes.post('/:id/domains', async (c) => {
   const service = findService(c.req.param('id'));
@@ -182,20 +208,24 @@ serviceDomainRoutes.post('/:id/domains', async (c) => {
     ...(alsoAddWww ? [wwwVariant(hostname)].filter(Boolean) : []),
   ] as string[];
 
-  for (const candidate of wanted) assertUsable(candidate, service.id);
+  assertHostnamesUsable(wanted, service.id);
 
-  for (const candidate of wanted) {
-    // A domain already added but not yet in use is claimed rather than duplicated.
-    const existing = findDomainByHostname(candidate);
-    if (existing) attachDomain(existing.id, service.id);
-    else createDomain(service.id, candidate, 'custom');
+  // A project in review mode collects the edit instead of applying it. Pointing a
+  // domain at an app is exactly the kind of change worth a look before production.
+  if (findProject(service.projectId)?.reviewChanges) {
+    stageChange({
+      projectId: service.projectId,
+      serviceId: service.id,
+      kind: 'domain-attach',
+      payload: { wanted },
+      summary: `${wanted.join(' and ')} will point at ${service.name}`,
+      diff: wanted.map((candidate) => `${candidate} added to ${service.name}`),
+      by: c.get('user').email,
+    });
+    return c.json({ staged: true, pending: countPending(service.projectId) }, 202);
   }
 
-  for (const domain of listDomains(service.id)) {
-    if (domain.kind === 'custom' && domain.dnsStatus === 'unchecked') {
-      await checkDomain(domain.id);
-    }
-  }
+  await attachHostnames(service.id, wanted);
   await syncRoutes();
   emitService(service.id);
 

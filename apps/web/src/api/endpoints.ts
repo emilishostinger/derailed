@@ -13,6 +13,7 @@ import type {
   DoctorReport,
   Domain,
   DrillResult,
+  EnvHistoryEntry,
   EnvVar,
   FileEntry,
   FreeDomain,
@@ -24,6 +25,7 @@ import type {
   MetricsHistory,
   OffsiteSettings,
   OffsiteStatus,
+  PendingChange,
   Project,
   QueryResult,
   SavedQuery,
@@ -142,14 +144,42 @@ export const endpoints = {
       .get<{ vars: { key: string; value: string }[] }>(`/projects/${projectId}/env`)
       .then((r) => r.vars),
   saveProjectEnv: (projectId: string, vars: { key: string; value: string }[]) =>
-    api
-      .put<{ vars: { key: string; value: string }[] }>(`/projects/${projectId}/env`, { vars })
-      .then((r) => r.vars),
+    api.put<{ vars?: { key: string; value: string }[]; staged?: boolean; pending?: number }>(
+      `/projects/${projectId}/env`,
+      { vars },
+    ),
 
   env: (serviceId: string) =>
     api.get<{ vars: EnvVar[] }>(`/services/${serviceId}/env`).then((r) => r.vars),
   saveEnv: (serviceId: string, vars: { key: string; value: string }[]) =>
-    api.put<{ vars: EnvVar[] }>(`/services/${serviceId}/env`, { vars }).then((r) => r.vars),
+    api.put<{ vars?: EnvVar[]; staged?: boolean; pending?: number }>(`/services/${serviceId}/env`, {
+      vars,
+    }),
+  envHistory: (serviceId: string) =>
+    api
+      .get<{ history: EnvHistoryEntry[] }>(`/services/${serviceId}/env/history`)
+      .then((r) => r.history),
+  projectEnvHistory: (projectId: string) =>
+    api
+      .get<{ history: EnvHistoryEntry[] }>(`/projects/${projectId}/env/history`)
+      .then((r) => r.history),
+
+  pendingChanges: (projectId: string) =>
+    api.get<{ reviewChanges: boolean; changes: PendingChange[] }>(`/projects/${projectId}/pending`),
+  applyPendingChanges: (projectId: string) =>
+    api.post<{
+      results: { id: string; summary: string; ok: boolean; note: string | null }[];
+      pending: number;
+      redeployNeeded: boolean;
+    }>(`/projects/${projectId}/pending/apply`),
+  discardPendingChange: (projectId: string, changeId?: string) =>
+    api.delete<{ pending: number }>(
+      changeId ? `/projects/${projectId}/pending/${changeId}` : `/projects/${projectId}/pending`,
+    ),
+  setReviewChanges: (projectId: string, enabled: boolean) =>
+    api.put<{ reviewChanges: boolean; pending: number }>(`/projects/${projectId}/review`, {
+      enabled,
+    }),
 
   deployments: (serviceId: string) =>
     api

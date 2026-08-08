@@ -12,6 +12,7 @@ interface ProjectRow {
   backup_schedule?: string | null;
   memory_limit_mb?: number | null;
   cpu_limit_millis?: number | null;
+  review_changes?: 0 | 1;
   deleted_at?: number | null;
 }
 
@@ -21,6 +22,7 @@ const toProject = (row: ProjectRow): Project => ({
   slug: row.slug,
   memoryLimitMb: row.memory_limit_mb ?? null,
   cpuLimitMillis: row.cpu_limit_millis ?? null,
+  reviewChanges: row.review_changes === 1,
   createdAt: row.created_at,
   backupSchedule:
     row.backup_schedule === 'daily' || row.backup_schedule === 'weekly'
@@ -28,6 +30,13 @@ const toProject = (row: ProjectRow): Project => ({
       : 'off',
   deletedAt: row.deleted_at ?? null,
 });
+
+export function setReviewChanges(id: string, enabled: boolean): Project | null {
+  db()
+    .query('UPDATE projects SET review_changes = ? WHERE id = ?')
+    .run(enabled ? 1 : 0, id);
+  return findProject(id);
+}
 
 export function setProjectBackupSchedule(id: string, schedule: string): Project | null {
   db().query('UPDATE projects SET backup_schedule = ? WHERE id = ?').run(schedule, id);

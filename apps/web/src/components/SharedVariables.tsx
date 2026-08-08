@@ -131,8 +131,17 @@ export function SharedVariables({
                     (rows ?? []).filter((row) => row.key.trim()),
                   )
                   .then((saved) => {
-                    setRows(saved);
-                    push({ message: 'Saved. Redeploy for apps to pick them up.', tone: 'ok' });
+                    if (saved.staged) {
+                      push({
+                        message: `Saved for review. ${saved.pending ?? 1} change${
+                          (saved.pending ?? 1) === 1 ? '' : 's'
+                        } waiting on the project page.`,
+                        tone: 'ok',
+                      });
+                    } else {
+                      if (saved.vars) setRows(saved.vars);
+                      push({ message: 'Saved. Redeploy for apps to pick them up.', tone: 'ok' });
+                    }
                     void load();
                     onClose();
                   })

@@ -1,4 +1,4 @@
-import type { EnvVar } from '@derailed/shared';
+import type { EnvHistoryEntry, EnvVar } from '@derailed/shared';
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { cx, ErrorNote, Spinner } from './ui.tsx';
@@ -46,6 +46,9 @@ export function EnvEditor({ serviceId, onSaved }: { serviceId: string; onSaved?:
   const [error, setError] = useState<unknown>(null);
   const [pasting, setPasting] = useState(false);
   const [pasted, setPasted] = useState('');
+  /** Set when the project reviews changes: the save is waiting, not applied. */
+  const [staged, setStaged] = useState<number | null>(null);
+  const [history, setHistory] = useState<EnvHistoryEntry[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,8 +84,9 @@ export function EnvEditor({ serviceId, onSaved }: { serviceId: string; onSaved?:
       const vars = rows
         .filter((row) => row.key.trim())
         .map((row) => ({ key: row.key.trim(), value: row.value }));
-      await endpoints.saveEnv(serviceId, vars);
+      const result = await endpoints.saveEnv(serviceId, vars);
       setDirty(false);
+      setStaged(result.staged ? (result.pending ?? 1) : null);
       onSaved?.();
     } catch (err) {
       setError(err);
@@ -208,6 +212,49 @@ export function EnvEditor({ serviceId, onSaved }: { serviceId: string; onSaved?:
           Save, then redeploy for these to take effect.
         </p>
       )}
+
+      {staged !== null && !dirty && (
+        <p className="rounded-[var(--radius-card)] border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-ink">
+          Saved for review. This project collects changes: {staged} waiting on the project page,
+          applied together when you say so.
+        </p>
+      )}
+
+      {/* The night after something broke, the question is "what changed and when".
+          Keys only, never values: history is where secrets would go to be forgotten
+          about. */}
+      <div>
+        <button
+          type="button"
+          className="btn-ghost px-0 text-[12px] text-ink-faint"
+          onClick={() => {
+            if (history !== null) {
+              setHistory(null);
+              return;
+            }
+            endpoints
+              .envHistory(serviceId)
+              .then(setHistory)
+              .catch(() => setHistory([]));
+          }}
+        >
+          {history === null ? 'What changed before' : 'Hide the history'}
+        </button>
+        {history !== null &&
+          (history.length === 0 ? (
+            <p className="hint mt-1">No saved changes recorded yet.</p>
+          ) : (
+            <ul className="mt-1 space-y-1">
+              {history.map((entry) => (
+                <li key={entry.id} className="text-[12px] text-ink-muted">
+                  <span className="text-ink-faint">{new Date(entry.at).toLocaleString()}</span>
+                  {entry.by ? ` · ${entry.by}` : ''} ·{' '}
+                  {entry.changes.map((change) => `${change.key} ${change.change}`).join(', ')}
+                </li>
+              ))}
+            </ul>
+          ))}
+      </div>
 
       {/* Shown rather than hidden, because the question this screen answers is "what
           will be set when this runs". A shared variable that is invisible here is one

@@ -21,6 +21,7 @@ about five minutes.
 - **[A copy per branch](previews.md)**: every branch gets its own running app, and loses it
 - **[Scheduled jobs](jobs.md)**: cron, in plain words, with the output kept
 - **[Who can see your apps](access.md)**: passwords, address lists and maintenance mode
+- **[What will change](review.md)**: edits that collect, show a readable diff, and apply together
 - **[Uptime](uptime.md)**: is it actually up, ninety days of history, and a public status page
 - **[Alerts](alerts.md)**: being told when something breaks, without it becoming noise
 - **[Disk space](disk.md)**: what is using it, freeing it up safely, and swap

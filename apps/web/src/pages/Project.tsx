@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { live } from '../api/ws.ts';
 import { DropToHost } from '../components/DropToHost.tsx';
 import { NewServiceWizard } from '../components/NewServiceWizard.tsx';
+import { PendingChangesBar, PendingChangesDialog } from '../components/PendingChanges.tsx';
 import { useProjectActions } from '../components/projectActions.tsx';
 import { ServiceDrawer } from '../components/ServiceDrawer.tsx';
 import { TopologyCanvas } from '../components/topology/Canvas.tsx';
@@ -20,6 +21,7 @@ export function ProjectPage() {
   const loaded = useProjects((s) => s.loaded);
   const load = useProjects((s) => s.load);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const project = projects.find((entry) => entry.slug === slug);
 
@@ -134,10 +136,24 @@ export function ProjectPage() {
         ) : (
           <TopologyCanvas project={project} selectedId={selectedId} onSelect={select} />
         )}
+        {/* Refetched whenever the drawer changes or the dialog closes: those are the
+            moments an edit can have been staged or applied. */}
+        <PendingChangesBar
+          projectId={project.id}
+          onOpen={() => setReviewOpen(true)}
+          refreshSignal={`${selectedId ?? ''}:${reviewOpen}`}
+        />
       </div>
 
       {wizardOpen && (
         <NewServiceWizard projectId={project.id} onClose={() => setWizardOpen(false)} />
+      )}
+      {reviewOpen && (
+        <PendingChangesDialog
+          projectId={project.id}
+          projectName={project.name}
+          onClose={() => setReviewOpen(false)}
+        />
       )}
       {selected && (
         <ServiceDrawer

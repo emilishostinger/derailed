@@ -35,6 +35,11 @@ Errors come back as:
 | `DELETE /projects/:id` | Removes the project and everything in it |
 | `POST /projects/:id/services` | Create an app or database (see below) |
 | `POST /projects/:id/templates` | `{ slug }`, installs a ready-made app |
+| `PUT /projects/:id/review` | `{ enabled }`. With it on, edits to variables, settings and domains collect instead of applying |
+| `GET /projects/:id/pending` | What is waiting, each with a readable diff. Variable values appear nowhere |
+| `POST /projects/:id/pending/apply` | Apply everything, oldest first. An edit whose subject has gone reports a sentence and stays; the rest still land |
+| `DELETE /projects/:id/pending` · `DELETE /projects/:id/pending/:changeId` | Discard all, or one |
+| `GET /projects/:id/env/history` · `GET /services/:id/env/history` | Which variables moved and when. Never their values |
 
 Creating a service:
 
