@@ -262,7 +262,7 @@ async function imageUpdates(): Promise<UpdateItem[]> {
           id: `image:${service.id}`,
           kind: 'image',
           name: service.name,
-          detail: `A newer build of ${image} has been published. Updating redeploys the app.`,
+          detail: `A newer build of ${image} has been published. Derailed will back the app up first, update it, and check it still answers.`,
           current: localDigests[0]?.slice(7, 19) ?? null,
           available: remoteDigest.slice(7, 19),
           actionable: true,
@@ -380,19 +380,23 @@ export async function applyUpdate(id: string): Promise<ApplyResult> {
     const service = listServices().find((entry) => entry.id === serviceId);
     if (!service) return { ok: false, message: 'That app no longer exists.' };
 
-    const { pullImage } = await import('../docker/images.ts');
-    const { queueDeployment } = await import('../build/pipeline.ts');
-    const lines: string[] = [];
+    // Through the backup-first machinery, never around it. Updating from this page
+    // and updating from the app's own screen are the same act, and both keep the
+    // same three promises: a copy first, a health check, and the way back recorded.
+    const { beginAppUpdate } = await import('./appupdate.ts');
     try {
-      await pullImage(service.image!, (line) => lines.push(line));
+      const { done } = await beginAppUpdate(service.id, 'manual');
+      void done.catch(() => undefined);
     } catch (err) {
       return {
         ok: false,
-        message: `Couldn't fetch the new image: ${err instanceof Error ? err.message : String(err)}`,
+        message: err instanceof Error ? err.message : String(err),
       };
     }
-    queueDeployment(service.id, 'redeploy');
-    return { ok: true, message: `${service.name} is redeploying with the new image.` };
+    return {
+      ok: true,
+      message: `${service.name} is being backed up, then updated. Its screen shows how it goes.`,
+    };
   }
 
   return { ok: false, message: 'There is nothing to update with that name.' };

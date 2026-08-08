@@ -733,7 +733,13 @@ async function runFromImage(
     if (updated) emitDeployment(updated);
   };
 
-  log.write(`Going back to the version from ${new Date(deployment.createdAt).toLocaleString()}…`);
+  // The same shortcut serves two stories: a rollback re-running what once ran, and
+  // a backup-first update running an exact digest it just pulled.
+  log.write(
+    deployment.trigger === 'rollback'
+      ? `Going back to the version from ${new Date(deployment.createdAt).toLocaleString()}…`
+      : 'Starting the new version…',
+  );
   const port = resolvePort(service.port, null);
   const runtimeEnv = { ...envMap(service.id), PORT: String(port) };
 

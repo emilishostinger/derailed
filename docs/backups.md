@@ -28,6 +28,11 @@ which is which.
 The projects list marks which projects are looked after, so the answer to "is this one
 safe" is visible without opening anything.
 
+One more way a backup appears here without being asked for: updating an app from an
+image takes a whole-project backup before anything is pulled. It lands on this page
+like any other, named for the project, and restores the same way. See
+[Ready-made apps](apps.md) for the rest of that story.
+
 ## How much is kept
 
 At the bottom of the Backups page: how many copies to keep per project, and optionally

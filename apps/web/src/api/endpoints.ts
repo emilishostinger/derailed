@@ -313,6 +313,22 @@ export const endpoints = {
     ),
   applyUpdate: (id: string) => api.post<{ message: string }>(`/updates/${id}/apply`),
 
+  appUpdateState: (serviceId: string) =>
+    api.get<{
+      availability: import('@derailed/shared').AppUpdateAvailability;
+      autoUpdate: boolean;
+      history: import('@derailed/shared').AppUpdate[];
+      canRevert: boolean;
+    }>(`/services/${serviceId}/update`),
+  startAppUpdate: (serviceId: string) =>
+    api.post<{ update: import('@derailed/shared').AppUpdate }>(`/services/${serviceId}/update`),
+  revertAppUpdate: (serviceId: string) =>
+    api.post<{ update: import('@derailed/shared').AppUpdate }>(
+      `/services/${serviceId}/update/revert`,
+    ),
+  setAppAutoUpdate: (serviceId: string, enabled: boolean) =>
+    api.put<{ autoUpdate: boolean }>(`/services/${serviceId}/auto-update`, { enabled }),
+
   tokens: () =>
     api
       .get<{

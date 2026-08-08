@@ -39,7 +39,15 @@ export const ACTIVE_DEPLOYMENT_STATUSES: readonly DeploymentStatus[] = [
 /** What the UI shows on a service node, derived, never stored. */
 export type ServiceStatus = 'running' | 'deploying' | 'stopped' | 'failed' | 'crashed' | 'creating';
 
-export type DeploymentTrigger = 'manual' | 'redeploy' | 'rollback' | 'webhook' | 'release' | 'push';
+export type DeploymentTrigger =
+  | 'manual'
+  | 'redeploy'
+  | 'rollback'
+  | 'webhook'
+  | 'release'
+  | 'push'
+  | 'update'
+  | 'auto-update';
 
 /**
  * Where a variable came from.
@@ -145,6 +153,12 @@ export interface Service {
    */
   snapshotEveryHours?: number | null;
 
+  /**
+   * Whether new versions of this app's image are applied without being asked.
+   * Every update, automatic or not, takes a backup first; that part is not a setting.
+   */
+  autoUpdate?: boolean;
+
   createdAt: number;
   updatedAt: number;
   /** When it was deleted, if it was. Deleted things are kept for a week. */
@@ -202,6 +216,35 @@ export interface DeploymentSummary {
 export interface Deployment extends DeploymentSummary {
   imageTag: string | null;
   containerId: string | null;
+}
+
+/** One backup-first update of an app, from taking the copy to knowing how it went. */
+export type AppUpdateStatus = 'backing-up' | 'deploying' | 'ok' | 'failed' | 'reverted';
+
+export interface AppUpdate {
+  id: string;
+  serviceId: string;
+  status: AppUpdateStatus;
+  /** Whether a person pressed the button or the app updates itself. */
+  trigger: 'manual' | 'auto';
+  /** The backup taken before anything was touched. */
+  backupId: string | null;
+  /** The exact image running before, by digest, which is what "put it back" means. */
+  fromRef: string | null;
+  toRef: string | null;
+  /** How it went, in a sentence. */
+  message: string | null;
+  createdAt: number;
+  finishedAt: number | null;
+}
+
+/** What the update check knows about one app's image. */
+export interface AppUpdateAvailability {
+  /** Digest (short) of what is running now. */
+  current: string | null;
+  /** Digest (short) newly published under the same tag, when one exists. */
+  available: string | null;
+  checkedAt: number;
 }
 
 export interface EnvVar {

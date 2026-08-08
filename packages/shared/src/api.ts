@@ -192,6 +192,11 @@ export const putEnvRequest = z.object({
 });
 export type PutEnvRequest = z.infer<typeof putEnvRequest>;
 
+export const autoUpdateRequest = z.object({
+  enabled: z.boolean(),
+});
+export type AutoUpdateRequest = z.infer<typeof autoUpdateRequest>;
+
 export const createLinkRequest = z.object({
   toServiceId: z.string().min(1),
   injectAs: z

@@ -5,6 +5,7 @@ import { type AppEnv, requireAuth, requireCsrfHeader } from './auth.ts';
 import { errorResponse, notFound } from './errors.ts';
 import { enforceRole } from './permissions.ts';
 import { alertRoutes } from './routes/alerts.ts';
+import { appUpdateRoutes } from './routes/appupdates.ts';
 import { authRoutes } from './routes/auth.ts';
 import { backupRoutes } from './routes/backups.ts';
 import {
@@ -113,6 +114,7 @@ export function createApp() {
   api.route('/projects', projectServiceRoutes);
   api.route('/projects', projectTemplateRoutes);
   api.route('/services', serviceRoutes);
+  api.route('/services', appUpdateRoutes);
   api.route('/services', serviceDeploymentRoutes);
   api.route('/services', serviceDomainRoutes);
   api.route('/services', connectionRoutes);

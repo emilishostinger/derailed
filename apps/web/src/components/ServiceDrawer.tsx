@@ -34,6 +34,7 @@ import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
 import { TechIcon } from './TechIcon.tsx';
 import { TerminalTab } from './TerminalTab.tsx';
 import { TrafficTab } from './TrafficTab.tsx';
+import { UpdatesTab } from './UpdatesTab.tsx';
 import { cx, ErrorNote, Spinner, StatusPill } from './ui.tsx';
 import { useDrawerWidth } from './useDrawerWidth.ts';
 import { WhyBroken } from './WhyBroken.tsx';
@@ -41,6 +42,7 @@ import { WhyBroken } from './WhyBroken.tsx';
 type Tab =
   | 'overview'
   | 'snapshots'
+  | 'updates'
   | 'traffic'
   | 'logs'
   | 'metrics'
@@ -109,6 +111,8 @@ export function ServiceDrawer({
         ['traffic', 'Visitors'],
         ['metrics', 'Load'],
         ['deployments', 'Deploys'],
+        // Only image-run apps update this way; a repository app updates by deploying.
+        ...(service.source === 'image' ? ([['updates', 'Updates']] as [Tab, string][]) : []),
         ['variables', 'Variables'],
         ['connection', 'Connections'],
         ['storage', 'Storage'],
@@ -302,6 +306,7 @@ export function ServiceDrawer({
           )}
           {tab === 'traffic' && <TrafficTab service={service} />}
           {tab === 'deployments' && <Deployments service={service} />}
+          {tab === 'updates' && <UpdatesTab service={service} />}
           {tab === 'variables' && <EnvEditor serviceId={service.id} />}
           {tab === 'connection' && <ConnectionTab service={service} />}
           {tab === 'storage' && <StorageTab service={service} />}
@@ -508,6 +513,8 @@ function Deployments({ service }: { service: Service }) {
                       somebody else started. */}
                   {deployment.trigger === 'release' && ' · a new release'}
                   {deployment.trigger === 'push' && ' · a push'}
+                  {deployment.trigger === 'update' && ' · an update, backed up first'}
+                  {deployment.trigger === 'auto-update' && ' · updated itself, backed up first'}
                 </p>
               </div>
               {active ? (

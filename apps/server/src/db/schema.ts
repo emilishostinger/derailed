@@ -773,4 +773,64 @@ export const migrations: Migration[] = [
       ALTER TABLE users ADD COLUMN totp_last_step INTEGER;
     `,
   },
+  {
+    id: 31,
+    name: 'updates that take a backup first',
+    sql: `
+      -- Updating an app is three promises kept in order: a copy taken first, the new
+      -- version checked before it takes over, and the old one kept ready to come back.
+      -- Each row here is one update, with the way back written down: the backup that
+      -- was taken and the exact image (by digest, not by tag, because the tag now
+      -- means the new version) that was running before.
+      CREATE TABLE app_updates (
+        id          TEXT PRIMARY KEY,
+        service_id  TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        status      TEXT NOT NULL,
+        trigger     TEXT NOT NULL DEFAULT 'manual',
+        backup_id   TEXT,
+        from_ref    TEXT,
+        to_ref      TEXT,
+        message     TEXT,
+        created_at  INTEGER NOT NULL,
+        finished_at INTEGER
+      );
+      CREATE INDEX idx_app_updates_service ON app_updates(service_id, created_at DESC);
+
+      -- Per app, off by default. Backup-before-update is deliberately not a setting:
+      -- it is what updating is. The only choice offered is whether it happens without
+      -- being asked.
+      ALTER TABLE services ADD COLUMN auto_update INTEGER NOT NULL DEFAULT 0;
+
+      -- 'update' and 'auto-update' join the trigger list, and the column checks its
+      -- own values, so the table is rebuilt to widen it, same as when 'push' joined.
+      CREATE TABLE deployments_new (
+        id             TEXT PRIMARY KEY,
+        service_id     TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        status         TEXT NOT NULL CHECK (status IN (
+                         'queued','cloning','detecting','building','starting','checking',
+                         'routing','running','failed','canceled','superseded')),
+        commit_sha     TEXT,
+        commit_message TEXT,
+        trigger        TEXT NOT NULL DEFAULT 'manual'
+                         CHECK (trigger IN ('manual','redeploy','rollback','webhook','release',
+                                            'push','update','auto-update')),
+        image_tag      TEXT,
+        container_id   TEXT,
+        error_summary  TEXT,
+        error_hint     TEXT,
+        log_path       TEXT,
+        created_at     INTEGER NOT NULL,
+        started_at     INTEGER,
+        finished_at    INTEGER
+      );
+      INSERT INTO deployments_new SELECT
+        id, service_id, status, commit_sha, commit_message, trigger, image_tag,
+        container_id, error_summary, error_hint, log_path, created_at, started_at,
+        finished_at
+      FROM deployments;
+      DROP TABLE deployments;
+      ALTER TABLE deployments_new RENAME TO deployments;
+      CREATE INDEX idx_deployments_service ON deployments(service_id, created_at DESC);
+    `,
+  },
 ];

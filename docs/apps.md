@@ -130,6 +130,31 @@ Derailed waits longer for those rather than calling the deploy failed.
 - **Turn on backups** for the project. These apps hold the sort of data that is
   annoying to lose.
 
+## Updating one
+
+Apps run from an image grow an **Updates** tab. When the image's publisher ships a new
+build, updating it is three promises kept in order:
+
+1. **A copy first.** The whole project is backed up before anything is pulled, and the
+   backup lands on the Backups page like any other. If the copy cannot be taken, the
+   update does not start.
+2. **Checked before it takes over.** The new version starts beside the old one and only
+   receives traffic once it answers. If it never answers, it is thrown away and the old
+   version keeps serving; nothing was ever down.
+3. **The way back, written down.** The version that was running is recorded exactly, by
+   digest rather than by tag, because after an update the tag means the new version.
+   One press on **Put it back the way it was** re-runs it.
+
+Backup-before-update is not a setting; it is what updating is. The one toggle is
+**Update automatically from now on**: checked daily, per app, off until you turn it on,
+and every automatic update keeps the same three promises.
+
+Putting it back re-runs the old program, not the old data. If the update wrote
+something the old version cannot read, the backup from step one restores the data too.
+
+Apps deployed from a repository do not have this tab: for them, updating is deploying,
+and every deploy already keeps the previous build to roll back to.
+
 ## Which of these have actually been run
 
 Honest answer, because "we support twenty apps" is easy to write and harder to mean.

@@ -5,6 +5,7 @@
  * client never has to reconcile partial state. Log lines are batched by the server.
  */
 import type {
+  AppUpdate,
   Deployment,
   DeploymentStatus,
   Domain,
@@ -74,7 +75,9 @@ export type ServerEvent =
       detail?: string;
     }
   /** A fresh title, icon or screenshot is available for this app. */
-  | { type: 'preview'; serviceId: string };
+  | { type: 'preview'; serviceId: string }
+  /** A backup-first update moved from one stage to the next. */
+  | { type: 'service.appupdate'; update: AppUpdate };
 
 /** The stages of claiming a free address, in the order they happen. */
 export type FreeDomainStep = 'point' | 'tool' | 'certificate' | 'addresses' | 'done';

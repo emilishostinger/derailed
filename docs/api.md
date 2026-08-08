@@ -67,6 +67,10 @@ Creating a service:
 | `POST /services/:id/files/upload?path=&name=` | The file **is** the request body, up to 200 MB. Replaces one of the same name, and lands owned by whoever owns the folder |
 | `POST /services/:id/files/folder` · `/files/rename` | `{ path, name }`. `name` is a name, never a path |
 | `DELETE /services/:id/files?path=` | Deletes a file, or a folder and everything in it. No undo |
+| `GET /services/:id/update` | What is running, whether the registry has something newer, past updates, and whether "put it back" has anywhere to go |
+| `POST /services/:id/update` | Backs the project up, pulls the new image, deploys it, and checks it answers. Answers `202` at once; the update reports over the socket. Image-run apps only |
+| `POST /services/:id/update/revert` | Re-runs the exact version (by digest) recorded before the last update. Data is not rolled back |
+| `PUT /services/:id/auto-update` | `{ enabled }`. Checked daily; every automatic update takes the same backup first |
 | `GET /services/:id/mail` · `PUT` | Whether this app may send email |
 | `GET /services/:id/sleep` · `PUT` · `POST /services/:id/wake` | Pause when quiet, and wake it |
 | `PUT /services/:id/access` | Password, `allowFrom`, `blockFrom`, maintenance. The password is hashed and never returned. Blocking your own address is refused once; send `force: true` to mean it |

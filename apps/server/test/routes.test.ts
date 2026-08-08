@@ -64,6 +64,11 @@ const ROUTES: [string, string][] = [
   ['DELETE', '/api/links/nope'],
   // Rollback
   ['POST', '/api/deployments/nope/rollback'],
+  // Backup-first updates
+  ['GET', '/api/services/nope/update'],
+  ['POST', '/api/services/nope/update'],
+  ['POST', '/api/services/nope/update/revert'],
+  ['PUT', '/api/services/nope/auto-update'],
 ];
 
 describe('every route the dashboard calls is mounted', () => {
