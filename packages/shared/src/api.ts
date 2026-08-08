@@ -202,6 +202,12 @@ export const formsToggleRequest = z.object({
 });
 export type FormsToggleRequest = z.infer<typeof formsToggleRequest>;
 
+export const botSettingsRequest = z.object({
+  mode: z.enum(['off', 'polite', 'strict']).optional(),
+  blockAi: z.boolean().optional(),
+});
+export type BotSettingsRequest = z.infer<typeof botSettingsRequest>;
+
 /** The name a compose service is written as. Docker's own charset for one. */
 const composeName = z
   .string()

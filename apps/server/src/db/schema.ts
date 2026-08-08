@@ -904,4 +904,18 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN forms INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    id: 35,
+    name: 'the bots, blocked',
+    sql: `
+      -- How hard an address may go at this app before it is asked to prove it has a
+      -- browser: 'off', 'polite', or 'strict'. Off by default, because slowing down
+      -- somebody's traffic is a decision, not a nicety.
+      ALTER TABLE services ADD COLUMN bot_mode TEXT NOT NULL DEFAULT 'off';
+
+      -- Whether the named AI crawlers are turned away and robots.txt says so. A
+      -- toggle rather than a list to maintain by hand.
+      ALTER TABLE services ADD COLUMN block_ai INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

@@ -40,6 +40,8 @@ interface ServiceRow {
   alias?: string | null;
   health_check?: 'http' | 'started';
   forms?: 0 | 1;
+  bot_mode?: 'off' | 'polite' | 'strict';
+  block_ai?: 0 | 1;
   created_at: number;
   updated_at: number;
   deleted_at?: number | null;
@@ -86,6 +88,8 @@ function toService(row: ServiceRow): Service {
     alias: row.alias ?? null,
     healthCheck: row.health_check ?? 'http',
     forms: row.forms === 1,
+    botMode: row.bot_mode ?? 'off',
+    blockAi: row.block_ai === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at ?? null,
@@ -328,6 +332,8 @@ const UPDATABLE: Record<string, string> = {
   dbVersion: 'db_version',
   walArchive: 'wal_archive',
   forms: 'forms',
+  botMode: 'bot_mode',
+  blockAi: 'block_ai',
 };
 
 export function updateService(

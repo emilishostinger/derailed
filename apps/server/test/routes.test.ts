@@ -78,6 +78,9 @@ const ROUTES: [string, string][] = [
   // Compose import
   ['POST', '/api/import/inspect'],
   ['POST', '/api/projects/nope/import'],
+  // Bots
+  ['GET', '/api/services/nope/bots'],
+  ['PUT', '/api/services/nope/bots'],
   // Forms
   ['GET', '/api/services/nope/messages'],
   ['PUT', '/api/services/nope/messages/settings'],

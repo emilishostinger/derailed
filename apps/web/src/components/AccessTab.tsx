@@ -158,10 +158,86 @@ export function AccessTab({ service }: { service: Service }) {
       </section>
 
       <section className="border-t border-line pt-4">
+        <p className="eyebrow mb-2">Bots</p>
+        <BotSettings service={service} />
+      </section>
+
+      <section className="border-t border-line pt-4">
         <p className="eyebrow mb-2">Sending email</p>
         <AppMail service={service} />
       </section>
 
+      <ErrorNote error={error} />
+    </div>
+  );
+}
+
+/**
+ * The bots screen: one dropdown and one switch. Enforced from the traffic the
+ * proxy already logs, so a normal visitor never meets any of it.
+ */
+function BotSettings({ service }: { service: Service }) {
+  const [state, setState] = useState<{
+    mode: 'off' | 'polite' | 'strict';
+    blockAi: boolean;
+    challenged: number;
+    banned: number;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  useEffect(() => {
+    endpoints.botSettings(service.id).then(setState).catch(setError);
+  }, [service.id]);
+
+  if (!state) return null;
+
+  async function apply(patch: { mode?: 'off' | 'polite' | 'strict'; blockAi?: boolean }) {
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await endpoints.setBotSettings(service.id, patch);
+      setState((current) => (current ? { ...current, ...saved } : current));
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="label">Slow down whatever asks too fast</span>
+        <select
+          className="input mt-1"
+          value={state.mode}
+          disabled={busy}
+          onChange={(event) =>
+            void apply({ mode: event.target.value as 'off' | 'polite' | 'strict' })
+          }
+        >
+          <option value="off">Off: ask nothing of anybody</option>
+          <option value="polite">Polite: only clearly automated traffic meets a check</option>
+          <option value="strict">Strict: heavy traffic from one address meets a check</option>
+        </select>
+      </label>
+      <p className="text-[12px] text-ink-faint">
+        An address going too hard gets a page its browser solves by itself in about a second, which
+        a person never notices and a scraper pays for. Going far harder than that is turned away for
+        half an hour. Measured over recent traffic, so a short burst gets through; sustained
+        hammering does not.
+        {state.challenged + state.banned > 0 &&
+          ` Right now: ${state.challenged} being checked, ${state.banned} turned away.`}
+      </p>
+
+      <Switch
+        checked={state.blockAi}
+        label="Turn away AI scrapers"
+        hint="The named crawlers that read sites to feed models (GPTBot, ClaudeBot, Bytespider and friends) get a plain refusal, and robots.txt tells them not to try. A scraper that lies about its name walks past this; the setting above is for those."
+        disabled={busy}
+        onChange={(next) => void apply({ blockAi: next })}
+      />
       <ErrorNote error={error} />
     </div>
   );

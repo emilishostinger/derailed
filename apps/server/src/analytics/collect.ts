@@ -2,6 +2,7 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { paths } from '../config.ts';
 import { allDomains } from '../db/repo/domains.ts';
+import { anythingExpired, currentModes, observeTraffic, sweepBotGuard } from '../proxy/botguard.ts';
 import { recordTraffic, type TrafficEvent } from './store.ts';
 
 /**
@@ -107,6 +108,17 @@ async function drain(): Promise<void> {
   }
 
   if (events.length) recordTraffic(events);
+
+  // The same lines feed the bot walls: an address hammering an app that asked
+  // for protection is challenged or refused, and a wall whose time has run out
+  // comes down again. Both mean pushing fresh routes.
+  const wentUp = events.length ? observeTraffic(events, currentModes()) : false;
+  const cameDown = anythingExpired();
+  if (cameDown) sweepBotGuard();
+  if (wentUp || cameDown) {
+    const { syncRoutes } = await import('../proxy/sync.ts');
+    await syncRoutes().catch(() => undefined);
+  }
 }
 
 /** Which app answers on which hostname, so a line can be attributed at all. */

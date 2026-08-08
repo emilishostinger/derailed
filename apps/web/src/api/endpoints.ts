@@ -347,6 +347,22 @@ export const endpoints = {
   pitrRestore: (serviceId: string, at: number) =>
     api.post<{ started: true }>(`/services/${serviceId}/pitr/restore`, { at }),
 
+  botSettings: (serviceId: string) =>
+    api.get<{
+      mode: 'off' | 'polite' | 'strict';
+      blockAi: boolean;
+      challenged: number;
+      banned: number;
+    }>(`/services/${serviceId}/bots`),
+  setBotSettings: (
+    serviceId: string,
+    patch: { mode?: 'off' | 'polite' | 'strict'; blockAi?: boolean },
+  ) =>
+    api.put<{ mode: 'off' | 'polite' | 'strict'; blockAi: boolean }>(
+      `/services/${serviceId}/bots`,
+      patch,
+    ),
+
   messages: (serviceId: string) =>
     api.get<{
       enabled: boolean;

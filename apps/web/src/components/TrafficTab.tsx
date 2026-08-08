@@ -10,6 +10,7 @@ export interface TrafficPoint {
   requests: number;
   visitors: number;
   errors: number;
+  bots: number;
 }
 
 export interface TrafficReport {
@@ -288,14 +289,16 @@ function Stat({
  * rectangles, and a dependency for it would be bigger than the feature.
  */
 function Chart({ points, range }: { points: TrafficPoint[]; range: string }) {
-  const max = Math.max(1, ...points.map((point) => point.requests));
+  const max = Math.max(1, ...points.map((point) => point.requests + (point.bots ?? 0)));
 
   return (
     <section>
       <p className="eyebrow mb-2">Visits</p>
       <div className="flex h-28 items-end gap-[2px] rounded-[var(--radius-card)] border border-line bg-surface-2 p-2.5">
         {points.map((point) => {
+          const bots = point.bots ?? 0;
           const height = Math.round((point.requests / max) * 100);
+          const botHeight = Math.round((bots / max) * 100);
           // Tinted only when a real share of the hour went wrong. A couple of 404s
           // among hundreds of visits is normal, and colouring the bar for it would
           // teach people to ignore the colour.
@@ -304,19 +307,27 @@ function Chart({ points, range }: { points: TrafficPoint[]; range: string }) {
             <div
               key={point.at}
               // Full height on the column, or a percentage on the bar inside it has
-              // nothing to be a percentage of and every bar comes out flat.
-              className="flex h-full flex-1 items-end"
+              // nothing to be a percentage of and every bar comes out flat. People
+              // below in colour, bots stacked above in grey: the shape of the day
+              // and the shape of the scraping, one glance apart.
+              className="flex h-full flex-1 flex-col justify-end"
               title={`${label(point.at, range)}: ${point.requests} visit${point.requests === 1 ? '' : 's'}${
                 point.visitors
                   ? `, ${point.visitors} visitor${point.visitors === 1 ? '' : 's'}`
                   : ''
-              }${point.errors ? `, ${point.errors} failed` : ''}`}
+              }${bots ? `, ${bots} from bots` : ''}${point.errors ? `, ${point.errors} failed` : ''}`}
             >
+              {bots > 0 && (
+                <div
+                  className="w-full rounded-t-[2px] bg-ink-faint/40"
+                  style={{ height: `${Math.max(botHeight, 2)}%` }}
+                />
+              )}
               <div
                 className={cx(
                   'w-full rounded-[2px] transition-colors',
                   failed ? 'bg-warn/70' : 'bg-accent/70',
-                  point.requests === 0 && 'bg-line',
+                  point.requests === 0 && bots === 0 && 'bg-line',
                 )}
                 style={{ height: `${Math.max(height, point.requests > 0 ? 4 : 2)}%` }}
               />
@@ -324,6 +335,9 @@ function Chart({ points, range }: { points: TrafficPoint[]; range: string }) {
           );
         })}
       </div>
+      <p className="mt-1 text-[11px] text-ink-faint">
+        Colour is people; grey on top is crawlers and bots.
+      </p>
       <div className="mt-1 flex justify-between text-[11px] text-ink-faint tabular">
         <span>{points[0] ? label(points[0].at, range) : ''}</span>
         <span>{points.at(-1) ? label(points.at(-1)!.at, range) : ''}</span>

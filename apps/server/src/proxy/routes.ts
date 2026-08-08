@@ -40,6 +40,62 @@ export interface RouteSpec {
    * service it belongs to, and becomes a message.
    */
   forms?: { serviceId: string; panelUpstream: string; panelPort: number } | null;
+  /**
+   * The walls against automated traffic: named AI crawlers turned away, and the
+   * addresses currently challenged or refused for going too hard. All enforced
+   * by Caddy from this config; Derailed stays out of the request path.
+   */
+  bots?: {
+    serviceId: string;
+    blockAi: boolean;
+    challenged: string[];
+    banned: string[];
+    panelUpstream: string;
+    panelPort: number;
+  } | null;
+}
+
+/**
+ * The crawlers that read sites to feed models, by the names they announce.
+ * A scraper that lies about its name walks past this list; the rate walls below
+ * are for those. Matched as substrings, case-insensitively, by Caddy itself.
+ */
+export const AI_CRAWLERS = [
+  'GPTBot',
+  'ChatGPT-User',
+  'OAI-SearchBot',
+  'ClaudeBot',
+  'Claude-Web',
+  'Claude-User',
+  'Claude-SearchBot',
+  'anthropic-ai',
+  'Google-Extended',
+  'PerplexityBot',
+  'Perplexity-User',
+  'CCBot',
+  'Bytespider',
+  'Amazonbot',
+  'FacebookBot',
+  'meta-externalagent',
+  'Meta-ExternalAgent',
+  'Applebot-Extended',
+  'cohere-ai',
+  'cohere-training-data-crawler',
+  'Diffbot',
+  'ImagesiftBot',
+  'omgili',
+  'Timpibot',
+  'YouBot',
+  'AI2Bot',
+  'PanguBot',
+  'Kangaroo Bot',
+  'SemrushBot-OCOB',
+];
+
+/** What `/robots.txt` says when the toggle is on: the same list, politely. */
+export function aiRobotsTxt(): string {
+  const lines = AI_CRAWLERS.flatMap((name) => [`User-agent: ${name}`, 'Disallow: /', '']);
+  return `${lines.join('\n')}User-agent: *\nAllow: /\n`;
 }
 
 /**
@@ -108,6 +164,8 @@ interface CaddyMatcher {
   host?: string[];
   path?: string[];
   method?: string[];
+  /** Header values, `*` wildcards included; how the crawler list is matched. */
+  header?: Record<string, string[]>;
   /** "http" or "https", lets one server treat the two ports differently. */
   protocol?: string;
   not?: ({ path: string[] } | { remote_ip: { ranges: string[] } })[];
@@ -435,7 +493,10 @@ function routeFor(route: RouteSpec): CaddyRoute {
         routes: [
           {
             handle: [
-              // Access first, then forms, then the app: a password-protected
+              // The bot walls come first: an address being refused for hammering
+              // should not be offered a password prompt to hammer instead.
+              ...(route.bots ? botHandlers(route.bots) : []),
+              // Access next, then forms, then the app: a password-protected
               // site's forms are exactly as private as its pages.
               ...accessHandlers(route.access),
               ...(route.forms
@@ -453,6 +514,175 @@ function routeFor(route: RouteSpec): CaddyRoute {
     ],
     terminal: true,
   };
+}
+
+/**
+ * The page a challenged address sees: a small proof of work a person's browser
+ * solves invisibly in under a second and a scraper has to pay for, per address.
+ * Self-contained on purpose; it is served by Caddy with nothing behind it.
+ */
+const CHALLENGE_BODY = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>One moment</title>
+<style>
+  body{font:16px/1.6 system-ui,sans-serif;color:#1c1b22;background:#faf9fb;
+       display:grid;place-items:center;min-height:100vh;margin:0;padding:24px}
+  main{max-width:26rem;text-align:center}
+  h1{font-size:1.25rem;margin:0 0 .5rem}
+  p{margin:0;color:#5b5a66}
+  @media(prefers-color-scheme:dark){body{color:#eceaf2;background:#131218}p{color:#a6a3b3}}
+</style></head>
+<body><main><h1>One moment</h1>
+<p>This site is checking that you are visiting with a browser. It takes about a second
+and happens by itself.</p>
+<noscript><p><b>JavaScript is off</b>, so the check cannot run. Turn it on for this
+site, or come back a little later.</p></noscript>
+<script>
+(async () => {
+  try {
+    const issued = await fetch('/__derailed/challenge', { headers: { accept: 'application/json' } });
+    const { token, prefix } = await issued.json();
+    const encoder = new TextEncoder();
+    let nonce = 0;
+    for (;;) {
+      const digest = await crypto.subtle.digest('SHA-256', encoder.encode(token + nonce));
+      const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hex.startsWith(prefix)) break;
+      nonce++;
+    }
+    await fetch('/__derailed/challenge', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token, nonce: String(nonce) }),
+    });
+    location.reload();
+  } catch {
+    setTimeout(() => location.reload(), 4000);
+  }
+})();
+</script>
+</main></body></html>`;
+
+/**
+ * The walls, in the order they should be met: an outright refusal for the
+ * addresses plainly running a script, the proof-of-work for the merely
+ * suspicious, and the named AI crawlers turned away with their robots.txt.
+ */
+function botHandlers(bots: NonNullable<RouteSpec['bots']>): unknown[] {
+  const handlers: unknown[] = [];
+
+  if (bots.banned.length) {
+    handlers.push({
+      handler: 'subroute',
+      routes: [
+        {
+          match: [{ remote_ip: { ranges: bots.banned } }],
+          handle: [
+            {
+              handler: 'static_response',
+              status_code: 429,
+              headers: {
+                'Content-Type': ['text/plain; charset=utf-8'],
+                'Retry-After': ['1800'],
+              },
+              body: 'This address has been asking far too fast. Come back in half an hour.\n',
+            },
+          ],
+          terminal: true,
+        },
+      ],
+    });
+  }
+
+  if (bots.challenged.length) {
+    handlers.push({
+      handler: 'subroute',
+      routes: [
+        {
+          match: [{ remote_ip: { ranges: bots.challenged } }],
+          handle: [
+            {
+              handler: 'subroute',
+              routes: [
+                // The two challenge endpoints reach the panel; everything else
+                // is the page that solves them.
+                {
+                  match: [{ path: ['/__derailed/challenge'] }],
+                  handle: [
+                    { handler: 'rewrite', uri: '/api/public/challenge' },
+                    {
+                      handler: 'reverse_proxy',
+                      upstreams: [{ dial: `${bots.panelUpstream}:${bots.panelPort}` }],
+                      headers: {
+                        request: {
+                          set: {
+                            'X-Derailed-Service': [bots.serviceId],
+                            'X-Forwarded-For': ['{http.request.remote.host}'],
+                          },
+                        },
+                      },
+                    },
+                  ],
+                  terminal: true,
+                },
+                {
+                  handle: [
+                    {
+                      handler: 'static_response',
+                      status_code: 503,
+                      headers: {
+                        'Content-Type': ['text/html; charset=utf-8'],
+                        'Cache-Control': ['no-store'],
+                        'Retry-After': ['5'],
+                      },
+                      body: CHALLENGE_BODY,
+                    },
+                  ],
+                  terminal: true,
+                },
+              ],
+            },
+          ],
+          terminal: true,
+        },
+      ],
+    });
+  }
+
+  if (bots.blockAi) {
+    handlers.push({
+      handler: 'subroute',
+      routes: [
+        {
+          match: [{ path: ['/robots.txt'] }],
+          handle: [
+            {
+              handler: 'static_response',
+              status_code: 200,
+              headers: { 'Content-Type': ['text/plain; charset=utf-8'] },
+              body: aiRobotsTxt(),
+            },
+          ],
+          terminal: true,
+        },
+        {
+          match: [{ header: { 'User-Agent': AI_CRAWLERS.map((name) => `*${name}*`) } }],
+          handle: [
+            {
+              handler: 'static_response',
+              status_code: 403,
+              headers: { 'Content-Type': ['text/plain; charset=utf-8'] },
+              body: 'This site does not serve automated crawlers.\n',
+            },
+          ],
+          terminal: true,
+        },
+      ],
+    });
+  }
+
+  return handlers;
 }
 
 /**

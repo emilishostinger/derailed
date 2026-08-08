@@ -85,6 +85,7 @@ export const SETTINGS = {
    * have to choose, not discover.
    */
   autoSecurityUpdates: 'auto_security_updates',
+  botChallengeSecret: 'bot_challenge_secret',
   /** When the last automatic run happened, so the page can say rather than guess. */
   autoUpdateLastRun: 'auto_update_last_run',
   autoUpdateLastResult: 'auto_update_last_result',

@@ -34,7 +34,8 @@ const KEEP_DAYS = 90;
 /** Distinct paths and referrers held per day, so one loose crawler can't bloat the table. */
 const MAX_DISTINCT_PER_DAY = 500;
 
-const BOT = /bot|crawler|spider|slurp|bingpreview|facebookexternalhit|headlesschrome|curl|wget/i;
+const BOT =
+  /bot|crawler|spider|slurp|bingpreview|facebookexternalhit|headlesschrome|curl|wget|gptbot|claudebot|claude-web|anthropic|perplexity|ccbot|bytespider|amazonbot|meta-externalagent|applebot-extended|google-extended|diffbot|cohere/i;
 
 export function isBot(userAgent: string): boolean {
   return BOT.test(userAgent);
@@ -234,6 +235,8 @@ export interface TrafficPoint {
   requests: number;
   visitors: number;
   errors: number;
+  /** Requests from things announcing themselves as software, kept out of the rest. */
+  bots: number;
 }
 
 export interface TrafficReport {
@@ -316,7 +319,13 @@ export function trafficFor(serviceId: string, range: keyof typeof RANGES): Traff
 
   const buckets = new Map<number, TrafficPoint>();
   for (let at = from; at <= Date.now(); at += bucket) {
-    buckets.set(at, { at, requests: 0, visitors: visitorsByBucket.get(at) ?? 0, errors: 0 });
+    buckets.set(at, {
+      at,
+      requests: 0,
+      visitors: visitorsByBucket.get(at) ?? 0,
+      errors: 0,
+      bots: 0,
+    });
   }
 
   const totals = {
@@ -338,6 +347,7 @@ export function trafficFor(serviceId: string, range: keyof typeof RANGES): Traff
     if (point) {
       point.requests += row.requests;
       point.errors += row.client_4xx + row.server_5xx;
+      point.bots += row.bots;
     }
     totals.requests += row.requests;
     totals.bots += row.bots;

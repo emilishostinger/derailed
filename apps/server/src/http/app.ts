@@ -8,6 +8,7 @@ import { alertRoutes } from './routes/alerts.ts';
 import { appUpdateRoutes } from './routes/appupdates.ts';
 import { authRoutes } from './routes/auth.ts';
 import { backupRoutes } from './routes/backups.ts';
+import { botRoutes, publicChallengeRoutes } from './routes/bots.ts';
 import {
   browseRoutes,
   catalogRoutes,
@@ -89,8 +90,10 @@ export function createApp() {
   const api = new Hono<AppEnv>();
   // Ahead of the CSRF check, deliberately: a form on somebody's static site is an
   // ordinary browser POST with no special header, and the CSRF token protects the
-  // dashboard's session, which this endpoint neither reads nor has.
+  // dashboard's session, which these endpoints neither read nor have. The bot
+  // challenge is the same story: the solving browser has no dashboard to speak for.
   api.route('/public', publicFormRoutes);
+  api.route('/public', publicChallengeRoutes);
   api.use('*', requireCsrfHeader);
 
   api.get('/health', (c) => c.json({ ok: true, version: VERSION }));
@@ -126,6 +129,7 @@ export function createApp() {
   api.route('/services', appUpdateRoutes);
   api.route('/services', dbUpgradeRoutes);
   api.route('/services', messageRoutes);
+  api.route('/services', botRoutes);
   api.route('/services', serviceDeploymentRoutes);
   api.route('/services', serviceDomainRoutes);
   api.route('/services', connectionRoutes);

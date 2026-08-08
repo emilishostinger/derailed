@@ -75,6 +75,7 @@ Creating a service:
 | `POST /services/:id/upgrade` | `{ version }`. Copy first, new engine on a fresh volume, reload, verify; the old engine is kept stopped for a week. Answers `202`; progress over the socket |
 | `GET /services/:id/pitr` · `PUT` | The point-in-time archive: whether it is on, how far back it reaches, what it costs in disk. Postgres only; `PUT { enabled }` rebuilds the container either way |
 | `POST /services/:id/pitr/restore` | `{ at }` in epoch milliseconds. Winds the database back to that moment; what it holds now is kept for a week. Answers `202`; the outcome lands as a notice |
+| `GET /services/:id/bots` · `PUT` | The bot walls: `{ mode: off\|polite\|strict, blockAi }`, plus how many addresses are currently challenged or refused |
 | `GET /services/:id/messages` | What the site's forms received, newest first, with `limit` and `offset` |
 | `PUT /services/:id/messages/settings` | `{ enabled }`: whether the proxy catches this app's form posts |
 | `DELETE /services/:id/messages/:messageId` | Deletes one message |

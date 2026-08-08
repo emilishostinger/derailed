@@ -186,6 +186,14 @@ export interface Service {
    */
   forms?: boolean;
 
+  /**
+   * How hard one address may go at this app before it is asked to prove it has
+   * a browser. 'off' asks nothing of anybody.
+   */
+  botMode?: 'off' | 'polite' | 'strict';
+  /** Whether the named AI crawlers are turned away, and robots.txt says so. */
+  blockAi?: boolean;
+
   createdAt: number;
   updatedAt: number;
   /** When it was deleted, if it was. Deleted things are kept for a week. */

@@ -80,11 +80,49 @@ While maintenance is on, nobody gets through, whatever else is set. The app is l
 of the request path entirely rather than sitting behind a handler that stops short of
 it.
 
+## Bots
+
+The 2026 complaint: AI scrapers hammer small sites hard enough that people notice
+their box working at night. The Access tab's **Bots** section is the answer, and it
+stays out of the request path: the walls are enforced by the proxy from configuration,
+and Derailed only reads the traffic figures it was already reading.
+
+**Slow down whatever asks too fast** has three positions:
+
+- **Off** asks nothing of anybody.
+- **Polite** only reacts to clearly automated traffic: an address making hundreds of
+  requests a minute, sustained.
+- **Strict** reacts to heavy traffic from one address, which catches the scrapers that
+  pace themselves.
+
+An address over the line gets a challenge page: a small proof of work its browser
+solves by itself in about a second, invisibly, after which that address is waved
+through for hours. A person meets it at most once on a busy afternoon; a scraper pays
+for it per address, in CPU, which is the one currency scraping farms actually spend.
+An address going five times harder than the line is plainly a script and is turned
+away outright for half an hour.
+
+Honest print: the walls are raised from recent traffic, read every few seconds, so a
+short burst gets through before the wall goes up. Sustained hammering, the thing
+people actually complain about, meets the wall about fifteen seconds in. And a visitor
+without JavaScript who is unlucky enough to get challenged sees a page explaining
+exactly that, rather than a silent refusal.
+
+**Turn away AI scrapers** blocks the crawlers that read sites to feed models, by the
+names they announce: GPTBot, ClaudeBot, CCBot, Bytespider, PerplexityBot and the rest
+of the current list, with `robots.txt` telling them not to try (this shadows the
+site's own robots.txt while it is on). A crawler that lies about its name walks past a
+name list; the rate walls above are for those.
+
+The [visitor figures](analytics.md) grow a bots-versus-people split on the chart, so
+the toggle has a number attached: colour is people, grey on top is the crawlers.
+
 ## What this is not
 
 - **Not a firewall.** It covers traffic through the proxy. A database with an exposed
   port is a separate decision, made on its own tab.
 - **Not encryption.** Put the app on a [secured address](domains.md) as well, or the
   password crosses the internet in the clear.
-- **Not rate limiting.** Somebody determined can still guess at the password as fast as
-  your server will answer.
+- **Not per-request rate limiting on the password.** Somebody determined can still
+  guess at a site password quickly; the bot walls slow sustained hammering, not a
+  short burst of guesses.

@@ -7,6 +7,7 @@ import { findProject } from '../db/repo/projects.ts';
 import { accessFor, containerName, findService } from '../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
+import { wallsFor } from './botguard.ts';
 import { buildCaddyConfig, HOST_GATEWAY, pushCaddyConfig } from './caddy.ts';
 import { isCoveredByFreeDomain, loadedCertificates } from './freedomain.ts';
 import { isIpBasedHostname, type RouteSpec } from './routes.ts';
@@ -80,6 +81,17 @@ export function currentRoutes(): RouteSpec[] {
       forms: service.forms
         ? { serviceId: service.id, panelUpstream: HOST_GATEWAY, panelPort }
         : null,
+      // The walls against automated traffic, when this app asked for any.
+      bots:
+        service.botMode !== 'off' || service.blockAi
+          ? {
+              serviceId: service.id,
+              blockAi: !!service.blockAi,
+              ...wallsFor(service.id),
+              panelUpstream: HOST_GATEWAY,
+              panelPort,
+            }
+          : null,
     });
   }
 
