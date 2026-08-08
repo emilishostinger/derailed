@@ -76,6 +76,8 @@ Creating a service:
 | `GET /services/:id/pitr` · `PUT` | The point-in-time archive: whether it is on, how far back it reaches, what it costs in disk. Postgres only; `PUT { enabled }` rebuilds the container either way |
 | `POST /services/:id/pitr/restore` | `{ at }` in epoch milliseconds. Winds the database back to that moment; what it holds now is kept for a week. Answers `202`; the outcome lands as a notice |
 | `GET /services/:id/bots` · `PUT` | The bot walls: `{ mode: off\|polite\|strict, blockAi }`, plus how many addresses are currently challenged or refused |
+| `GET /services/:id/login` · `PUT` | Accounts in front of the app: `{ enabled, allowedEmails }`, plus who is signed in right now. Sessions are named by an id, never by their cookie |
+| `DELETE /services/:id/login/sessions/:sessionId` | Signs that browser out the moment it next asks |
 | `GET /services/:id/messages` | What the site's forms received, newest first, with `limit` and `offset` |
 | `PUT /services/:id/messages/settings` | `{ enabled }`: whether the proxy catches this app's form posts |
 | `DELETE /services/:id/messages/:messageId` | Deletes one message |

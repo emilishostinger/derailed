@@ -5,6 +5,7 @@ import { type AppEnv, requireAuth, requireCsrfHeader } from './auth.ts';
 import { errorResponse, notFound } from './errors.ts';
 import { enforceRole } from './permissions.ts';
 import { alertRoutes } from './routes/alerts.ts';
+import { appLoginRoutes, publicAppAuthRoutes } from './routes/appauth.ts';
 import { appUpdateRoutes } from './routes/appupdates.ts';
 import { authRoutes } from './routes/auth.ts';
 import { backupRoutes } from './routes/backups.ts';
@@ -94,6 +95,7 @@ export function createApp() {
   // challenge is the same story: the solving browser has no dashboard to speak for.
   api.route('/public', publicFormRoutes);
   api.route('/public', publicChallengeRoutes);
+  api.route('/public', publicAppAuthRoutes);
   api.use('*', requireCsrfHeader);
 
   api.get('/health', (c) => c.json({ ok: true, version: VERSION }));
@@ -130,6 +132,7 @@ export function createApp() {
   api.route('/services', dbUpgradeRoutes);
   api.route('/services', messageRoutes);
   api.route('/services', botRoutes);
+  api.route('/services', appLoginRoutes);
   api.route('/services', serviceDeploymentRoutes);
   api.route('/services', serviceDomainRoutes);
   api.route('/services', connectionRoutes);

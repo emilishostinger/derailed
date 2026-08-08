@@ -80,6 +80,34 @@ While maintenance is on, nobody gets through, whatever else is set. The app is l
 of the request path entirely rather than sitting behind a handler that stops short of
 it.
 
+## People you choose
+
+The grown-up version of the shared password: put **accounts** in front of any app. On
+the Access tab, "Who can open this app" has three answers:
+
+- **Everyone**: it is a public site.
+- **Anyone with the link password**: the shared password above.
+- **People you choose**: visitors sign in on the app's own address with their account
+  for this server, second factor included if they have one.
+
+The app itself is never changed, which is the entire point: Uptime Kuma with no login
+of its own, a staging site for a client, the photo app the whole household uses, all
+covered identically. The proxy asks Derailed about every request; a visitor without a
+session gets a real login page, on the app's own domain, and what a sign-in earns is a
+cookie for that app and no other. Signing into the photo app hands nobody the
+dashboard, and dashboard roles do not apply out there: a viewer, who can only look at
+the dashboard, may absolutely be the person the photo app is for.
+
+Who exactly is a list of account emails; empty means anyone with an account on this
+server, which is what a household usually wants. Someone taken off the list is out
+immediately, mid-session. The same screen shows who is signed in right now, since
+when and from where, with a **Sign them out** button each; turning the feature off
+ends every session with it, because a door removed is not a door left open.
+
+Wrong guesses at the login page are slowed to a handful a minute per address, an
+unknown email and a wrong password get the same sentence, and a used two-factor code
+is spent here exactly as it is on the dashboard.
+
 ## Bots
 
 The 2026 complaint: AI scrapers hammer small sites hard enough that people notice

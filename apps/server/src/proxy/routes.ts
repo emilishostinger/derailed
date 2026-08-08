@@ -41,6 +41,12 @@ export interface RouteSpec {
    */
   forms?: { serviceId: string; panelUpstream: string; panelPort: number } | null;
   /**
+   * Set when visitors sign in with their Derailed account before seeing this
+   * app. Caddy asks the panel about every request; a yes carries on to the app,
+   * anything else is the login page, on the app's own address.
+   */
+  login?: { serviceId: string; panelUpstream: string; panelPort: number } | null;
+  /**
    * The walls against automated traffic: named AI crawlers turned away, and the
    * addresses currently challenged or refused for going too hard. All enforced
    * by Caddy from this config; Derailed stays out of the request path.
@@ -496,6 +502,8 @@ function routeFor(route: RouteSpec): CaddyRoute {
               // The bot walls come first: an address being refused for hammering
               // should not be offered a password prompt to hammer instead.
               ...(route.bots ? botHandlers(route.bots) : []),
+              // Then the sign-in, when this app asks people to have one.
+              ...(route.login ? loginHandlers(route.login) : []),
               // Access next, then forms, then the app: a password-protected
               // site's forms are exactly as private as its pages.
               ...accessHandlers(route.access),
@@ -683,6 +691,79 @@ function botHandlers(bots: NonNullable<RouteSpec['bots']>): unknown[] {
   }
 
   return handlers;
+}
+
+/**
+ * Derailed accounts in front of the app: the two handlers that make it real.
+ *
+ * The first serves the sign-in machinery on the app's own address, so the
+ * cookie a login earns belongs to that domain and no other. The second is the
+ * question asked before every other request: Caddy calls the panel's check
+ * endpoint, carries on to the app when the answer is 200, and otherwise shows
+ * the visitor whatever the panel answered, which is how the login page appears
+ * without the app being touched.
+ */
+function loginHandlers(login: {
+  serviceId: string;
+  panelUpstream: string;
+  panelPort: number;
+}): unknown[] {
+  const identity = {
+    'X-Derailed-Service': [login.serviceId],
+    'X-Forwarded-For': ['{http.request.remote.host}'],
+    'X-Forwarded-Proto': ['{http.request.scheme}'],
+  };
+  return [
+    {
+      handler: 'subroute',
+      routes: [
+        {
+          match: [{ path: ['/__derailed/auth/login'] }],
+          handle: [
+            { handler: 'rewrite', uri: '/api/public/appauth/login?{http.request.uri.query}' },
+            {
+              handler: 'reverse_proxy',
+              upstreams: [{ dial: `${login.panelUpstream}:${login.panelPort}` }],
+              headers: { request: { set: identity } },
+            },
+          ],
+          terminal: true,
+        },
+        {
+          match: [{ path: ['/__derailed/auth/logout'] }],
+          handle: [
+            { handler: 'rewrite', uri: '/api/public/appauth/logout' },
+            {
+              handler: 'reverse_proxy',
+              upstreams: [{ dial: `${login.panelUpstream}:${login.panelPort}` }],
+              headers: { request: { set: identity } },
+            },
+          ],
+          terminal: true,
+        },
+      ],
+    },
+    {
+      handler: 'reverse_proxy',
+      upstreams: [{ dial: `${login.panelUpstream}:${login.panelPort}` }],
+      rewrite: { method: 'GET', uri: '/api/public/appauth/check' },
+      headers: {
+        request: {
+          set: {
+            ...identity,
+            'X-Forwarded-Method': ['{http.request.method}'],
+            'X-Forwarded-Uri': ['{http.request.uri}'],
+          },
+        },
+      },
+      handle_response: [
+        {
+          match: { status_code: [2] },
+          routes: [],
+        },
+      ],
+    },
+  ];
 }
 
 /**

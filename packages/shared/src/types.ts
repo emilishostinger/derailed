@@ -194,6 +194,15 @@ export interface Service {
   /** Whether the named AI crawlers are turned away, and robots.txt says so. */
   blockAi?: boolean;
 
+  /**
+   * Whether visitors sign in with their Derailed account before seeing this app.
+   * The grown-up version of the shared password: individual people, their second
+   * factor if they have one, and sessions that can be seen and ended.
+   */
+  loginRequired?: boolean;
+  /** Who may open it, by email. Null or empty: anyone with an account here. */
+  allowedEmails?: string[] | null;
+
   createdAt: number;
   updatedAt: number;
   /** When it was deleted, if it was. Deleted things are kept for a week. */

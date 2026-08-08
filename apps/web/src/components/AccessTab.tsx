@@ -57,71 +57,78 @@ export function AccessTab({ service }: { service: Service }) {
       />
 
       <section>
-        <p className="eyebrow mb-2">A password to get in</p>
-        {access?.hasPassword ? (
-          <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] border border-ok/30 bg-ok-soft p-3.5">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-ok" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] text-ink">
-                Visitors are asked for a password. The username is{' '}
-                <span className="text-ink-muted">{access.username}</span>.
+        <p className="eyebrow mb-2">Who can open this app</p>
+        <WhoCanOpen service={service} />
+      </section>
+
+      {!service.loginRequired && (
+        <section>
+          <p className="eyebrow mb-2">A password to get in</p>
+          {access?.hasPassword ? (
+            <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] border border-ok/30 bg-ok-soft p-3.5">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-ok" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] text-ink">
+                  Visitors are asked for a password. The username is{' '}
+                  <span className="text-ink-muted">{access.username}</span>.
+                </p>
+                <button
+                  type="button"
+                  className="btn-ghost mt-2"
+                  disabled={busy !== null}
+                  onClick={() => {
+                    void save({ password: null }, 'clear')
+                      .then(() => push({ message: 'This site is public again.', tone: 'info' }))
+                      .catch(() => undefined);
+                  }}
+                >
+                  {busy === 'clear' && <Spinner />}
+                  Stop asking for it
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-sm space-y-3">
+              <p className="text-[13px] text-ink-muted">
+                Ask everyone for a password before they see anything. The browser does the asking,
+                so this works whatever the app is.
               </p>
+              <Field label="Username">
+                <input
+                  className="input"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                />
+              </Field>
+              <Field label="Password" hint="At least six characters.">
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </Field>
               <button
                 type="button"
-                className="btn-ghost mt-2"
-                disabled={busy !== null}
+                className="btn-primary"
+                disabled={busy !== null || password.length < 6}
                 onClick={() => {
-                  void save({ password: null }, 'clear')
-                    .then(() => push({ message: 'This site is public again.', tone: 'info' }))
+                  void save({ username, password }, 'set')
+                    .then(() => {
+                      setPassword('');
+                      push({ message: 'Done. Visitors will be asked for it now.', tone: 'ok' });
+                    })
                     .catch(() => undefined);
                 }}
               >
-                {busy === 'clear' && <Spinner />}
-                Stop asking for it
+                {busy === 'set' && <Spinner />}
+                Ask for a password
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="max-w-sm space-y-3">
-            <p className="text-[13px] text-ink-muted">
-              Ask everyone for a password before they see anything. The browser does the asking, so
-              this works whatever the app is.
-            </p>
-            <Field label="Username">
-              <input
-                className="input"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-              />
-            </Field>
-            <Field label="Password" hint="At least six characters.">
-              <input
-                className="input"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </Field>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={busy !== null || password.length < 6}
-              onClick={() => {
-                void save({ username, password }, 'set')
-                  .then(() => {
-                    setPassword('');
-                    push({ message: 'Done. Visitors will be asked for it now.', tone: 'ok' });
-                  })
-                  .catch(() => undefined);
-              }}
-            >
-              {busy === 'set' && <Spinner />}
-              Ask for a password
-            </button>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
 
       <AddressList
         title="Only from these addresses"
@@ -167,6 +174,168 @@ export function AccessTab({ service }: { service: Service }) {
         <AppMail service={service} />
       </section>
 
+      <ErrorNote error={error} />
+    </div>
+  );
+}
+
+/**
+ * The three answers to "who can open this app", and everything the third one
+ * needs: the people, and the sessions you can see and end.
+ */
+function WhoCanOpen({ service }: { service: Service }) {
+  const load = useProjects((s) => s.load);
+  const [state, setState] = useState<{
+    loginRequired: boolean;
+    allowedEmails: string[];
+    sessions: {
+      id: string;
+      email: string;
+      createdAt: number;
+      lastSeenAt: number | null;
+      ip: string | null;
+    }[];
+  } | null>(null);
+  const [emails, setEmails] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  useEffect(() => {
+    endpoints
+      .appLogin(service.id)
+      .then((answer) => {
+        setState(answer);
+        setEmails(answer.allowedEmails.join(', '));
+      })
+      .catch(setError);
+  }, [service.id]);
+
+  if (!state) return null;
+
+  const mode = state.loginRequired
+    ? 'people'
+    : service.access?.hasPassword
+      ? 'password'
+      : 'everyone';
+
+  async function setLogin(enabled: boolean, allowedEmails?: string[]) {
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await endpoints.setAppLogin(service.id, { enabled, allowedEmails });
+      setState((current) =>
+        current
+          ? { ...current, loginRequired: saved.loginRequired, allowedEmails: saved.allowedEmails }
+          : current,
+      );
+      await load();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <select
+        className="input"
+        value={mode}
+        disabled={busy}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (next === 'people') void setLogin(true);
+          if (next !== 'people' && state.loginRequired) void setLogin(false);
+          // 'password' just reveals the password section below; setting one is
+          // its own deliberate act there.
+        }}
+      >
+        <option value="everyone">Everyone: it is a public site</option>
+        <option value="password">Anyone with the link password</option>
+        <option value="people">People you choose, signing in with their account</option>
+      </select>
+
+      {mode === 'people' && (
+        <>
+          <p className="text-[13px] text-ink-muted">
+            Visitors sign in on the app's own address with their account for this server, second
+            factor included if they have one. The app itself is never changed.
+          </p>
+          <Field
+            label="Who exactly"
+            hint="Email addresses of accounts on this server, separated by commas. Empty means anyone with an account here."
+          >
+            <div className="flex gap-2">
+              <input
+                className="input flex-1"
+                value={emails}
+                placeholder="everyone with an account"
+                onChange={(event) => setEmails(event.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={busy}
+                onClick={() =>
+                  void setLogin(
+                    true,
+                    emails
+                      .split(/[\s,]+/)
+                      .map((entry) => entry.trim())
+                      .filter(Boolean),
+                  )
+                }
+              >
+                {busy && <Spinner />}
+                Save
+              </button>
+            </div>
+          </Field>
+
+          {state.sessions.length > 0 && (
+            <div>
+              <p className="label mb-1">Signed in right now</p>
+              <ul className="divide-y divide-line rounded-[var(--radius-card)] border border-line">
+                {state.sessions.map((session) => (
+                  <li key={session.id} className="flex items-center gap-3 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] text-ink">{session.email}</p>
+                      <p className="text-[12px] text-ink-faint">
+                        since {new Date(session.createdAt).toLocaleString()}
+                        {session.ip ? ` · ${session.ip}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-ghost shrink-0 text-[12px]"
+                      disabled={busy}
+                      onClick={() => {
+                        endpoints
+                          .endAppSession(service.id, session.id)
+                          .then(() =>
+                            setState((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    sessions: current.sessions.filter(
+                                      (entry) => entry.id !== session.id,
+                                    ),
+                                  }
+                                : current,
+                            ),
+                          )
+                          .catch(setError);
+                      }}
+                    >
+                      Sign them out
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
       <ErrorNote error={error} />
     </div>
   );

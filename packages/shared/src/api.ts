@@ -208,6 +208,12 @@ export const botSettingsRequest = z.object({
 });
 export type BotSettingsRequest = z.infer<typeof botSettingsRequest>;
 
+export const appLoginRequest = z.object({
+  enabled: z.boolean(),
+  allowedEmails: z.array(email).max(200).optional(),
+});
+export type AppLoginRequest = z.infer<typeof appLoginRequest>;
+
 /** The name a compose service is written as. Docker's own charset for one. */
 const composeName = z
   .string()

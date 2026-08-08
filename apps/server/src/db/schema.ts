@@ -918,4 +918,39 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN block_ai INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    id: 36,
+    name: 'one login in front of any app',
+    sql: `
+      -- The grown-up version of the shared password: Derailed accounts in front of
+      -- any app, a real login page on the app's own address, and sessions you can
+      -- see and end. The app itself is never changed; the proxy asks Derailed
+      -- whether each visitor has signed in, which is what makes it work for Uptime
+      -- Kuma, a folder of HTML, and Grandma's photo app identically.
+      ALTER TABLE services ADD COLUMN login_required INTEGER NOT NULL DEFAULT 0;
+
+      -- Who may open it, by email, as JSON. NULL means anyone with an account on
+      -- this server, which is what a household usually wants.
+      ALTER TABLE services ADD COLUMN allowed_emails TEXT;
+
+      -- One row per signed-in browser per app. Separate from dashboard sessions on
+      -- purpose: signing into the photo app must not hand anybody the dashboard,
+      -- and ending one must not sign anyone out of the other.
+      -- The id names a session on the dashboard; the token is the cookie. Separate
+      -- columns because the list of sessions is shown to people, and a list that
+      -- contained the cookies would be a list of ways to become somebody else.
+      CREATE TABLE app_sessions (
+        id           TEXT PRIMARY KEY,
+        token        TEXT NOT NULL UNIQUE,
+        service_id   TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at   INTEGER NOT NULL,
+        expires_at   INTEGER NOT NULL,
+        last_seen_at INTEGER,
+        ip           TEXT,
+        user_agent   TEXT
+      );
+      CREATE INDEX idx_app_sessions_service ON app_sessions(service_id);
+    `,
+  },
 ];

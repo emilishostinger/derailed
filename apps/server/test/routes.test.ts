@@ -81,6 +81,10 @@ const ROUTES: [string, string][] = [
   // Bots
   ['GET', '/api/services/nope/bots'],
   ['PUT', '/api/services/nope/bots'],
+  // One login in front of any app
+  ['GET', '/api/services/nope/login'],
+  ['PUT', '/api/services/nope/login'],
+  ['DELETE', '/api/services/nope/login/sessions/some'],
   // Forms
   ['GET', '/api/services/nope/messages'],
   ['PUT', '/api/services/nope/messages/settings'],

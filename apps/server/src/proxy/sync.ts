@@ -69,10 +69,15 @@ export function currentRoutes(): RouteSpec[] {
       https: !ipBased,
       providedCert: free,
       pathPrefix: domain.pathPrefix ?? null,
+      // The grown-up door, when it is on: individual accounts instead of the
+      // shared password, which it replaces rather than stacks on.
+      login: service.loginRequired
+        ? { serviceId: service.id, panelUpstream: HOST_GATEWAY, panelPort }
+        : null,
       // Enforced by the proxy rather than the app, which is what makes it work for
       // WordPress, a folder of HTML and anything else without touching any of them.
       access: {
-        basicAuth: auth,
+        basicAuth: service.loginRequired ? null : auth,
         allowFrom: service.access?.allowFrom ?? null,
         blockFrom: service.access?.blockFrom ?? null,
         maintenance: service.access?.maintenance ?? false,

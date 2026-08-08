@@ -347,6 +347,27 @@ export const endpoints = {
   pitrRestore: (serviceId: string, at: number) =>
     api.post<{ started: true }>(`/services/${serviceId}/pitr/restore`, { at }),
 
+  appLogin: (serviceId: string) =>
+    api.get<{
+      loginRequired: boolean;
+      allowedEmails: string[];
+      sessions: {
+        id: string;
+        email: string;
+        createdAt: number;
+        lastSeenAt: number | null;
+        ip: string | null;
+        userAgent: string | null;
+      }[];
+    }>(`/services/${serviceId}/login`),
+  setAppLogin: (serviceId: string, patch: { enabled: boolean; allowedEmails?: string[] }) =>
+    api.put<{ loginRequired: boolean; allowedEmails: string[] }>(
+      `/services/${serviceId}/login`,
+      patch,
+    ),
+  endAppSession: (serviceId: string, sessionId: string) =>
+    api.delete<{ ok: true }>(`/services/${serviceId}/login/sessions/${sessionId}`),
+
   botSettings: (serviceId: string) =>
     api.get<{
       mode: 'off' | 'polite' | 'strict';
