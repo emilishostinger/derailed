@@ -22,6 +22,7 @@ import { startUpdateNotifier, stopUpdateNotifier } from './mail/notify.ts';
 import { ensureCaddyRunning, pingCaddy } from './proxy/caddy.ts';
 import { startDomainWatcher, stopDomainWatcher } from './proxy/domainwatch.ts';
 import { startFreeDomainRenewal, stopFreeDomainRenewal } from './proxy/freedomain.ts';
+import { ensureImagesSidecar } from './proxy/images.ts';
 import { syncRoutes } from './proxy/sync.ts';
 import {
   checkDiskSpace,
@@ -263,6 +264,9 @@ async function bootRuntime(): Promise<void> {
     startTrashSweep((line) => console.log(`  trash      →  ${line}`));
     startPreviews();
     startUptime();
+    // The picture sidecar, when any app has the switch on. After the reconcile so
+    // the project networks it needs to join exist again.
+    void ensureImagesSidecar().catch(() => undefined);
     startSleeper();
     // What the running apps are printing, so the Logs tab has something in it.
     startLogTails();

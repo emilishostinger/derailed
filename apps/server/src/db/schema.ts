@@ -1043,4 +1043,13 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    id: 41,
+    name: 'pictures the right size',
+    sql: `
+      -- Per app, off by default: turning it on starts a shared libvips sidecar,
+      -- which is a download and a running process, and both are a decision.
+      ALTER TABLE services ADD COLUMN img_resize INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

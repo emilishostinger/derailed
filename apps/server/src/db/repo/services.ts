@@ -50,6 +50,7 @@ interface ServiceRow {
   forms?: 0 | 1;
   bot_mode?: 'off' | 'polite' | 'strict';
   block_ai?: 0 | 1;
+  img_resize?: 0 | 1;
   login_required?: 0 | 1;
   allowed_emails?: string | null;
   created_at: number;
@@ -102,6 +103,7 @@ function toService(row: ServiceRow): Service {
     forms: row.forms === 1,
     botMode: row.bot_mode ?? 'off',
     blockAi: row.block_ai === 1,
+    imgResize: row.img_resize === 1,
     loginRequired: row.login_required === 1,
     allowedEmails: row.allowed_emails ? (JSON.parse(row.allowed_emails) as string[]) : null,
     createdAt: row.created_at,
@@ -351,6 +353,7 @@ const UPDATABLE: Record<string, string> = {
   forms: 'forms',
   botMode: 'bot_mode',
   blockAi: 'block_ai',
+  imgResize: 'img_resize',
 };
 
 export function updateService(

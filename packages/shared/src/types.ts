@@ -223,6 +223,13 @@ export interface Service {
   blockAi?: boolean;
 
   /**
+   * Whether `/_img/photo.jpg?w=800` answers with the picture resized and
+   * re-encoded on the fly, WebP for browsers that take it. One shared libvips
+   * sidecar does the work; visitors' browsers do the caching.
+   */
+  imgResize?: boolean;
+
+  /**
    * Whether visitors sign in with their Derailed account before seeing this app.
    * The grown-up version of the shared password: individual people, their second
    * factor if they have one, and sessions that can be seen and ended.

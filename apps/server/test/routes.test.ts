@@ -84,6 +84,9 @@ const ROUTES: [string, string][] = [
   // Is anything leaking or known-broken?
   ['GET', '/api/system/scan'],
   ['POST', '/api/system/scan'],
+  // Pictures the right size
+  ['GET', '/api/services/nope/images'],
+  ['PUT', '/api/services/nope/images'],
   // Edit a file, and it's live
   ['GET', '/api/services/nope/source'],
   ['GET', '/api/services/nope/source/read'],

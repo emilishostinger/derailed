@@ -57,6 +57,7 @@ import {
 import { LABELS, labelFilter } from '../../docker/labels.ts';
 import { publish } from '../../events/bus.ts';
 import { AppMailError, appCanSendMail, mailCredentials, setAppMail } from '../../mail/appmail.ts';
+import { ensureImagesSidecar } from '../../proxy/images.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import {
   deleteEntry,
@@ -873,6 +874,45 @@ serviceRoutes.put('/:id/source', async (c) => {
   // Save-that-deploys: the whole point of editing here is that the site updates.
   const deployment = body.deploy === false ? null : queueDeployment(service.id, 'manual');
   return c.json({ ok: true, deployment });
+});
+
+/**
+ * Pictures the right size: one switch.
+ *
+ * Turning it on starts the shared libvips sidecar (a download, once) and attaches
+ * it to this project's network, so /_img answers the moment the switch lands.
+ */
+serviceRoutes.put('/:id/images', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  if (service.kind !== 'app') throw badRequest('Only apps serve pictures.');
+
+  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  if (typeof body.enabled !== 'boolean') throw badRequest('On or off?');
+
+  updateService(service.id, { imgResize: body.enabled });
+  if (body.enabled) {
+    try {
+      await ensureImagesSidecar();
+    } catch (err) {
+      // The switch must not stick on if the sidecar cannot run: a /_img that 502s
+      // is worse than no /_img at all.
+      updateService(service.id, { imgResize: false });
+      throw badRequest(
+        'The picture resizer could not be started.',
+        err instanceof Error ? err.message : undefined,
+      );
+    }
+  }
+  await syncRoutes();
+  emitService(service.id);
+  return c.json({ enabled: !!findService(service.id)?.imgResize });
+});
+
+serviceRoutes.get('/:id/images', (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+  return c.json({ enabled: !!service.imgResize });
 });
 
 /** The starting points for the editor's first use: pages for when things go wrong. */

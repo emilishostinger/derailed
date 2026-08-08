@@ -60,7 +60,7 @@ import { TechIcon } from './TechIcon.tsx';
 import { TerminalTab } from './TerminalTab.tsx';
 import { TrafficTab } from './TrafficTab.tsx';
 import { UpdatesTab } from './UpdatesTab.tsx';
-import { cx, ErrorNote, Spinner, StatusPill } from './ui.tsx';
+import { cx, ErrorNote, Spinner, StatusPill, Switch } from './ui.tsx';
 import { useDrawerWidth } from './useDrawerWidth.ts';
 import { WhyBroken } from './WhyBroken.tsx';
 
@@ -932,6 +932,8 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
           <AutoDeployChoice service={service} value={autoDeploy} onChange={setAutoDeploy} />
         )}
 
+        {service.kind === 'app' && <ImagesToggle service={service} />}
+
         <label className="block">
           <span className="label">Memory limit (MB)</span>
           <input
@@ -997,6 +999,49 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
           Delete it
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Pictures the right size: one switch, one address shape to remember.
+ *
+ * Its own endpoint rather than part of the settings save, because turning it on
+ * has a side effect (starting the shared resizer) that a batched save should not
+ * quietly carry.
+ */
+function ImagesToggle({ service }: { service: Service }) {
+  const [enabled, setEnabled] = useState(!!service.imgResize);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  return (
+    <div className="rounded-[var(--radius-card)] border border-line p-4">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-medium text-ink">Pictures the right size</p>
+          <p className="mt-0.5 text-[12px] text-ink-muted">
+            Ask for <span className="font-mono">/_img/photo.jpg?w=800</span> and the picture comes
+            back that wide, re-encoded, WebP for browsers that take it. Nothing about the site
+            changes; the address is the whole feature.
+          </p>
+        </div>
+        <Switch
+          label=""
+          checked={enabled}
+          disabled={busy}
+          onChange={(next) => {
+            setBusy(true);
+            setError(null);
+            endpoints
+              .setImages(service.id, next)
+              .then(setEnabled)
+              .catch(setError)
+              .finally(() => setBusy(false));
+          }}
+        />
+      </div>
+      <ErrorNote error={error} />
     </div>
   );
 }

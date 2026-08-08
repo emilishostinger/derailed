@@ -45,7 +45,7 @@ export const LABELS = {
   role: 'derailed.role',
 } as const;
 
-export type ManagedRole = 'app' | 'database' | 'proxy' | 'build';
+export type ManagedRole = 'app' | 'database' | 'proxy' | 'build' | 'images';
 
 export interface LabelSpec {
   projectId?: string;

@@ -100,6 +100,8 @@ export function currentRoutes(): RouteSpec[] {
         service.forms && service.framework !== 'PHP site'
           ? { serviceId: service.id, panelUpstream: HOST_GATEWAY, panelPort }
           : null,
+      // Pictures the right size, when this app asked for them.
+      images: !!service.imgResize,
       // The walls against automated traffic, when this app asked for any.
       bots:
         service.botMode !== 'off' || service.blockAi

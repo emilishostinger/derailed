@@ -92,6 +92,7 @@ Creating a service:
 | `GET /services/:id/source/read?path=…` | One file's contents. Text only; binaries are refused honestly |
 | `PUT /services/:id/source` | `{ path, contents, deploy? }`. Saves, and publishes through the ordinary deploy unless `deploy` is false. New paths welcome |
 | `GET /services/:id/source/error-page/:kind` | A clean starting 404 or 500 page for the editor |
+| `GET /services/:id/images` · `PUT` | Whether `/_img/…?w=…` resizes this app's pictures. Turning it on starts the shared sidecar |
 | `GET /services/:id/sleep` · `PUT` · `POST /services/:id/wake` | Pause when quiet, and wake it |
 | `PUT /services/:id/access` | Password, `allowFrom`, `blockFrom`, maintenance. The password is hashed and never returned. Blocking your own address is refused once; send `force: true` to mean it |
 | `GET /system/my-address` | The address this request arrived from, for the "add mine" button |

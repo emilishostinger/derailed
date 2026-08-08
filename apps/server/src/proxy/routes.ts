@@ -53,6 +53,12 @@ export interface RouteSpec {
    */
   panelSecret?: string;
   /**
+   * Set when `/_img/…?w=…` answers with the picture resized. Caddy rewrites the
+   * request into the imgproxy sidecar's grammar and dials it over the shared
+   * network; the sidecar fetches the original from this app's own container.
+   */
+  images?: boolean;
+  /**
    * The walls against automated traffic: named AI crawlers turned away, and the
    * addresses currently challenged or refused for going too hard. All enforced
    * by Caddy from this config; Derailed stays out of the request path.
@@ -520,19 +526,31 @@ function routeFor(route: RouteSpec): CaddyRoute {
               // Then the sign-in, when this app asks people to have one.
               ...(route.login ? loginHandlers(route.login, route.panelSecret) : []),
               // Access next, then forms, then the app: a password-protected
-              // site's forms are exactly as private as its pages.
+              // site's forms are exactly as private as its pages. Pictures sit
+              // inside the same order, so a private site's pictures are exactly
+              // as private as its pages too.
               ...accessHandlers(route.access),
-              ...(route.forms
-                ? [
-                    {
-                      handler: 'subroute',
-                      routes: [
-                        formsRoute(route.forms, route.panelSecret),
-                        { handle: [proxyToApp] },
-                      ],
-                    },
-                  ]
-                : [proxyToApp]),
+              ...(() => {
+                const tail = route.forms
+                  ? [
+                      {
+                        handler: 'subroute',
+                        routes: [
+                          formsRoute(route.forms, route.panelSecret),
+                          { handle: [proxyToApp] },
+                        ],
+                      },
+                    ]
+                  : [proxyToApp];
+                return route.images
+                  ? [
+                      {
+                        handler: 'subroute',
+                        routes: [...imageRoutes(route), { handle: tail }],
+                      },
+                    ]
+                  : tail;
+              })(),
             ],
           },
         ],
@@ -797,6 +815,60 @@ function loginHandlers(
  * request is rewritten to the panel's public form endpoint with the service's
  * identity attached, so the handler knows whose Messages tab it belongs on.
  */
+/** Where the picture sidecar answers on the shared network. */
+const IMAGES_UPSTREAM = 'derailed-images:8080';
+
+/**
+ * `/_img/photo.jpg?w=800`, rewritten into imgproxy's grammar and dialled.
+ *
+ * The width is matched with a digits-only expression BEFORE it is interpolated
+ * into the rewritten path. That order is load-bearing: the rewrite target is a
+ * path in a URL-shaped grammar, and a `w` of `800/plain/http://169.254.169.254`
+ * would otherwise walk the sidecar to any address an attacker liked. A width
+ * that is not one to four digits falls through to the un-resized route, which
+ * interpolates nothing.
+ */
+export function imageRoutes(route: RouteSpec) {
+  const source = `http://${route.upstream}:${route.port}`;
+  const toSidecar = {
+    handler: 'reverse_proxy',
+    upstreams: [{ dial: IMAGES_UPSTREAM }],
+  };
+  return [
+    {
+      match: [
+        {
+          path: ['/_img/*'],
+          expression: `{http.request.uri.query.w}.matches('^[0-9]{1,4}$')`,
+        },
+      ],
+      handle: [
+        { handler: 'rewrite', strip_path_prefix: '/_img' },
+        {
+          handler: 'rewrite',
+          // The trailing ? drops the original query: the sidecar's source URL is
+          // the file itself, and ?w=800 is our grammar, not the app's.
+          uri: `/insecure/w:{http.request.uri.query.w}/plain/${source}{http.request.uri.path}?`,
+        },
+        toSidecar,
+      ],
+    },
+    {
+      // No width, or not a believable one: still re-encoded (WebP for browsers
+      // that take it), never resized, and nothing typed reaches the rewrite.
+      match: [{ path: ['/_img/*'] }],
+      handle: [
+        { handler: 'rewrite', strip_path_prefix: '/_img' },
+        {
+          handler: 'rewrite',
+          uri: `/insecure/plain/${source}{http.request.uri.path}?`,
+        },
+        toSidecar,
+      ],
+    },
+  ];
+}
+
 function formsRoute(
   forms: {
     serviceId: string;

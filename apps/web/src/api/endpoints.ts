@@ -155,6 +155,12 @@ export const endpoints = {
     api.put<{ vars?: EnvVar[]; staged?: boolean; pending?: number }>(`/services/${serviceId}/env`, {
       vars,
     }),
+  imagesEnabled: (serviceId: string) =>
+    api.get<{ enabled: boolean }>(`/services/${serviceId}/images`).then((r) => r.enabled),
+  setImages: (serviceId: string, enabled: boolean) =>
+    api
+      .put<{ enabled: boolean }>(`/services/${serviceId}/images`, { enabled })
+      .then((r) => r.enabled),
   sourceFiles: (serviceId: string) =>
     api
       .get<{ files: { path: string; sizeBytes: number; modifiedAt: number }[] }>(
