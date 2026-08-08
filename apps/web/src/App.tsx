@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { FullPageLoader } from './components/ui.tsx';
 import { Agents } from './pages/Agents.tsx';
 import { Analytics } from './pages/Analytics.tsx';
+import { Ask } from './pages/Ask.tsx';
 import { Backups } from './pages/Backups.tsx';
 import { Dashboard } from './pages/Dashboard.tsx';
 import { Domains } from './pages/Domains.tsx';
@@ -46,6 +47,7 @@ export function App() {
           <Route path="/trash" element={<Trash />} />
           <Route path="/uptime" element={<Uptime />} />
           <Route path="/agents" element={<Agents />} />
+          <Route path="/ask" element={<Ask />} />
           <Route path="/help" element={<Help />} />
           <Route path="/help/:slug" element={<Help />} />
           <Route path="/settings" element={<Settings />} />

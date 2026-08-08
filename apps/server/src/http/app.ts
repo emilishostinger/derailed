@@ -7,6 +7,7 @@ import { enforceRole } from './permissions.ts';
 import { alertRoutes } from './routes/alerts.ts';
 import { appLoginRoutes, publicAppAuthRoutes } from './routes/appauth.ts';
 import { appUpdateRoutes } from './routes/appupdates.ts';
+import { assistRoutes } from './routes/assist.ts';
 import { authRoutes } from './routes/auth.ts';
 import { backupRoutes } from './routes/backups.ts';
 import { botRoutes, publicChallengeRoutes } from './routes/bots.ts';
@@ -122,6 +123,7 @@ export function createApp() {
   api.route('/people', peopleRoutes);
   api.route('/system', systemRoutes);
   api.route('/system/tailscale', tailscaleRoutes);
+  api.route('/assist', assistRoutes);
   api.route('/mail', mailRoutes);
   api.route('/detect', detectRoutes);
   api.route('/import', importRoutes);

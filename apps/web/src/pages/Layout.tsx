@@ -13,6 +13,7 @@ import {
   Globe,
   LogOut,
   Menu,
+  MessageCircleQuestion,
   Moon,
   Plus,
   RotateCw,
@@ -201,6 +202,9 @@ function MobileNav() {
               </MobileLink>
               <MobileLink to="/updates" onGo={() => setOpen(false)}>
                 Updates
+              </MobileLink>
+              <MobileLink to="/ask" onGo={() => setOpen(false)}>
+                Ask
               </MobileLink>
               <MobileLink to="/agents" onGo={() => setOpen(false)}>
                 Coding agents
@@ -457,6 +461,9 @@ function Sidebar() {
 
         {/* The machine underneath it. */}
         <NavGroup label="Your server">
+          <NavItem to="/ask" icon={<MessageCircleQuestion className="h-4 w-4" />}>
+            Ask
+          </NavItem>
           <NavItem to="/server" icon={<Activity className="h-4 w-4" />}>
             Server
           </NavItem>

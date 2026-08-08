@@ -174,7 +174,7 @@ appLoginRoutes.put('/:id/login', async (c) => {
     )
     .run(
       body.enabled ? 1 : 0,
-      body.allowedEmails && body.allowedEmails.length ? JSON.stringify(body.allowedEmails) : null,
+      body.allowedEmails?.length ? JSON.stringify(body.allowedEmails) : null,
       Date.now(),
       service.id,
     );

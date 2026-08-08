@@ -81,6 +81,11 @@ const ROUTES: [string, string][] = [
   // Bots
   ['GET', '/api/services/nope/bots'],
   ['PUT', '/api/services/nope/bots'],
+  // Ask your server
+  ['POST', '/api/assist'],
+  ['POST', '/api/assist/execute'],
+  ['GET', '/api/assist/settings'],
+  ['PUT', '/api/assist/settings'],
   // The cupboard computer
   ['GET', '/api/system/tailscale'],
   ['POST', '/api/system/tailscale/connect'],

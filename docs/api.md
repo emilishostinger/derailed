@@ -267,6 +267,14 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `POST /backups/:id/restore` | `{ projectId }`. Owner only: it writes over what is there now. 404 if there is no such copy |
 | `DELETE /backups/:id` | Remove a copy. 404 if there is no such copy |
 
+## Ask
+
+| | |
+| --- | --- |
+| `POST /assist` | `{ messages }`, the whole transcript in the neutral shape the page keeps. Reads run as you; a write comes back as a `proposal` instead of running |
+| `POST /assist/execute` | `{ id, name, args }` from a proposal. Runs once, as you, audited. Viewers cannot |
+| `GET /assist/settings` · `PUT` | Provider, model, address, and whether a key is stored, never the key. Changing them is an owner's, because the key is sent to the address |
+
 ## The cupboard computer
 
 | | |
