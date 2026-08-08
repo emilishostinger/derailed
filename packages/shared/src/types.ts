@@ -301,18 +301,48 @@ export interface ImportPlanService {
   dockerfilePath: string | null;
   command: string[] | null;
   port: number | null;
-  env: { key: string; value: string }[];
+  /** 'http' has to answer on its port; 'started' just has to keep running. */
+  healthCheck: 'http' | 'started';
+  healthPath: string | null;
+  /**
+   * Names pre-filled, values pasted by the person afterwards. `generate` marks
+   * the ones the platform would have invented itself; Derailed invents them too.
+   */
+  env: { key: string; value: string; generate?: boolean }[];
   /** Container paths that become managed storage. */
   volumes: string[];
   dependsOn: string[];
   memoryLimitMb: number | null;
 }
 
+/** A managed database the imported file asked its platform for. */
+export interface ImportPlanDatabase {
+  name: string;
+  engine: string;
+  version: string;
+  /** Which services (by plan name) get its address injected, and under what key. */
+  linkTo: { service: string; injectAs?: string }[];
+}
+
+/** A scheduled command the platform ran; becomes an ordinary Derailed job. */
+export interface ImportPlanJob {
+  name: string;
+  command: string;
+  /** Five-field cron. */
+  schedule: string;
+  /** The plan service whose container it runs in. */
+  service: string;
+}
+
+export type ImportSource = 'compose' | 'heroku' | 'render' | 'railway' | 'fly';
+
 export interface ImportPlan {
-  source: 'compose';
+  source: ImportSource;
   repoUrl: string;
   branch: string | null;
   services: ImportPlanService[];
+  databases: ImportPlanDatabase[];
+  jobs: ImportPlanJob[];
   /** Everything the file asked for that will not be honoured, said plainly. */
   warnings: string[];
 }

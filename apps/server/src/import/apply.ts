@@ -1,22 +1,28 @@
 import type { ImportPlan, Service } from '@derailed/shared';
 import { FriendlyError } from '../build/git.ts';
 import { queueDeployment } from '../build/pipeline.ts';
+import { createDatabaseFromCatalog } from '../catalog/create.ts';
+import { findEngine } from '../catalog/databases.ts';
+import { connectServices } from '../catalog/links.ts';
 import { replaceUserEnv } from '../db/repo/env.ts';
 import { findProject } from '../db/repo/projects.ts';
 import { createAppService, updateService } from '../db/repo/services.ts';
 import { createVolume, pathInUse } from '../db/repo/volumes.ts';
+import { createJob } from '../jobs/run.ts';
+import { isValidCron } from '../jobs/schedule.ts';
 import { emitProject } from '../runtime/present.ts';
+import { randomSecret } from '../util/crypto.ts';
 import { startOrder } from './compose.ts';
 
 /**
- * Turns an inspected plan into real services: created in dependency order,
- * wired with their variables and storage, and deployed in the same order, so a
- * database written above an app in the file is running before the app first
- * asks for it.
+ * Turns an inspected plan into real things, in the order they need each other:
+ * databases first, then services in dependency order, then the wiring, then the
+ * deploys, queued in the same order so what is depended on is running first.
  */
 
 export interface ImportResult {
   services: Service[];
+  databases: Service[];
   warnings: string[];
 }
 
@@ -30,6 +36,38 @@ export async function applyImportPlan(projectId: string, plan: ImportPlan): Prom
   const ordered = startOrder(plan.services);
   const warnings: string[] = [];
   const created: Service[] = [];
+  const databases: Service[] = [];
+  const databaseByPlanName = new Map<string, Service>();
+
+  // Databases first: they are what everything else is about to ask for.
+  for (const entry of plan.databases ?? []) {
+    const engine = findEngine(entry.engine);
+    if (!engine) {
+      warnings.push(`Derailed does not run "${entry.engine}", so ${entry.name} was skipped.`);
+      continue;
+    }
+    const version = engine.versions.includes(entry.version) ? entry.version : engine.versions[0]!;
+    if (version !== entry.version) {
+      warnings.push(
+        `${engine.label} ${entry.version} is not offered here; ${entry.name} was created on ${version}.`,
+      );
+    }
+    const database = await createDatabaseFromCatalog(projectId, entry.name, engine.engine, version);
+    databases.push(database);
+    databaseByPlanName.set(entry.name, database);
+  }
+
+  // Which keys each service will have injected by a link, so a value that came
+  // along in the plan does not collide with the injection that replaces it.
+  const injectedKeys = new Map<string, Set<string>>();
+  for (const entry of plan.databases ?? []) {
+    const engine = findEngine(entry.engine);
+    for (const link of entry.linkTo) {
+      const keys = injectedKeys.get(link.service) ?? new Set<string>();
+      keys.add(link.injectAs ?? engine?.defaultInjectKey ?? 'DATABASE_URL');
+      injectedKeys.set(link.service, keys);
+    }
+  }
 
   for (const entry of ordered) {
     const fromRepo = entry.source === 'repo';
@@ -46,15 +84,20 @@ export async function applyImportPlan(projectId: string, plan: ImportPlan): Prom
       buildStrategy: fromRepo && entry.dockerfilePath ? 'dockerfile' : 'auto',
       port: entry.port,
       alias: entry.name,
-      // No web port means no HTTP to wait for: the container staying up is the
-      // health check, and no generated address points at something that can never
-      // answer it. This covers the Redis, the worker, and the app that only its
-      // compose neighbour (an nginx in the same file, say) is supposed to reach.
-      healthCheck: entry.port === null ? 'started' : 'http',
+      healthCheck: entry.healthCheck,
+      healthPath: entry.healthPath ?? undefined,
     });
     created.push(service);
 
-    if (entry.env.length) replaceUserEnv(service.id, entry.env);
+    const taken = injectedKeys.get(entry.name) ?? new Set<string>();
+    const env = entry.env
+      .filter((variable) => !taken.has(variable.key))
+      .map((variable) => ({
+        key: variable.key,
+        // The platform would have invented this value; Derailed invents one too.
+        value: variable.generate ? randomSecret(24) : variable.value,
+      }));
+    if (env.length) replaceUserEnv(service.id, env);
     if (entry.memoryLimitMb) updateService(service.id, { memoryLimitMb: entry.memoryLimitMb });
 
     for (const path of entry.volumes) {
@@ -68,13 +111,53 @@ export async function applyImportPlan(projectId: string, plan: ImportPlan): Prom
     }
   }
 
+  // The wiring: each database's address lands in the environment of everything
+  // that asked for it, under the key it asked for.
+  for (const entry of plan.databases ?? []) {
+    const database = databaseByPlanName.get(entry.name);
+    if (!database) continue;
+    for (const link of entry.linkTo) {
+      const app = created.find((candidate) => candidate.name === link.service);
+      if (!app) continue;
+      try {
+        await connectServices(app.id, database.id, link.injectAs);
+      } catch (err) {
+        warnings.push(
+          `Connecting ${link.service} to ${entry.name} did not work: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+  }
+
+  for (const entry of plan.jobs ?? []) {
+    const host = created.find((candidate) => candidate.name === entry.service);
+    if (!host) {
+      warnings.push(`The schedule "${entry.name}" has no app to run inside, so it was skipped.`);
+      continue;
+    }
+    if (!isValidCron(entry.schedule)) {
+      warnings.push(
+        `The schedule "${entry.name}" (${entry.schedule}) is not five-field cron. Skipped.`,
+      );
+      continue;
+    }
+    createJob({
+      serviceId: host.id,
+      name: entry.name,
+      command: entry.command,
+      schedule: entry.schedule,
+    });
+  }
+
   // Deployed in the same order they were created: dependencies first. The queue
-  // starts builds in the order they were queued, which is as close to compose's
-  // start order as a build queue honestly gets.
+  // starts builds in the order they were queued, which is as close to a start
+  // order as a build queue honestly gets.
   for (const service of created) {
     queueDeployment(service.id, 'manual');
   }
 
   emitProject(projectId);
-  return { services: created, warnings };
+  return { services: created, databases, warnings };
 }

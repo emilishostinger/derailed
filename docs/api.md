@@ -102,8 +102,8 @@ Creating a service:
 
 | | |
 | --- | --- |
-| `POST /import/inspect` | `{ repoUrl, branch?, rootDir? }`. Clones shallowly, reads the compose file, answers with a plan and its warnings. Creates nothing |
-| `POST /projects/:id/import` | `{ plan }` from inspect, possibly edited. Creates the services in dependency order, with storage, variables and aliases, and deploys them in the same order |
+| `POST /import/inspect` | `{ repoUrl, branch?, rootDir?, format? }`. Clones shallowly, reads whatever the repository carries, a compose file, `app.json` + `Procfile`, `render.yaml`, `railway.json` or `fly.toml`, and answers with a plan, its warnings, and which formats were found. Creates nothing |
+| `POST /projects/:id/import` | `{ plan }` from inspect, possibly edited. Databases first, then services in dependency order with storage, variables and aliases, then the wiring and the schedules, then the deploys in the same order |
 
 ## Off-site backups and drills
 

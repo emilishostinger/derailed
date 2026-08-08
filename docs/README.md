@@ -9,7 +9,8 @@ about five minutes.
 
 - **[Quick start](quickstart.md)**: from a bare server to a live site
 - **[Installing](install.md)**: requirements, what the installer does, updating
-- **[Deploying](deploying.md)**: repositories, zips, images, redeploys and rollback
+- **[Deploying](deploying.md)**: repositories, zips, images, compose files, redeploys and rollback
+- **[Leaving Heroku](leaving-heroku.md)**: the whole move, in order, from there or Render, Railway and Fly
 - **[Ready-made apps](apps.md)**: the catalogue, and which ones have been run
 - **[Domains and HTTPS](domains.md)**: your domains, automatic addresses, certificates
 - **[Databases](databases.md)**: engines, credentials, connecting an app

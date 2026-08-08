@@ -406,6 +406,10 @@ export function parseCompose(text: string, context: ComposeContext): ComposeRead
       dockerfilePath,
       command,
       port,
+      // No web port means no HTTP to demand: the Redis, the worker, the app only
+      // its nginx neighbour reaches. The container staying up is their answer.
+      healthCheck: port === null ? 'started' : 'http',
+      healthPath: null,
       env: Object.entries(env).map(([key, value]) => ({ key, value })),
       volumes: [...new Set(volumePaths)],
       dependsOn: [...new Set(dependsOn)],

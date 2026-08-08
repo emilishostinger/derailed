@@ -136,6 +136,8 @@ suite('a compose repository becomes a working project', () => {
       repoUrl: repoDir,
       branch: 'main',
       services: reading.services,
+      databases: [],
+      jobs: [],
       warnings: reading.warnings,
     });
     expect(result.services.length).toBe(2);

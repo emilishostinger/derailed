@@ -28,7 +28,7 @@ export function NewServiceWizard({
     image: 'Run a Docker image',
     upload: 'Upload your files',
     database: 'Add a database',
-    compose: 'Import a docker-compose project',
+    compose: 'Import an existing setup',
   };
 
   return (
@@ -91,16 +91,24 @@ function Choose({ onPick }: { onPick: (mode: Mode) => void }) {
       />
       <Choice
         icon={<Layers className="h-5 w-5" />}
-        title="Import a docker-compose project"
-        body="A repository with a compose file becomes linked services, storage and all. You never edit the YAML."
+        title="Import an existing setup"
+        body="Arriving from Heroku, Render, Railway or Fly, or holding a docker-compose file? Derailed reads how it was set up and builds the same thing here."
         onClick={() => onPick('compose')}
       />
     </div>
   );
 }
 
+const SOURCE_LABELS: Record<string, string> = {
+  compose: 'docker-compose',
+  heroku: 'Heroku',
+  render: 'Render',
+  railway: 'Railway',
+  fly: 'Fly',
+};
+
 /**
- * Compose as an import: inspect first, so what is about to happen is on the
+ * Importing as two steps: inspect first, so what is about to happen is on the
  * screen before anything exists; then one press builds it all.
  */
 function FromCompose({ projectId, onDone }: { projectId: string; onDone: () => void }) {
@@ -110,17 +118,19 @@ function FromCompose({ projectId, onDone }: { projectId: string; onDone: () => v
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [plan, setPlan] = useState<ImportPlan | null>(null);
+  const [found, setFound] = useState<string[]>([]);
   const [composeFile, setComposeFile] = useState('');
 
-  async function inspect(event: FormEvent) {
-    event.preventDefault();
+  async function inspect(event: FormEvent | null, format?: string) {
+    event?.preventDefault();
     setInspecting(true);
     setError(null);
     setPlan(null);
     try {
-      const found = await endpoints.inspectImport(repoUrl.trim());
-      setPlan(found.plan);
-      setComposeFile(found.composeFile);
+      const answer = await endpoints.inspectImport(repoUrl.trim(), undefined, undefined, format);
+      setPlan(answer.plan);
+      setFound(answer.found);
+      setComposeFile(answer.composeFile);
     } catch (err) {
       setError(err);
     } finally {
@@ -172,9 +182,33 @@ function FromCompose({ projectId, onDone }: { projectId: string; onDone: () => v
 
       {plan && (
         <>
+          {found.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[12px] text-ink-faint">Read as</span>
+              {found.map((source) => (
+                <button
+                  key={source}
+                  type="button"
+                  className={cx(
+                    'rounded-full border px-2.5 py-0.5 text-[12px]',
+                    source === plan.source
+                      ? 'border-accent bg-accent-soft text-accent'
+                      : 'border-line text-ink-muted hover:border-accent/40',
+                  )}
+                  onClick={() => void inspect(null, source)}
+                >
+                  {SOURCE_LABELS[source] ?? source}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="text-[13px] text-ink-muted">
             {composeFile} describes {plan.services.length}{' '}
-            {plan.services.length === 1 ? 'service' : 'services'}:
+            {plan.services.length === 1 ? 'service' : 'services'}
+            {plan.databases.length
+              ? ` and ${plan.databases.length} ${plan.databases.length === 1 ? 'database' : 'databases'}`
+              : ''}
+            :
           </p>
           <ul className="divide-y divide-line rounded-[var(--radius-card)] border border-line">
             {plan.services.map((service) => (
@@ -191,6 +225,25 @@ function FromCompose({ projectId, onDone }: { projectId: string; onDone: () => v
                   {service.dependsOn.length
                     ? ` · starts after ${service.dependsOn.join(', ')}`
                     : ''}
+                </p>
+              </li>
+            ))}
+            {plan.databases.map((database) => (
+              <li key={`db-${database.name}`} className="px-3 py-2">
+                <p className="text-[13px] font-medium text-ink">{database.name}</p>
+                <p className="text-[12px] text-ink-muted">
+                  A managed {database.engine} {database.version}
+                  {database.linkTo.length
+                    ? `, its address wired into ${database.linkTo.map((link) => link.service).join(', ')}`
+                    : ''}
+                </p>
+              </li>
+            ))}
+            {plan.jobs.map((job) => (
+              <li key={`job-${job.name}`} className="px-3 py-2">
+                <p className="text-[13px] font-medium text-ink">{job.name}</p>
+                <p className="text-[12px] text-ink-muted">
+                  Runs "{job.command}" on the schedule {job.schedule}, inside {job.service}
                 </p>
               </li>
             ))}

@@ -203,10 +203,14 @@ const composeName = z
   .trim()
   .regex(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/);
 
+export const importSource = z.enum(['compose', 'heroku', 'render', 'railway', 'fly']);
+
 export const importInspectRequest = z.object({
   repoUrl: z.string().trim().min(1).max(500),
   branch: gitBranch,
   rootDir: z.string().trim().max(400).optional(),
+  /** Which format to read, when the repository has more than one. */
+  format: importSource.optional(),
 });
 export type ImportInspectRequest = z.infer<typeof importInspectRequest>;
 
@@ -223,6 +227,13 @@ export const importPlanService = z.object({
   dockerfilePath: z.string().trim().max(400).nullable(),
   command: z.array(z.string().max(2000)).max(100).nullable(),
   port: z.number().int().min(1).max(65535).nullable(),
+  healthCheck: z.enum(['http', 'started']),
+  healthPath: z
+    .string()
+    .trim()
+    .max(400)
+    .refine((value) => value.startsWith('/') && !value.startsWith('//'))
+    .nullable(),
   env: z
     .array(
       z.object({
@@ -231,6 +242,7 @@ export const importPlanService = z.object({
           .trim()
           .regex(/^[A-Za-z_][A-Za-z0-9_.-]*$/),
         value: z.string().max(10_000),
+        generate: z.boolean().optional(),
       }),
     )
     .max(500),
@@ -239,12 +251,39 @@ export const importPlanService = z.object({
   memoryLimitMb: z.number().int().min(64).max(65536).nullable(),
 });
 
+export const importPlanDatabase = z.object({
+  name: composeName,
+  engine: z.string().trim().min(1).max(30),
+  version: z.string().trim().min(1).max(20),
+  linkTo: z
+    .array(
+      z.object({
+        service: composeName,
+        injectAs: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z_][A-Za-z0-9_]*$/)
+          .optional(),
+      }),
+    )
+    .max(40),
+});
+
+export const importPlanJob = z.object({
+  name: z.string().trim().min(1).max(80),
+  command: z.string().trim().min(1).max(2000),
+  schedule: z.string().trim().min(1).max(100),
+  service: composeName,
+});
+
 export const applyImportPlanRequest = z.object({
   plan: z.object({
-    source: z.literal('compose'),
+    source: importSource,
     repoUrl: z.string().trim().min(1).max(500),
     branch: z.string().trim().max(200).nullable(),
     services: z.array(importPlanService).min(1).max(40),
+    databases: z.array(importPlanDatabase).max(10),
+    jobs: z.array(importPlanJob).max(40),
     warnings: z.array(z.string().max(1000)).max(100),
   }),
 });

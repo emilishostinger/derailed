@@ -395,6 +395,8 @@ describe('applying a plan', () => {
       repoUrl: 'https://github.com/example/stack',
       branch: 'main',
       services: reading.services,
+      databases: [],
+      jobs: [],
       warnings: reading.warnings,
     });
 
@@ -430,6 +432,8 @@ describe('applying a plan', () => {
       source: 'compose',
       repoUrl: 'https://github.com/example/odd',
       branch: null,
+      databases: [],
+      jobs: [],
       services: [
         {
           name: 'a',
@@ -439,6 +443,8 @@ describe('applying a plan', () => {
           dockerfilePath: null,
           command: null,
           port: null,
+          healthCheck: 'started' as const,
+          healthPath: null,
           env: [],
           volumes: ['/etc'],
           dependsOn: [],
