@@ -833,4 +833,36 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_deployments_service ON deployments(service_id, created_at DESC);
     `,
   },
+  {
+    id: 32,
+    name: 'databases that grow up safely',
+    sql: `
+      -- A major-version upgrade is the same three promises as updating an app, with
+      -- one more thing worth writing down: the old engine is kept, stopped but whole,
+      -- for a week. Each row records what moved, the copy taken first, and exactly
+      -- which stopped container and volume are being kept so the cleanup a week later
+      -- removes the right things and nothing else.
+      CREATE TABLE db_upgrades (
+        id            TEXT PRIMARY KEY,
+        service_id    TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        from_version  TEXT NOT NULL,
+        to_version    TEXT NOT NULL,
+        snapshot_id   TEXT,
+        old_container TEXT,
+        old_volume    TEXT,
+        status        TEXT NOT NULL,
+        message       TEXT,
+        created_at    INTEGER NOT NULL,
+        finished_at   INTEGER,
+        cleanup_after INTEGER,
+        cleaned_at    INTEGER
+      );
+      CREATE INDEX idx_db_upgrades_service ON db_upgrades(service_id, created_at DESC);
+
+      -- Postgres alone can shrink "how much do I lose" from an interval to seconds,
+      -- by archiving its write-ahead log. Off by default: it is disk spent on every
+      -- write, which is a decision, not a nicety.
+      ALTER TABLE services ADD COLUMN wal_archive INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

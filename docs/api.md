@@ -71,6 +71,10 @@ Creating a service:
 | `POST /services/:id/update` | Backs the project up, pulls the new image, deploys it, and checks it answers. Answers `202` at once; the update reports over the socket. Image-run apps only |
 | `POST /services/:id/update/revert` | Re-runs the exact version (by digest) recorded before the last update. Data is not rolled back |
 | `PUT /services/:id/auto-update` | `{ enabled }`. Checked daily; every automatic update takes the same backup first |
+| `GET /services/:id/upgrade` | Which versions this database can move up to, and how past moves went |
+| `POST /services/:id/upgrade` | `{ version }`. Copy first, new engine on a fresh volume, reload, verify; the old engine is kept stopped for a week. Answers `202`; progress over the socket |
+| `GET /services/:id/pitr` · `PUT` | The point-in-time archive: whether it is on, how far back it reaches, what it costs in disk. Postgres only; `PUT { enabled }` rebuilds the container either way |
+| `POST /services/:id/pitr/restore` | `{ at }` in epoch milliseconds. Winds the database back to that moment; what it holds now is kept for a week. Answers `202`; the outcome lands as a notice |
 | `GET /services/:id/mail` · `PUT` | Whether this app may send email |
 | `GET /services/:id/sleep` · `PUT` · `POST /services/:id/wake` | Pause when quiet, and wake it |
 | `PUT /services/:id/access` | Password, `allowFrom`, `blockFrom`, maintenance. The password is hashed and never returned. Blocking your own address is refused once; send `force: true` to mean it |

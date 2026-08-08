@@ -20,6 +20,7 @@ import { toastUndo } from '../stores/toasts.ts';
 import { AccessTab } from './AccessTab.tsx';
 import { BrowseTab } from './BrowseTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
+import { DbUpgradeCard } from './DbUpgrade.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
 import { FilesTab } from './FilesTab.tsx';
@@ -698,6 +699,8 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
           <PreviewBranches service={service} />
         </div>
       )}
+
+      {service.kind === 'database' && <DbUpgradeCard service={service} />}
 
       <div className="rounded-lg border border-danger/30 p-4">
         <p className="text-sm font-semibold text-ink">Delete {service.name}</p>

@@ -36,6 +36,7 @@ interface ServiceRow {
   exposed_port: number | null;
   snapshot_every_hours?: number | null;
   auto_update?: 0 | 1;
+  wal_archive?: 0 | 1;
   created_at: number;
   updated_at: number;
   deleted_at?: number | null;
@@ -78,6 +79,7 @@ function toService(row: ServiceRow): Service {
     exposedPort: row.exposed_port,
     snapshotEveryHours: row.snapshot_every_hours ?? null,
     autoUpdate: row.auto_update === 1,
+    walArchive: row.wal_archive === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at ?? null,
@@ -306,6 +308,8 @@ const UPDATABLE: Record<string, string> = {
   framework: 'framework',
   snapshotEveryHours: 'snapshot_every_hours',
   autoUpdate: 'auto_update',
+  dbVersion: 'db_version',
+  walArchive: 'wal_archive',
 };
 
 export function updateService(

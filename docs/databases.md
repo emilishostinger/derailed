@@ -82,6 +82,53 @@ Derailed can copy one out but not put one back, and says so when you restore rat
 than failing part-way through: a cache is the one thing on a server that is meant to
 be rebuildable.
 
+## Growing up
+
+A major version, Postgres 16 to 17 say, is normally the person's problem, and it is
+exactly the kind of problem this product exists to remove. The database's Settings tab
+offers the versions above the one it runs, and moving up keeps four promises:
+
+1. **A copy first.** A snapshot is taken through the same machinery as the Copies tab.
+   If a copy cannot be taken, nothing moves.
+2. **The new engine proves itself.** It starts beside the old one on a fresh,
+   version-correct volume, passes its own health check, and has to swallow the whole
+   copy without a single error before anything is called done.
+3. **Failure puts everything back.** Any slip reverses the move entirely: the new
+   engine and its volume are removed and the old one starts again, data untouched.
+4. **The old engine is kept for a week.** Stopped, renamed out of the way, its data
+   intact. Not because the restore is doubted, but because the week after an upgrade
+   is when the doubt would surface.
+
+Apps stay connected throughout: the address and password do not change. Redis and
+Valkey take a shorter road, because a newer server reads the old data files directly:
+same switch, same week of keeping the old engine, no reload.
+
+Moving *down* a version is deliberately not offered. That is a restore into a new
+database, and pretending otherwise is how a downgrade eats data.
+
+## To the second (PostgreSQL)
+
+Hourly copies bound how much an accident can cost to "up to one interval". For the one
+engine that can honestly do better, a switch on the Copies tab shrinks that to about a
+minute: Postgres keeps a week of its write-ahead log, a full base copy is taken daily,
+and **Wind back to a moment** replays the log to exactly the moment you name.
+
+The honest print:
+
+- **Postgres only.** The other engines keep their hourly copies, and their screens say
+  so rather than pretending. A feature that says "point in time" and means "nearest
+  copy" is the kind of promise Derailed exists not to make.
+- The archive costs disk in proportion to how much the database writes. The switch
+  shows how much it is using and how far back it can reach.
+- A running database archives its log at least once a minute, so the most a surprise
+  (a dead server, say) can lose is about a minute. A deliberate wind-back flushes the
+  log first and loses nothing at all up to the moment named.
+- Winding back sets the present aside rather than destroying it: what the database
+  held a moment ago is kept, stopped, for a week, exactly like an upgrade's old
+  engine.
+- The archive belongs to one version of the engine, so it has to be off during a
+  major-version upgrade and switched back on after.
+
 ## Storage
 
 Every database gets a volume for its data folder, created with it. Nothing you need to

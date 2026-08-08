@@ -69,6 +69,12 @@ const ROUTES: [string, string][] = [
   ['POST', '/api/services/nope/update'],
   ['POST', '/api/services/nope/update/revert'],
   ['PUT', '/api/services/nope/auto-update'],
+  // Databases growing up, and winding back
+  ['GET', '/api/services/nope/upgrade'],
+  ['POST', '/api/services/nope/upgrade'],
+  ['GET', '/api/services/nope/pitr'],
+  ['PUT', '/api/services/nope/pitr'],
+  ['POST', '/api/services/nope/pitr/restore'],
 ];
 
 describe('every route the dashboard calls is mounted', () => {

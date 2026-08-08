@@ -159,6 +159,12 @@ export interface Service {
    */
   autoUpdate?: boolean;
 
+  /**
+   * Whether this Postgres archives its write-ahead log for point-in-time restore.
+   * Postgres only; every other engine keeps hourly copies and says so honestly.
+   */
+  walArchive?: boolean;
+
   createdAt: number;
   updatedAt: number;
   /** When it was deleted, if it was. Deleted things are kept for a week. */
@@ -236,6 +242,34 @@ export interface AppUpdate {
   message: string | null;
   createdAt: number;
   finishedAt: number | null;
+}
+
+/** One major-version move of a database, from taking the copy to keeping the way back. */
+export type DbUpgradeStatus = 'copying' | 'switching' | 'ok' | 'failed';
+
+export interface DbUpgrade {
+  id: string;
+  serviceId: string;
+  fromVersion: string;
+  toVersion: string;
+  /** The copy taken before anything moved, findable on the Copies tab. */
+  snapshotId: string | null;
+  status: DbUpgradeStatus;
+  message: string | null;
+  createdAt: number;
+  finishedAt: number | null;
+  /** When the stopped old engine and its data are due to be tidied away. */
+  cleanupAfter: number | null;
+  cleanedAt: number | null;
+}
+
+/** What the point-in-time archive knows about itself. Postgres only. */
+export interface PitrState {
+  supported: boolean;
+  enabled: boolean;
+  /** The earliest moment a restore can land on, or null before the first base copy. */
+  oldestMoment: number | null;
+  sizeBytes: number;
 }
 
 /** What the update check knows about one app's image. */

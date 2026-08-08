@@ -7,6 +7,8 @@ import { startSnapshots, stopSnapshots } from './backup/snapshots.ts';
 import { startPreviewBranches, stopPreviewBranches } from './build/previews.ts';
 import { startPushWatcher, stopPushWatcher } from './build/pushes.ts';
 import { startReleaseWatcher, stopReleaseWatcher } from './build/releases.ts';
+import { startPitrSweep, stopPitrSweep } from './catalog/pitr.ts';
+import { startDbUpgradeSweep, stopDbUpgradeSweep } from './catalog/upgrade.ts';
 import { ensureDirs, host, isDev, paths, port, VERSION } from './config.ts';
 import { initDb } from './db/index.ts';
 import { pruneExpiredSessions } from './db/repo/sessions.ts';
@@ -180,6 +182,8 @@ export async function serve(): Promise<void> {
     stopSnapshots();
     stopAutoUpdates();
     stopAppUpdates();
+    stopDbUpgradeSweep();
+    stopPitrSweep();
     stopFreeDomainRenewal();
     stopBackupSchedule();
     stopDrills();
@@ -244,6 +248,8 @@ async function bootRuntime(): Promise<void> {
     startSnapshots();
     startAutoUpdates();
     startAppUpdates();
+    startDbUpgradeSweep();
+    startPitrSweep();
     // Renewing pushes a fresh certificate to Caddy, which only matters once Caddy is
     // up, hence its place here rather than beside the other timers.
     startFreeDomainRenewal(() => syncRoutes());

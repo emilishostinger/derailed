@@ -197,6 +197,22 @@ export const autoUpdateRequest = z.object({
 });
 export type AutoUpdateRequest = z.infer<typeof autoUpdateRequest>;
 
+export const upgradeDatabaseRequest = z.object({
+  version: z.string().trim().min(1).max(20),
+});
+export type UpgradeDatabaseRequest = z.infer<typeof upgradeDatabaseRequest>;
+
+export const pitrToggleRequest = z.object({
+  enabled: z.boolean(),
+});
+export type PitrToggleRequest = z.infer<typeof pitrToggleRequest>;
+
+export const pitrRestoreRequest = z.object({
+  /** Milliseconds since the epoch, the moment to land on. */
+  at: z.number().int().positive(),
+});
+export type PitrRestoreRequest = z.infer<typeof pitrRestoreRequest>;
+
 export const createLinkRequest = z.object({
   toServiceId: z.string().min(1),
   injectAs: z

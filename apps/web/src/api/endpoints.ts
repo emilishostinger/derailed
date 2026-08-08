@@ -329,6 +329,24 @@ export const endpoints = {
   setAppAutoUpdate: (serviceId: string, enabled: boolean) =>
     api.put<{ autoUpdate: boolean }>(`/services/${serviceId}/auto-update`, { enabled }),
 
+  dbUpgradeState: (serviceId: string) =>
+    api.get<{
+      engine: string | null;
+      current: string | null;
+      targets: string[];
+      history: import('@derailed/shared').DbUpgrade[];
+    }>(`/services/${serviceId}/upgrade`),
+  startDbUpgrade: (serviceId: string, version: string) =>
+    api.post<{ upgrade: import('@derailed/shared').DbUpgrade }>(`/services/${serviceId}/upgrade`, {
+      version,
+    }),
+  pitrState: (serviceId: string) =>
+    api.get<import('@derailed/shared').PitrState>(`/services/${serviceId}/pitr`),
+  setPitr: (serviceId: string, enabled: boolean) =>
+    api.put<import('@derailed/shared').PitrState>(`/services/${serviceId}/pitr`, { enabled }),
+  pitrRestore: (serviceId: string, at: number) =>
+    api.post<{ started: true }>(`/services/${serviceId}/pitr/restore`, { at }),
+
   tokens: () =>
     api
       .get<{

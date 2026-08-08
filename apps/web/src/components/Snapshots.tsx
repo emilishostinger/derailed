@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { formatBytes } from '../pages/Layout.tsx';
 import { useToasts } from '../stores/toasts.ts';
+import { PitrPanel } from './DbUpgrade.tsx';
 import { ErrorNote, Modal, Select, Spinner } from './ui.tsx';
 
 type State = Awaited<ReturnType<typeof endpoints.snapshots>>;
@@ -124,6 +125,8 @@ export function Snapshots({ service }: { service: Service }) {
         Putting a copy back replaces what is in the database now with what was in it then.
         Everything written since is gone, which is the point, and there is no undo for it.
       </p>
+
+      <PitrPanel service={service} />
 
       {confirming && (
         <Modal

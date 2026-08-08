@@ -6,6 +6,7 @@
  */
 import type {
   AppUpdate,
+  DbUpgrade,
   Deployment,
   DeploymentStatus,
   Domain,
@@ -77,7 +78,9 @@ export type ServerEvent =
   /** A fresh title, icon or screenshot is available for this app. */
   | { type: 'preview'; serviceId: string }
   /** A backup-first update moved from one stage to the next. */
-  | { type: 'service.appupdate'; update: AppUpdate };
+  | { type: 'service.appupdate'; update: AppUpdate }
+  /** A database major-version upgrade moved from one stage to the next. */
+  | { type: 'service.dbupgrade'; upgrade: DbUpgrade };
 
 /** The stages of claiming a free address, in the order they happen. */
 export type FreeDomainStep = 'point' | 'tool' | 'certificate' | 'addresses' | 'done';

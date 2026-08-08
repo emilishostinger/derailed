@@ -15,6 +15,7 @@ import {
   linkRoutes,
   singleLinkRoutes,
 } from './routes/catalog.ts';
+import { dbUpgradeRoutes } from './routes/dbupgrades.ts';
 import { deploymentRoutes, serviceDeploymentRoutes } from './routes/deployments.ts';
 import { detectRoutes } from './routes/detect.ts';
 import { domainRoutes, serviceDomainRoutes } from './routes/domains.ts';
@@ -115,6 +116,7 @@ export function createApp() {
   api.route('/projects', projectTemplateRoutes);
   api.route('/services', serviceRoutes);
   api.route('/services', appUpdateRoutes);
+  api.route('/services', dbUpgradeRoutes);
   api.route('/services', serviceDeploymentRoutes);
   api.route('/services', serviceDomainRoutes);
   api.route('/services', connectionRoutes);

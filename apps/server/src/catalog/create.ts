@@ -123,7 +123,15 @@ export async function startDatabaseContainer(serviceId: string): Promise<string>
   if (!(await imageExists(image))) await pullImage(image);
 
   const network = await ensureProjectNetwork(project.id);
-  const volumeName = `derailed-v-${service.id}`;
+  // The data volume's name comes from the volumes table when a row exists, so an
+  // upgrade can point the service at a fresh volume while the old one is kept. A
+  // database created before this read the same default the fallback writes.
+  const existingRow = db()
+    .query<{ name: string }, [string, string]>(
+      'SELECT name FROM volumes WHERE service_id = ? AND container_path = ?',
+    )
+    .get(service.id, engine.volumePath);
+  const volumeName = existingRow?.name ?? `derailed-v-${service.id}`;
   await ensureVolume(
     volumeName,
     managedLabels({ projectId: project.id, serviceId: service.id, role: 'database' }),
@@ -134,10 +142,26 @@ export async function startDatabaseContainer(serviceId: string): Promise<string>
     )
     .run(newId(), service.id, volumeName, engine.volumePath, Date.now());
 
+  const volumes: Record<string, string> = { [volumeName]: engine.volumePath };
+  let cmd = commandFor(engine, credentials);
+
+  // Postgres with the point-in-time archive on: a second volume for the write-ahead
+  // log and base copies, and the server told to archive every filled segment.
+  if (service.walArchive && engine.engine === 'postgres') {
+    const { walVolumeName, WAL_MOUNT, postgresWalArgs } = await import('./pitr.ts');
+    const wal = walVolumeName(service.id);
+    await ensureVolume(
+      wal,
+      managedLabels({ projectId: project.id, serviceId: service.id, role: 'database' }),
+    );
+    volumes[wal] = WAL_MOUNT;
+    cmd = postgresWalArgs();
+  }
+
   const containerId = await createContainer({
     name,
     image,
-    cmd: commandFor(engine, credentials),
+    cmd,
     env: engine.env(credentials),
     labels: managedLabels({
       projectId: project.id,
@@ -146,7 +170,7 @@ export async function startDatabaseContainer(serviceId: string): Promise<string>
     }),
     network,
     aliases: [service.slug, name],
-    volumes: { [volumeName]: engine.volumePath },
+    volumes,
     // Databases stay internal unless someone explicitly exposes them.
     ports: service.exposedPort
       ? { [engine.port]: { host: '0.0.0.0', port: service.exposedPort } }

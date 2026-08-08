@@ -169,6 +169,15 @@ export async function stopContainer(id: string, graceSeconds = 10): Promise<void
   }
 }
 
+/**
+ * Gives a container a new name. Used when a database is upgraded: the old engine
+ * keeps its container and its data for a week, but the stable name has to belong
+ * to the new one, because the name is how everything on the network finds it.
+ */
+export async function renameContainer(id: string, name: string): Promise<void> {
+  await dockerFetch(`/containers/${id}/rename`, { method: 'POST', query: { name } });
+}
+
 export async function restartContainer(id: string, graceSeconds = 10): Promise<void> {
   await dockerFetch(`/containers/${id}/restart`, {
     method: 'POST',
