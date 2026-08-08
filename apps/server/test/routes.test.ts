@@ -84,6 +84,11 @@ const ROUTES: [string, string][] = [
   // Is anything leaking or known-broken?
   ['GET', '/api/system/scan'],
   ['POST', '/api/system/scan'],
+  // Edit a file, and it's live
+  ['GET', '/api/services/nope/source'],
+  ['GET', '/api/services/nope/source/read'],
+  ['PUT', '/api/services/nope/source'],
+  ['GET', '/api/services/nope/source/error-page/404'],
   // What will change
   ['GET', '/api/projects/nope/pending'],
   ['POST', '/api/projects/nope/pending/apply'],

@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
@@ -47,17 +47,62 @@ export function siteFramework(kind: SiteKind): string {
   return kind === 'php' ? 'PHP site' : 'Static site';
 }
 
+/** The server config Derailed writes when a site brings its own error pages. */
+export const SITE_SERVER_CONF = 'derailed-server.conf';
+
+/** Which error pages this folder brings with it. Root only, by convention. */
+export async function detectErrorPages(dir: string): Promise<{ has404: boolean; has500: boolean }> {
+  const exists = async (name: string) =>
+    (await stat(join(dir, name)).catch(() => null))?.isFile() ?? false;
+  return { has404: await exists('404.html'), has500: await exists('500.html') };
+}
+
 /**
  * Writes the build instructions for a plain website into the folder being built.
  *
- * The generated file deletes itself from the served folder, because anything left in
- * there is reachable from the internet, and a stray Dockerfile at the root of
+ * The generated files delete themselves from the served folder, because anything left
+ * in there is reachable from the internet, and a stray Dockerfile at the root of
  * someone's website is a small mess with no upside.
+ *
+ * A `404.html` or `500.html` at the site's root is wired up as the page visitors
+ * actually see for those errors. No setting, no new noun: the file being there is
+ * the ask, which is exactly how the platforms people come from treat it.
  */
 export async function writeSiteDockerfile(dir: string, kind: SiteKind): Promise<string> {
-  const contents = kind === 'php' ? phpDockerfile() : staticDockerfile();
+  const pages = await detectErrorPages(dir);
+  const wired = pages.has404 || pages.has500;
+  if (wired) {
+    await Bun.write(
+      join(dir, SITE_SERVER_CONF),
+      kind === 'php' ? apacheErrorConf(pages) : nginxConf(pages),
+    );
+  }
+  const contents = kind === 'php' ? phpDockerfile(wired) : staticDockerfile(wired);
   await Bun.write(join(dir, SITE_DOCKERFILE), contents);
   return SITE_DOCKERFILE;
+}
+
+/**
+ * The whole server block rather than a snippet, because nginx has no "add to the
+ * default site" hook: the stock default.conf is replaced with one that serves the
+ * same way and also knows the error pages.
+ */
+function nginxConf(pages: { has404: boolean; has500: boolean }): string {
+  return `server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html index.htm;
+${pages.has404 ? '    error_page 404 /404.html;\n' : ''}${
+  pages.has500 ? '    error_page 500 502 503 504 /500.html;\n' : ''
+}    location / { try_files $uri $uri/ =404; }
+}
+`;
+}
+
+function apacheErrorConf(pages: { has404: boolean; has500: boolean }): string {
+  return `${pages.has404 ? 'ErrorDocument 404 /404.html\n' : ''}${
+    pages.has500 ? 'ErrorDocument 500 /500.html\n' : ''
+  }`;
 }
 
 /**
@@ -106,18 +151,23 @@ export async function injectFormsInto(dir: string): Promise<number> {
   return total;
 }
 
-function staticDockerfile(): string {
+function staticDockerfile(wired: boolean): string {
   return `# Written by Derailed. Edit the site, not this file: it is rewritten on every deploy.
 FROM ${STATIC_IMAGE}
 
 COPY . /usr/share/nginx/html
-RUN rm -f /usr/share/nginx/html/${SITE_DOCKERFILE} /usr/share/nginx/html/.dockerignore
+${
+  wired
+    ? `COPY ${SITE_SERVER_CONF} /etc/nginx/conf.d/default.conf
+`
+    : ''
+}RUN rm -f /usr/share/nginx/html/${SITE_DOCKERFILE} /usr/share/nginx/html/${SITE_SERVER_CONF} /usr/share/nginx/html/.dockerignore
 
 EXPOSE 80
 `;
 }
 
-function phpDockerfile(): string {
+function phpDockerfile(wired: boolean): string {
   return `# Written by Derailed. Edit the site, not this file: it is rewritten on every deploy.
 FROM ${PHP_IMAGE}
 
@@ -127,7 +177,12 @@ RUN a2enmod rewrite \\
  && rm -rf /var/lib/apt/lists/*
 
 COPY . /var/www/html
-RUN rm -f /var/www/html/${SITE_DOCKERFILE} /var/www/html/.dockerignore \\
+${
+  wired
+    ? `COPY ${SITE_SERVER_CONF} /etc/apache2/conf-enabled/zz-derailed-errors.conf
+`
+    : ''
+}RUN rm -f /var/www/html/${SITE_DOCKERFILE} /var/www/html/${SITE_SERVER_CONF} /var/www/html/.dockerignore \\
  && chown -R www-data:www-data /var/www/html
 
 EXPOSE 80

@@ -10,7 +10,12 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectRepo } from '../src/build/detect.ts';
-import { detectSite, SITE_DOCKERFILE, writeSiteDockerfile } from '../src/build/site.ts';
+import {
+  detectSite,
+  SITE_DOCKERFILE,
+  SITE_SERVER_CONF,
+  writeSiteDockerfile,
+} from '../src/build/site.ts';
 
 async function folder(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'derailed-site-'));
@@ -104,6 +109,63 @@ describe('the generated build instructions', () => {
       expect(contents).toContain('a2enmod rewrite');
       expect(contents).toContain('pdo_mysql');
       expect(contents).toContain(`rm -f /var/www/html/${SITE_DOCKERFILE}`);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('pages for when things go wrong', () => {
+  test('a 404.html at the root is wired into nginx, and cleaned off the site', async () => {
+    const dir = await folder({ 'index.html': 'hi', '404.html': '<h1>lost</h1>' });
+    try {
+      await writeSiteDockerfile(dir, 'static');
+      const dockerfile = await Bun.file(join(dir, SITE_DOCKERFILE)).text();
+      expect(dockerfile).toContain(`COPY ${SITE_SERVER_CONF} /etc/nginx/conf.d/default.conf`);
+      expect(dockerfile).toContain(`rm -f /usr/share/nginx/html/${SITE_DOCKERFILE}`);
+      expect(dockerfile).toContain(SITE_SERVER_CONF);
+
+      const conf = await Bun.file(join(dir, SITE_SERVER_CONF)).text();
+      expect(conf).toContain('error_page 404 /404.html;');
+      // Only the page that exists is wired: a 500 directive pointing at nothing
+      // would replace nginx's plain error with a second 404.
+      expect(conf).not.toContain('error_page 500');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('a 500.html is wired for the whole family of server errors', async () => {
+    const dir = await folder({ 'index.html': 'hi', '500.html': '<h1>oops</h1>' });
+    try {
+      await writeSiteDockerfile(dir, 'static');
+      const conf = await Bun.file(join(dir, SITE_SERVER_CONF)).text();
+      expect(conf).toContain('error_page 500 502 503 504 /500.html;');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('a PHP site uses ErrorDocument instead', async () => {
+    const dir = await folder({ 'index.php': '<?php', '404.html': 'lost' });
+    try {
+      await writeSiteDockerfile(dir, 'php');
+      const dockerfile = await Bun.file(join(dir, SITE_DOCKERFILE)).text();
+      expect(dockerfile).toContain('/etc/apache2/conf-enabled/zz-derailed-errors.conf');
+      const conf = await Bun.file(join(dir, SITE_SERVER_CONF)).text();
+      expect(conf).toBe('ErrorDocument 404 /404.html\n');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('a site with neither page keeps the stock server untouched', async () => {
+    const dir = await folder({ 'index.html': 'hi' });
+    try {
+      await writeSiteDockerfile(dir, 'static');
+      const dockerfile = await Bun.file(join(dir, SITE_DOCKERFILE)).text();
+      expect(dockerfile).not.toContain('COPY derailed-server.conf');
+      expect(await Bun.file(join(dir, SITE_SERVER_CONF)).exists()).toBe(false);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

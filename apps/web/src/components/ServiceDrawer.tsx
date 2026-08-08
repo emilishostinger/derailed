@@ -8,6 +8,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  FileCode,
   FolderOpen,
   Gauge,
   Globe,
@@ -51,6 +52,7 @@ import { LogViewer } from './LogViewer.tsx';
 import { MessagesTab } from './MessagesTab.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
+import { SiteEditorTab } from './SiteEditorTab.tsx';
 import { Snapshots } from './Snapshots.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
@@ -72,6 +74,7 @@ type Tab =
   | 'metrics'
   | 'browse'
   | 'files'
+  | 'edit'
   | 'deployments'
   | 'variables'
   | 'connection'
@@ -198,6 +201,11 @@ export function ServiceDrawer({
             [
               { tab: 'terminal', label: 'Terminal', icon: SquareTerminal },
               { tab: 'files', label: 'Files', icon: FolderOpen },
+              // Only dragged-in sites are edited here: a repository app's source
+              // of truth is git, and the next deploy would overwrite the edit.
+              ...((service.source === 'upload'
+                ? [{ tab: 'edit', label: 'Edit site', icon: FileCode }]
+                : []) as Leaf[]),
             ],
           ],
         },
@@ -384,6 +392,7 @@ export function ServiceDrawer({
           {tab === 'browse' && <BrowseTab service={service} />}
           {tab === 'snapshots' && <Snapshots service={service} />}
           {tab === 'files' && <FilesTab service={service} />}
+          {tab === 'edit' && <SiteEditorTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}
           {tab === 'settings' && <Settings service={service} onClose={onClose} />}

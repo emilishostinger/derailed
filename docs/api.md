@@ -88,6 +88,10 @@ Creating a service:
 | `DELETE /services/:id/messages/:messageId` | Deletes one message |
 | `GET /services/:id/messages/export` | Everything as CSV, formula-defused |
 | `GET /services/:id/mail` · `PUT` | Whether this app may send email |
+| `GET /services/:id/source` | Every uploaded file of a dragged-in site. Upload apps only |
+| `GET /services/:id/source/read?path=…` | One file's contents. Text only; binaries are refused honestly |
+| `PUT /services/:id/source` | `{ path, contents, deploy? }`. Saves, and publishes through the ordinary deploy unless `deploy` is false. New paths welcome |
+| `GET /services/:id/source/error-page/:kind` | A clean starting 404 or 500 page for the editor |
 | `GET /services/:id/sleep` · `PUT` · `POST /services/:id/wake` | Pause when quiet, and wake it |
 | `PUT /services/:id/access` | Password, `allowFrom`, `blockFrom`, maintenance. The password is hashed and never returned. Blocking your own address is refused once; send `force: true` to mean it |
 | `GET /system/my-address` | The address this request arrived from, for the "add mine" button |

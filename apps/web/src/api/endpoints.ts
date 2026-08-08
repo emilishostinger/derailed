@@ -155,6 +155,23 @@ export const endpoints = {
     api.put<{ vars?: EnvVar[]; staged?: boolean; pending?: number }>(`/services/${serviceId}/env`, {
       vars,
     }),
+  sourceFiles: (serviceId: string) =>
+    api
+      .get<{ files: { path: string; sizeBytes: number; modifiedAt: number }[] }>(
+        `/services/${serviceId}/source`,
+      )
+      .then((r) => r.files),
+  readSource: (serviceId: string, path: string) =>
+    api.get<{ path: string; contents: string }>(
+      `/services/${serviceId}/source/read?path=${encodeURIComponent(path)}`,
+    ),
+  writeSource: (serviceId: string, path: string, contents: string) =>
+    api.put<{ ok: boolean; deployment: Deployment | null }>(`/services/${serviceId}/source`, {
+      path,
+      contents,
+    }),
+  errorPageTemplate: (serviceId: string, kind: '404' | '500') =>
+    api.get<{ contents: string }>(`/services/${serviceId}/source/error-page/${kind}`),
   envHistory: (serviceId: string) =>
     api
       .get<{ history: EnvHistoryEntry[] }>(`/services/${serviceId}/env/history`)

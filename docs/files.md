@@ -1,5 +1,30 @@
 # Files, and letting apps send email
 
+## Edit a file, and it's live
+
+Dragged-in sites get a real editor: the **Edit site** tab (under Tools) lists every
+uploaded file, opens any of them with syntax highlighting for whatever language it
+is, and **Save and publish** writes the change and redeploys through the ordinary
+pipeline. Fixing a typo stops meaning editing at home and dragging the whole folder
+in again. Cmd-S (or Ctrl-S) saves, because the muscle memory is universal.
+
+Deliberately for dragged-in sites only. A repository app's source of truth is git,
+and an editor that writes to a checkout the next deploy throws away would be a lie
+with a save button. Binary files (images, fonts) are replaced by uploading a new
+one, not edited as text.
+
+### Pages for when things go wrong
+
+The editor's first plain-language use is one button: **Add a 404 page** (and a 500).
+A file called `404.html` or `500.html` at the site's root is automatically wired up
+as the page visitors actually see for those errors, on both static and PHP sites. No
+setting, no new noun: the file being there is the ask. The button starts you from a
+clean, self-contained page, self-contained because an error page that loads a
+stylesheet is an error page with a second chance to fail.
+
+The [visitor figures](analytics.md) count which pages people looked for and did not
+find, which is usually the reason to reach for this.
+
 ## Browsing an app's files
 
 Every app with storage has a **Files** tab: browse it, upload, download, rename, delete,

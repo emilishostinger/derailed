@@ -17,6 +17,13 @@ import {
 } from '../../build/previews.ts';
 import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
+import {
+  defaultErrorPage,
+  listSourceFiles,
+  readSourceFile,
+  SourceError,
+  writeSourceFile,
+} from '../../build/source.ts';
 import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.ts';
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
 import { ShareError, shareTemplate } from '../../catalog/share.ts';
@@ -800,6 +807,79 @@ serviceRoutes.get('/:id/files/download', async (c) => {
       'content-disposition': `attachment; filename="${file.name.replace(/["\\]/g, '\\$&')}"`,
     },
   });
+});
+
+/**
+ * Edit a file, and it's live.
+ *
+ * The editor for dragged-in sites: the uploaded files themselves, readable and
+ * writable, with a save that goes straight through the ordinary deploy pipeline.
+ * Upload apps only, by the guard below: a repository app's source of truth is git,
+ * and an editor that writes to a checkout the next deploy throws away is a lie
+ * with a save button.
+ */
+const sourceIsForUploadApps: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const service = findService(c.req.param('id') ?? '');
+  if (!service) throw notFound('That service');
+  if (service.kind !== 'app' || service.source !== 'upload') {
+    throw badRequest(
+      'The editor is for dragged-in sites.',
+      'An app built from a repository is edited where its code lives; a deploy would overwrite anything changed here.',
+    );
+  }
+  await next();
+};
+serviceRoutes.use('/:id/source', sourceIsForUploadApps);
+serviceRoutes.use('/:id/source/*', sourceIsForUploadApps);
+
+serviceRoutes.get('/:id/source', async (c) => {
+  try {
+    return c.json({ files: await listSourceFiles(c.req.param('id')) });
+  } catch (err) {
+    if (err instanceof SourceError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
+
+serviceRoutes.get('/:id/source/read', async (c) => {
+  const path = c.req.query('path');
+  if (!path) throw badRequest('Which file?');
+  try {
+    return c.json(await readSourceFile(c.req.param('id'), path));
+  } catch (err) {
+    if (err instanceof SourceError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
+
+serviceRoutes.put('/:id/source', async (c) => {
+  const service = findService(c.req.param('id'))!;
+  const body = (await c.req.json().catch(() => ({}))) as {
+    path?: string;
+    contents?: string;
+    /** False keeps the save on disk only; the default publishes, as the tab says. */
+    deploy?: boolean;
+  };
+  if (!body.path) throw badRequest('Which file?');
+  if (typeof body.contents !== 'string') throw badRequest('There is nothing to save.');
+
+  try {
+    await writeSourceFile(service.id, body.path, body.contents);
+  } catch (err) {
+    if (err instanceof SourceError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+
+  // Save-that-deploys: the whole point of editing here is that the site updates.
+  const deployment = body.deploy === false ? null : queueDeployment(service.id, 'manual');
+  return c.json({ ok: true, deployment });
+});
+
+/** The starting points for the editor's first use: pages for when things go wrong. */
+serviceRoutes.get('/:id/source/error-page/:kind', (c) => {
+  const kind = c.req.param('kind');
+  if (kind !== '404' && kind !== '500') throw badRequest('404 or 500?');
+  return c.json({ contents: defaultErrorPage(kind) });
 });
 
 /**
