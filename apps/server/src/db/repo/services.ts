@@ -1,4 +1,10 @@
-import type { BuildStrategy, Service, ServiceKind, ServiceSource } from '@derailed/shared';
+import type {
+  BuildStrategy,
+  HealthCheckKind,
+  Service,
+  ServiceKind,
+  ServiceSource,
+} from '@derailed/shared';
 import { decrypt, encrypt } from '../../util/crypto.ts';
 import { newId, slugify, uniqueSlug } from '../../util/ids.ts';
 import { db } from '../index.ts';
@@ -38,7 +44,9 @@ interface ServiceRow {
   auto_update?: 0 | 1;
   wal_archive?: 0 | 1;
   alias?: string | null;
-  health_check?: 'http' | 'started';
+  health_check?: HealthCheckKind;
+  health_expect?: string | null;
+  health_command?: string | null;
   forms?: 0 | 1;
   bot_mode?: 'off' | 'polite' | 'strict';
   block_ai?: 0 | 1;
@@ -89,6 +97,8 @@ function toService(row: ServiceRow): Service {
     walArchive: row.wal_archive === 1,
     alias: row.alias ?? null,
     healthCheck: row.health_check ?? 'http',
+    healthExpect: row.health_expect ?? null,
+    healthCommand: row.health_command ?? null,
     forms: row.forms === 1,
     botMode: row.bot_mode ?? 'off',
     blockAi: row.block_ai === 1,
@@ -189,7 +199,7 @@ export interface NewAppService {
   /** An extra name this service answers to on the project network. */
   alias?: string | null;
   /** 'http' answers on a port; 'started' just has to keep running. */
-  healthCheck?: 'http' | 'started';
+  healthCheck?: HealthCheckKind;
   /** Whether the proxy catches this app's form posts. */
   forms?: boolean;
 }
@@ -325,6 +335,9 @@ const UPDATABLE: Record<string, string> = {
   dockerfilePath: 'dockerfile_path',
   port: 'port',
   healthPath: 'health_path',
+  healthCheck: 'health_check',
+  healthExpect: 'health_expect',
+  healthCommand: 'health_command',
   instancesDesired: 'instances_desired',
   memoryLimitMb: 'memory_limit_mb',
   exposedPort: 'exposed_port',

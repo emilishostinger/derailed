@@ -63,9 +63,23 @@ On an app's **Settings** tab:
 - **Folder**: for a repository holding several things, the sub-folder to build from.
 - **Port**: the port your app listens on. Detection fills this in; override it if your
   app disagrees.
-- **Health path**: the path Derailed asks for to decide the app is up. Defaults to `/`.
-  Anything that answers, even a 404, counts as alive; only a refused connection or a
-  timeout is a failure.
+- **Healthy means**: how Derailed decides the app has started, in the app's own
+  language. One dropdown, and the same answer powers deploys, uptime and alerts:
+  - *It answers on its port* (the default): any HTTP answer, even a 404, counts as
+    alive; only a refused connection or a timeout is a failure.
+  - *Its answer contains a text*: the reply must include a word or phrase a healthy
+    page always carries, like your site's name. This is the one that catches an app
+    serving its error page with a straight face and a `200`. The
+    [uptime monitor](uptime.md) holds the live site to the same words.
+  - *Its port accepts a connection*: for things that talk, but not in HTTP: a mail
+    server, a game server, a broker. No web address is generated, because the one
+    thing it could serve is an error.
+  - *A command inside it succeeds*: run a command in the container, `redis-cli ping`
+    or `myapp status`, and believe its exit code.
+  - *It keeps running*: for workers and queue consumers with nothing to ask. Staying
+    up for ten seconds is the answer.
+- **Health path**: for the two HTTP checks, the path Derailed asks for. Defaults
+  to `/`.
 - **Memory limit**: a ceiling, so one runaway app cannot take the machine down.
 - **Deploy automatically**: whether pushing, or publishing a release, puts new code
   online on its own. See below.

@@ -223,6 +223,24 @@ serviceRoutes.patch('/:id', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
   const patch = await parseBody(c, schemas.patchServiceRequest);
+
+  // A health check has to arrive whole: 'contains' without the words, or 'command'
+  // without the command, is a check that can never pass and a deploy that can never
+  // finish, discovered twenty minutes from now instead of here.
+  const nextCheck = patch.healthCheck ?? service.healthCheck ?? 'http';
+  if (nextCheck === 'contains' && !(patch.healthExpect ?? service.healthExpect)?.trim()) {
+    throw badRequest(
+      'What should the answer contain?',
+      'Give a word or phrase a healthy page always includes, like your site name.',
+    );
+  }
+  if (nextCheck === 'command' && !(patch.healthCommand ?? service.healthCommand)?.trim()) {
+    throw badRequest(
+      'What command should Derailed run?',
+      'Give a command that exits cleanly when the app is healthy, like `myapp status`.',
+    );
+  }
+
   const updated = updateService(
     service.id,
     patch as Record<string, string | number | boolean | null>,

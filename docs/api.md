@@ -54,7 +54,7 @@ Creating a service:
 | | |
 | --- | --- |
 | `GET /services/:id` | One service |
-| `PATCH /services/:id` | Branch, folder, port, health path, memory limit, image, and `deployOnPush` / `deployOnRelease` |
+| `PATCH /services/:id` | Branch, folder, port, health path, memory limit, image, and `deployOnPush` / `deployOnRelease`. Also `healthCheck` (`http`, `contains`, `tcp`, `command`, `started`) with `healthExpect` for `contains` and `healthCommand` for `command`; the two that need words refuse to be set without them |
 | `DELETE /services/:id` | Stops it and frees its addresses. Everything stored is kept for a week; see the trash below |
 | `POST /services/:id/start` · `/stop` · `/restart` | Control it |
 | `GET · PUT · POST /services/:id/snapshots` | Copies of one database: list, set the interval, take one now |

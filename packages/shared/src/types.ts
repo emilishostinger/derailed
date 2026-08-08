@@ -10,6 +10,20 @@ export type BuildStrategy = 'auto' | 'dockerfile' | 'nixpacks' | 'site';
 /** Where an app comes from: a repository we build, or an image we just run. */
 export type ServiceSource = 'repo' | 'image' | 'upload';
 
+/**
+ * How Derailed decides a service is healthy. One dropdown, powering deploys,
+ * uptime and alerts alike.
+ */
+export type HealthCheckKind = 'http' | 'started' | 'tcp' | 'command' | 'contains';
+
+export const HEALTH_CHECK_KINDS: readonly HealthCheckKind[] = [
+  'http',
+  'contains',
+  'tcp',
+  'command',
+  'started',
+];
+
 export const DEPLOYMENT_STATUSES = [
   'queued',
   'cloning',
@@ -172,12 +186,21 @@ export interface Service {
   alias?: string | null;
 
   /**
-   * What "started" means for this service. 'http' is what every app already
-   * meant: answer on the port or be thrown away. 'started' is for the things a
-   * compose file brings that never speak HTTP, a Redis, a worker: the container
-   * staying up is the answer.
+   * What "started" means for this service, in the app's own language.
+   *
+   * 'http' is what every app already meant: answer on the port or be thrown away.
+   * 'started' is for the things that never speak HTTP, a Redis, a worker: staying up
+   * is the answer. 'tcp' asks only that the port accept a connection, for databases
+   * and mail servers and anything that talks but not in HTTP. 'command' runs a
+   * command inside the container and believes its exit code. 'contains' asks the
+   * health path and reads the reply: an app that answers 200 with an error page
+   * dressed as success fails honestly.
    */
-  healthCheck?: 'http' | 'started';
+  healthCheck?: HealthCheckKind;
+  /** The text the response must include. Only read when healthCheck is 'contains'. */
+  healthExpect?: string | null;
+  /** The command whose exit code decides. Only read when healthCheck is 'command'. */
+  healthCommand?: string | null;
 
   /**
    * Whether the proxy catches this app's form posts and turns them into

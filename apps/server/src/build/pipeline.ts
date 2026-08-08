@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { Deployment, DeploymentStatus, DeploymentTrigger, Service } from '@derailed/shared';
 import { topics } from '@derailed/shared';
 import { alertDeployFailed, alertDeploySucceeded } from '../alerts/watch.ts';
+import { exec as execOnce } from '../catalog/dbclient.ts';
 import { ensureDirs, paths } from '../config.ts';
 import {
   createDeployment,
@@ -454,50 +455,167 @@ async function waitForHealthy(
     return;
   }
 
+  // The exit-code check needs no port at all: the app's own idea of healthy, run
+  // inside its container. Failing runs are retried until the deadline because the
+  // command legitimately fails while the thing it checks is still starting.
+  if (service.healthCheck === 'command' && service.healthCommand) {
+    log.write(`Waiting for a check inside ${service.name} to succeed…`);
+    const deadline = Date.now() + HEALTH_TIMEOUT_MS;
+    let lastOutput = '';
+    while (Date.now() < deadline) {
+      if (signal.aborted) throw new Cancelled();
+      await throwIfContainerDied(containerId, service, log);
+      try {
+        const result = await execHealthCommand(containerId, service.healthCommand);
+        if (result.code === 0) {
+          log.write('The check succeeded. Good enough.');
+          return;
+        }
+        lastOutput = result.out.trim().slice(-400);
+      } catch {
+        // The exec API itself refusing usually means the container is mid-start.
+      }
+      await Bun.sleep(2000);
+    }
+    const tail = await tailRuntimeLogs(containerId, log);
+    throw new FriendlyError(
+      `${service.name} started, but its health command never succeeded.`,
+      lastOutput
+        ? `The command last printed: ${lastOutput}`
+        : 'The command kept exiting with an error. Its output is in the deploy log.',
+      tail,
+    );
+  }
+
   const inspected = await inspectContainer(containerId);
   const hostPort = Number(inspected?.NetworkSettings.Ports?.[`${port}/tcp`]?.[0]?.HostPort ?? 0);
   const healthPath = safeHealthPath(service.healthPath);
-  log.write(`Waiting for ${service.name} to answer on port ${port}…`);
+  const expects = service.healthCheck === 'contains' ? (service.healthExpect ?? '').trim() : '';
+  log.write(
+    service.healthCheck === 'tcp'
+      ? `Waiting for ${service.name} to accept a connection on port ${port}…`
+      : expects
+        ? `Waiting for ${service.name} to answer and say "${expects}"…`
+        : `Waiting for ${service.name} to answer on port ${port}…`,
+  );
 
   const deadline = Date.now() + HEALTH_TIMEOUT_MS;
+  // For 'contains', an answer that arrives without the words is remembered so the
+  // failure can say what the app actually said instead of "never answered".
+  let answeredWithout: number | null = null;
   while (Date.now() < deadline) {
     if (signal.aborted) throw new Cancelled();
-
-    const state = await inspectContainer(containerId);
-    if (state && !state.State.Running && state.State.Status !== 'created') {
-      const tail = await tailRuntimeLogs(containerId, log);
-      throw new FriendlyError(
-        state.State.OOMKilled
-          ? `${service.name} ran out of memory as soon as it started.`
-          : `${service.name} started and then stopped straight away (exit code ${state.State.ExitCode}).`,
-        state.State.OOMKilled
-          ? 'Give it a higher memory limit in Settings, or reduce what it loads at startup.'
-          : 'The last lines of its output are above. They usually say what went wrong.',
-        tail,
-      );
-    }
+    await throwIfContainerDied(containerId, service, log);
 
     if (hostPort > 0) {
-      try {
-        const response = await fetch(`http://127.0.0.1:${hostPort}${healthPath}`, {
-          signal: AbortSignal.timeout(3000),
-          redirect: 'manual',
-        });
-        log.write(`Answered with ${response.status}. Good enough.`);
-        return;
-      } catch {
-        // not listening yet
+      if (service.healthCheck === 'tcp') {
+        if (await portAccepts(hostPort)) {
+          log.write('Accepted a connection. Good enough.');
+          return;
+        }
+      } else {
+        try {
+          const response = await fetch(`http://127.0.0.1:${hostPort}${healthPath}`, {
+            signal: AbortSignal.timeout(3000),
+            redirect: 'manual',
+          });
+          if (expects) {
+            const body = await response.text();
+            if (body.includes(expects)) {
+              log.write(`Answered with ${response.status} and said it. Good enough.`);
+              return;
+            }
+            answeredWithout = response.status;
+          } else {
+            log.write(`Answered with ${response.status}. Good enough.`);
+            return;
+          }
+        } catch {
+          // not listening yet
+        }
       }
     }
     await Bun.sleep(500);
   }
 
   const tail = await tailRuntimeLogs(containerId, log);
+  if (expects && answeredWithout !== null) {
+    throw new FriendlyError(
+      `${service.name} answered (${answeredWithout}), but never said "${expects}".`,
+      'The app is up and serving something else, an error page or an empty one. Its health check text is in Settings.',
+      tail,
+    );
+  }
   throw new FriendlyError(
-    `${service.name} started, but never answered on port ${port}.`,
+    service.healthCheck === 'tcp'
+      ? `${service.name} started, but never accepted a connection on port ${port}.`
+      : `${service.name} started, but never answered on port ${port}.`,
     `If your app listens on a different port, change it in Settings. Derailed also sets PORT=${port}, most frameworks use it automatically.`,
     tail,
   );
+}
+
+/** The crash-on-boot check every kind of wait shares. */
+async function throwIfContainerDied(
+  containerId: string,
+  service: Service,
+  log: DeploymentLog,
+): Promise<void> {
+  const state = await inspectContainer(containerId);
+  if (state && !state.State.Running && state.State.Status !== 'created') {
+    const tail = await tailRuntimeLogs(containerId, log);
+    throw new FriendlyError(
+      state.State.OOMKilled
+        ? `${service.name} ran out of memory as soon as it started.`
+        : `${service.name} started and then stopped straight away (exit code ${state.State.ExitCode}).`,
+      state.State.OOMKilled
+        ? 'Give it a higher memory limit in Settings, or reduce what it loads at startup.'
+        : 'The last lines of its output are above. They usually say what went wrong.',
+      tail,
+    );
+  }
+}
+
+/** One TCP dial: does anything answer the door, whatever language it speaks? */
+export async function portAccepts(hostPort: number, timeoutMs = 3000): Promise<boolean> {
+  return await new Promise<boolean>((resolve) => {
+    let settled = false;
+    const done = (value: boolean) => {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    };
+    const timer = setTimeout(() => done(false), timeoutMs);
+    Bun.connect({
+      hostname: '127.0.0.1',
+      port: hostPort,
+      socket: {
+        open(socket) {
+          clearTimeout(timer);
+          socket.end();
+          done(true);
+        },
+        error() {
+          clearTimeout(timer);
+          done(false);
+        },
+        data() {},
+        close() {},
+      },
+    }).catch(() => {
+      clearTimeout(timer);
+      done(false);
+    });
+  });
+}
+
+/** The health command, run inside the container through a shell, like a job is. */
+async function execHealthCommand(
+  containerId: string,
+  command: string,
+): Promise<{ code: number; out: string }> {
+  return execOnce(containerId, ['/bin/sh', '-c', command], [], 15_000);
 }
 
 async function tailRuntimeLogs(containerId: string, log: DeploymentLog): Promise<string[]> {
@@ -541,7 +659,9 @@ async function cleanupFailedContainer(deploymentId: string): Promise<void> {
 function ensureGeneratedDomain(service: Service): void {
   // Except the ones that never answer the web: an address that can only 502
   // teaches somebody the product is broken, on an app that is working perfectly.
-  if (service.healthCheck === 'started') return;
+  // 'started' has no port to route to and 'tcp' answers the port in some other
+  // language than HTTP; both are working exactly when a web address would not.
+  if (service.healthCheck === 'started' || service.healthCheck === 'tcp') return;
   const serverIp = getSetting(SETTINGS.serverIp);
   if (!serverIp) return;
   const base = appBaseDomain();

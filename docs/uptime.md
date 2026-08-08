@@ -19,6 +19,12 @@ works. A password prompt is up too, because a
 Everything else is down, with the reason in words: *did not answer in time*, *its
 certificate was refused*, *answered 502*.
 
+One refinement, opt-in per app: if the app's health check (in its Settings) says
+*its answer contains a text*, the monitor holds the live site to the same words. A
+`200` that no longer says them is an app serving its error page dressed as success,
+which is exactly the outage a status code cannot see, and it is reported as
+*answered, but never said "…"*.
+
 ## The bar
 
 Ninety days, one block each: green for a clean day, amber for a wobble, red for a bad

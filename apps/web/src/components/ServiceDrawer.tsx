@@ -782,6 +782,9 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
   const [rootDir, setRootDir] = useState(service.rootDir ?? '');
   const [port, setPort] = useState(service.port ? String(service.port) : '');
   const [healthPath, setHealthPath] = useState(service.healthPath);
+  const [healthCheck, setHealthCheck] = useState(service.healthCheck ?? 'http');
+  const [healthExpect, setHealthExpect] = useState(service.healthExpect ?? '');
+  const [healthCommand, setHealthCommand] = useState(service.healthCommand ?? '');
   const [memory, setMemory] = useState(service.memoryLimitMb ? String(service.memoryLimitMb) : '');
   const [autoDeploy, setAutoDeploy] = useState<AutoDeploy>(autoDeployOf(service));
   const [_confirm, _setConfirm] = useState('');
@@ -802,6 +805,9 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
               rootDir: rootDir || null,
               port: port ? Number(port) : null,
               healthPath: healthPath || '/',
+              healthCheck,
+              healthExpect: healthCheck === 'contains' ? healthExpect || null : null,
+              healthCommand: healthCheck === 'command' ? healthCommand || null : null,
               deployOnRelease: autoDeploy === 'release',
               deployOnPush: autoDeploy === 'push',
             }
@@ -858,15 +864,58 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
                   onChange={(e) => setPort(e.target.value)}
                 />
               </label>
+              {/* One dropdown, in the app's own language. It decides when a deploy
+                  counts as working, and for 'contains' the uptime monitor holds the
+                  live site to the same words. */}
               <label className="block">
-                <span className="label">Health path</span>
-                <input
+                <span className="label">Healthy means</span>
+                <select
                   className="input"
-                  value={healthPath}
-                  onChange={(e) => setHealthPath(e.target.value)}
-                />
+                  value={healthCheck}
+                  onChange={(e) => setHealthCheck(e.target.value as typeof healthCheck)}
+                >
+                  <option value="http">It answers on its port</option>
+                  <option value="contains">Its answer contains a text</option>
+                  <option value="tcp">Its port accepts a connection</option>
+                  <option value="command">A command inside it succeeds</option>
+                  <option value="started">It keeps running</option>
+                </select>
               </label>
             </div>
+            {(healthCheck === 'http' || healthCheck === 'contains') && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="label">Health path</span>
+                  <input
+                    className="input"
+                    value={healthPath}
+                    onChange={(e) => setHealthPath(e.target.value)}
+                  />
+                </label>
+                {healthCheck === 'contains' && (
+                  <label className="block">
+                    <span className="label">The answer must contain</span>
+                    <input
+                      className="input"
+                      value={healthExpect}
+                      placeholder="e.g. your site's name"
+                      onChange={(e) => setHealthExpect(e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+            {healthCheck === 'command' && (
+              <label className="block">
+                <span className="label">The command that must succeed</span>
+                <input
+                  className="input font-mono text-[13px]"
+                  value={healthCommand}
+                  placeholder="e.g. redis-cli ping"
+                  onChange={(e) => setHealthCommand(e.target.value)}
+                />
+              </label>
+            )}
           </>
         )}
 

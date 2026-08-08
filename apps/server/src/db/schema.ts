@@ -969,4 +969,21 @@ export const migrations: Migration[] = [
       ALTER TABLE services ADD COLUMN preview_scrub TEXT;
     `,
   },
+  {
+    id: 38,
+    name: 'health checks that speak the apps language',
+    sql: `
+      -- health_check grows from two answers to five: 'http' (answer on the port),
+      -- 'started' (keep running), 'tcp' (accept a connection), 'command' (a command
+      -- inside the container exits 0), and 'contains' (the response includes a given
+      -- text). The column has no CHECK, so no rebuild; these two carry the words the
+      -- new kinds need.
+      --
+      -- 'contains' is the one that catches the failure the others cannot: an app that
+      -- answers 200 with an empty page, a maintenance screen, or its framework's
+      -- error page dressed as success.
+      ALTER TABLE services ADD COLUMN health_expect TEXT;
+      ALTER TABLE services ADD COLUMN health_command TEXT;
+    `,
+  },
 ];

@@ -38,9 +38,15 @@ interface CheckRow {
  * A redirect counts as up: `example.com` redirecting to `www.example.com` is a site
  * that works. Anything from 200 to 399 is fine, and 401 too, because a site behind a
  * password is up and asking, not down.
+ *
+ * When the app's health check says the response must contain a text, the monitor
+ * holds it to the same standard a deploy does: a 200 that no longer says the words
+ * is an app serving its error page dressed as success, which is exactly the outage
+ * a status code cannot see.
  */
-async function probe(
+export async function probe(
   url: string,
+  expect?: string | null,
 ): Promise<{ up: boolean; status?: number; ms: number; reason?: string }> {
   const started = Date.now();
   try {
@@ -58,14 +64,19 @@ async function probe(
       signal: AbortSignal.timeout(15_000),
       headers: { 'user-agent': 'Derailed/uptime' },
     });
+    let up = response.status < 400 || response.status === 401;
+    let reason = up ? undefined : `answered ${response.status}`;
+    // Only read the body when there are words to look for; a redirect has no body
+    // worth reading and a site behind a password will say its own thing.
+    if (up && expect && response.status < 300) {
+      const body = await response.text().catch(() => '');
+      if (!body.includes(expect)) {
+        up = false;
+        reason = `answered, but never said "${expect}"`;
+      }
+    }
     const ms = Date.now() - started;
-    const up = response.status < 400 || response.status === 401;
-    return {
-      up,
-      status: response.status,
-      ms,
-      reason: up ? undefined : `answered ${response.status}`,
-    };
+    return { up, status: response.status, ms, reason };
   } catch (err) {
     const ms = Date.now() - started;
     const message = err instanceof Error ? err.message : String(err);
@@ -110,13 +121,15 @@ export async function checkNow(domainId: string): Promise<{ up: boolean; reason?
     domain.pathPrefix ?? '/'
   }`;
 
-  const result = await probe(url);
+  const owner = domain.serviceId ? findService(domain.serviceId) : null;
+  const expect = owner?.healthCheck === 'contains' ? owner.healthExpect : null;
+  const result = await probe(url, expect);
   record(domainId, result);
 
   // Reported as its own thing rather than folded into the crash alerts: a container
   // that is running while its site answers nothing is exactly the case those miss.
   if (!result.up) {
-    const service = domain.serviceId ? findService(domain.serviceId) : null;
+    const service = owner;
     void raise({
       kind: 'app.crashed',
       subject: `uptime:${domainId}`,

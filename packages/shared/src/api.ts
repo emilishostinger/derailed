@@ -168,6 +168,12 @@ export const patchServiceRequest = z.object({
   dockerfilePath: z.string().trim().max(400).nullable().optional(),
   port: z.number().int().min(1).max(65535).nullable().optional(),
   healthPath: healthPath.optional(),
+  /** How Derailed decides this app is healthy. One dropdown; see the docs. */
+  healthCheck: z.enum(['http', 'started', 'tcp', 'command', 'contains']).optional(),
+  /** The text the reply must include, when healthCheck is 'contains'. */
+  healthExpect: z.string().trim().max(200).nullable().optional(),
+  /** The command whose exit code decides, when healthCheck is 'command'. */
+  healthCommand: z.string().trim().max(2000).nullable().optional(),
   memoryLimitMb: z.number().int().min(64).max(65536).nullable().optional(),
   deployOnRelease: z.boolean().optional(),
   deployOnPush: z.boolean().optional(),
