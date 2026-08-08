@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
+import { CloudflareDns } from '../components/CloudflareDns.tsx';
 import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
 import { CopyButton, cx, EmptyState, ErrorNote, Modal, Spinner } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
@@ -127,6 +128,8 @@ export function Domains() {
         {!loading && own.length > 0 && (
           <div className="mx-auto max-w-3xl space-y-8 p-5">
             <ErrorNote error={error} />
+
+            <CloudflareDns />
 
             <div className="space-y-2">
               {own.map((domain) => (

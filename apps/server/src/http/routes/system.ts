@@ -15,6 +15,13 @@ import {
 } from '../../db/repo/settings.ts';
 import { publish } from '../../events/bus.ts';
 import { ensureCaddyRunning } from '../../proxy/caddy.ts';
+import {
+  DnsProviderError,
+  hasDnsToken,
+  listZones,
+  setDnsToken,
+  writeRecordsFor,
+} from '../../proxy/clouddns.ts';
 import { checkDns } from '../../proxy/dns.ts';
 import { checkDomain } from '../../proxy/domainwatch.ts';
 import {
@@ -160,6 +167,66 @@ systemRoutes.get('/doctor', async (c) => c.json({ report: await runDoctor() }));
 systemRoutes.get('/scan', (c) => c.json({ scan: lastScan() }));
 
 systemRoutes.post('/scan', async (c) => c.json({ scan: await runScan() }));
+
+/**
+ * DNS records, written for you.
+ *
+ * Under /system, so every write here is an owner's by the standing rule: the
+ * token can rewrite where every domain points, which is the server's own key.
+ */
+systemRoutes.get('/dns', async (c) => {
+  if (!hasDnsToken()) return c.json({ configured: false, zones: [] });
+  try {
+    return c.json({ configured: true, zones: await listZones() });
+  } catch (err) {
+    if (err instanceof DnsProviderError) {
+      return c.json({ configured: true, zones: [], problem: err.message });
+    }
+    throw err;
+  }
+});
+
+systemRoutes.put('/dns', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { token?: string | null };
+  const value = body.token?.trim() || null;
+  setDnsToken(value);
+  if (!value) return c.json({ configured: false, zones: [] });
+  // Proven now, not on first use: a bad paste should fail while the paster is
+  // still looking at the box it went into.
+  try {
+    return c.json({ configured: true, zones: await listZones() });
+  } catch (err) {
+    setDnsToken(null);
+    if (err instanceof DnsProviderError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
+
+systemRoutes.post('/dns/write', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    hostname?: string;
+    wildcard?: boolean;
+  };
+  const hostname = (body.hostname ?? '').trim().toLowerCase();
+  if (!schemas.isHostname(hostname)) throw badRequest('Which domain?');
+  const serverIp = getSetting(SETTINGS.serverIp);
+  if (!serverIp) {
+    throw badRequest("Derailed doesn't know this server's address yet.");
+  }
+  try {
+    const result = await writeRecordsFor(hostname, serverIp, {
+      wildcard: body.wildcard === true,
+    });
+    // The record was just written where the check will look, so look now: the
+    // domain card flips to "points here" while the person is still watching.
+    const domain = findDomainByHostname(hostname);
+    if (domain) await checkDomain(domain.id);
+    return c.json(result);
+  } catch (err) {
+    if (err instanceof DnsProviderError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
 
 /**
  * The server's door keys, and the toggle that matters.

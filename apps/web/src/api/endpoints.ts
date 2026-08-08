@@ -155,6 +155,19 @@ export const endpoints = {
     api.put<{ vars?: EnvVar[]; staged?: boolean; pending?: number }>(`/services/${serviceId}/env`, {
       vars,
     }),
+  dnsState: () =>
+    api.get<{ configured: boolean; zones: { id: string; name: string }[]; problem?: string }>(
+      '/system/dns',
+    ),
+  setDnsToken: (token: string | null) =>
+    api.put<{ configured: boolean; zones: { id: string; name: string }[] }>('/system/dns', {
+      token,
+    }),
+  writeDns: (hostname: string, wildcard: boolean) =>
+    api.post<{
+      zone: string;
+      records: { name: string; type: string; content: string; outcome: string }[];
+    }>('/system/dns/write', { hostname, wildcard }),
   wordPressState: (serviceId: string) =>
     api.get<{ isWordPress: boolean; staging: { id: string; name: string } | null }>(
       `/services/${serviceId}/wordpress`,

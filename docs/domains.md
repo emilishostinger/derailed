@@ -21,6 +21,23 @@ it are separate steps, because in real life they happen days apart.
 3. **Choose an app.** Once it points here, pick which app answers on it. You can change
    that later, or take the domain off an app without deleting it.
 
+### Or let Derailed write the records
+
+Step 2 is the biggest cliff in the whole product: it sends people to a DNS screen they
+have never seen to type a record kind they have never heard of. If the domain lives on
+**Cloudflare**, skip it: connect Cloudflare once on the Domains page (an API token
+with `Zone.DNS` edit rights, stored encrypted, proven at paste time, never shown
+again), pick the domain from the dropdown, and press **Write the records**. The `A`
+record, the `www` CNAME and, if ticked, the wildcard write themselves, and the
+wildcard is what makes every future app's automatic address real, certificates
+included.
+
+Records are written **DNS-only** (the grey cloud), deliberately: with Cloudflare's
+proxy in front, Let's Encrypt's check reaches Cloudflare instead of this server and
+the certificate never arrives. A record that already says the right thing is left
+alone; one that says something else is corrected; the result says which was which.
+Connecting is an owner's, because the token can rewrite where every domain points.
+
 A domain you added outlives the app that used it. Deleting an app frees its domain
 rather than taking it with you; the automatic address, which is part of the app, does
 go.

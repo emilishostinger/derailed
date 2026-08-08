@@ -124,4 +124,6 @@ export const SETTINGS = {
   drillLast: 'drill_last',
   /** The most recent leak-and-holes scan, stored whole as JSON. */
   scanLast: 'scan_last',
+  /** A Cloudflare token with DNS edit rights. Encrypted; never sent back. */
+  cloudflareToken: 'cloudflare_token_enc',
 } as const;

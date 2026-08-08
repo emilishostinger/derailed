@@ -213,6 +213,9 @@ only when the job has no app attached. See [jobs](jobs.md#jobs-that-belong-to-th
 | `POST /system/doctor/fix/:action` | Put one thing right. `restart-proxy`, `reclaim-disk` or `add-swap` |
 | `GET /system/scan` | The last leak-and-holes report. Not for viewers: it is a map to the secrets |
 | `POST /system/scan` | Run the scan now. Clones repositories, so it can take a minute. Owner only, like every /system write |
+| `GET /system/dns` | Whether Cloudflare is connected, and the zones the token can see |
+| `PUT /system/dns` | `{ token }`. Proven at paste time; a bad one is refused and not kept. Empty disconnects |
+| `POST /system/dns/write` | `{ hostname, wildcard? }`. Writes the A record, www CNAME and wildcard, DNS-only, then re-checks the domain |
 | `GET /system/ssh` | The machine's door keys (public halves, with OpenSSH fingerprints) and whether password login is on |
 | `POST /system/ssh/keys` | `{ key }`, a pasted `.pub` line. Idempotent by fingerprint. Refuses private keys loudly |
 | `DELETE /system/ssh/keys?fingerprint=…` | Remove one key. Refuses to remove the last one while password login is off |

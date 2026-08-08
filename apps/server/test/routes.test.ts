@@ -84,6 +84,10 @@ const ROUTES: [string, string][] = [
   // Is anything leaking or known-broken?
   ['GET', '/api/system/scan'],
   ['POST', '/api/system/scan'],
+  // DNS records written for you
+  ['GET', '/api/system/dns'],
+  ['PUT', '/api/system/dns'],
+  ['POST', '/api/system/dns/write'],
   // WordPress superpowers
   ['GET', '/api/services/nope/wordpress'],
   ['POST', '/api/services/nope/wordpress/login'],
