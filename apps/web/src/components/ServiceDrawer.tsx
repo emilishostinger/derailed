@@ -1,15 +1,36 @@
 import type { Deployment, LogLine, Service } from '@derailed/shared';
 import { ACTIVE_DEPLOYMENT_STATUSES, topics } from '@derailed/shared';
 import {
+  Activity,
+  Braces,
+  ChevronDown,
+  Clock,
+  Copy,
   Download,
   ExternalLink,
+  FolderOpen,
+  Gauge,
   Globe,
+  HardDrive,
+  Inbox,
+  LayoutDashboard,
+  Link2,
   Lock,
+  type LucideIcon,
   Play,
+  RefreshCw,
   Rocket,
   RotateCcw,
   RotateCw,
+  ScrollText,
+  Settings as SettingsIcon,
+  Shield,
+  SlidersHorizontal,
   Square,
+  SquareTerminal,
+  Table2,
+  Users,
+  Wrench,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -61,6 +82,25 @@ type Tab =
   | 'jobs'
   | 'settings';
 
+/**
+ * The tab bar, as a handful of named groups rather than a flat row.
+ *
+ * An app grew to sixteen tabs and the row became a thing you scrolled sideways
+ * and read twice to find anything on. A `tab` is a destination on its own; a
+ * `group` is a labelled menu that related destinations live under, so the bar is
+ * five things wide and the rest is one click down. The group's button wears the
+ * name and icon of whichever child is open, so the bar always says where you are
+ * rather than only which drawer you are in.
+ *
+ * A group's items are `clusters`, and a divider is drawn between them: inside
+ * Config, "how it is wired" sits above "what it is made of", so the menu reads
+ * as two thoughts rather than one long list.
+ */
+type Leaf = { tab: Tab; label: string; icon: LucideIcon };
+type NavEntry =
+  | { kind: 'tab'; tab: Tab; label: string; icon: LucideIcon }
+  | { kind: 'group'; key: string; label: string; icon: LucideIcon; clusters: Leaf[][] };
+
 export function ServiceDrawer({
   service,
   initialTab,
@@ -107,34 +147,72 @@ export function ServiceDrawer({
     domains.find((domain) => domain.kind === 'custom' && domain.tlsStatus === 'active') ??
     domains.find((domain) => domain.tlsStatus === 'active') ??
     domains[0];
-  const tabs: [Tab, string][] = isApp
+  const entries: NavEntry[] = isApp
     ? [
-        ['overview', 'Overview'],
-        ['logs', 'Logs'],
-        ['traffic', 'Visitors'],
-        ['metrics', 'Load'],
-        ['deployments', 'Deploys'],
-        ['messages', 'Messages'],
-        // Only image-run apps update this way; a repository app updates by deploying.
-        ...(service.source === 'image' ? ([['updates', 'Updates']] as [Tab, string][]) : []),
-        ['variables', 'Variables'],
-        ['connection', 'Connections'],
-        ['storage', 'Storage'],
-        ['files', 'Files'],
-        ['terminal', 'Terminal'],
-        ['domains', 'Domains'],
-        ['access', 'Access'],
-        ['jobs', 'Scheduled'],
-        ['settings', 'Settings'],
+        { kind: 'tab', tab: 'overview', label: 'Overview', icon: LayoutDashboard },
+        {
+          kind: 'group',
+          key: 'activity',
+          label: 'Activity',
+          icon: Activity,
+          clusters: [
+            [
+              { tab: 'logs', label: 'Logs', icon: ScrollText },
+              { tab: 'deployments', label: 'Deploys', icon: Rocket },
+              // Only image-run apps update this way; a repository app updates by deploying.
+              ...((service.source === 'image'
+                ? [{ tab: 'updates', label: 'Updates', icon: RefreshCw }]
+                : []) as Leaf[]),
+            ],
+            [
+              { tab: 'traffic', label: 'Visitors', icon: Users },
+              { tab: 'metrics', label: 'Load', icon: Gauge },
+            ],
+            [{ tab: 'messages', label: 'Messages', icon: Inbox }],
+          ],
+        },
+        {
+          kind: 'group',
+          key: 'config',
+          label: 'Config',
+          icon: SlidersHorizontal,
+          clusters: [
+            [
+              { tab: 'variables', label: 'Variables', icon: Braces },
+              { tab: 'connection', label: 'Connections', icon: Link2 },
+              { tab: 'domains', label: 'Domains', icon: Globe },
+            ],
+            [
+              { tab: 'storage', label: 'Storage', icon: HardDrive },
+              { tab: 'access', label: 'Access', icon: Shield },
+              { tab: 'jobs', label: 'Scheduled', icon: Clock },
+            ],
+          ],
+        },
+        {
+          kind: 'group',
+          key: 'tools',
+          label: 'Tools',
+          icon: Wrench,
+          clusters: [
+            [
+              { tab: 'terminal', label: 'Terminal', icon: SquareTerminal },
+              { tab: 'files', label: 'Files', icon: FolderOpen },
+            ],
+          ],
+        },
+        { kind: 'tab', tab: 'settings', label: 'Settings', icon: SettingsIcon },
       ]
     : [
-        ['overview', 'Overview'],
-        ['browse', 'Browse'],
-        ['snapshots', 'Copies'],
-        ['connection', 'Connection'],
-        ['variables', 'Variables'],
-        ['terminal', 'Terminal'],
-        ['settings', 'Settings'],
+        // A database has few enough tabs to leave flat: grouping seven would add a
+        // click to save a row that already fits.
+        { kind: 'tab', tab: 'overview', label: 'Overview', icon: LayoutDashboard },
+        { kind: 'tab', tab: 'browse', label: 'Browse', icon: Table2 },
+        { kind: 'tab', tab: 'snapshots', label: 'Copies', icon: Copy },
+        { kind: 'tab', tab: 'connection', label: 'Connection', icon: Link2 },
+        { kind: 'tab', tab: 'variables', label: 'Variables', icon: Braces },
+        { kind: 'tab', tab: 'terminal', label: 'Terminal', icon: SquareTerminal },
+        { kind: 'tab', tab: 'settings', label: 'Settings', icon: SettingsIcon },
       ];
 
   return (
@@ -281,23 +359,7 @@ export function ServiceDrawer({
             </button>
           </div>
 
-          <nav className="-mb-px mt-3 flex gap-4 overflow-x-auto">
-            {tabs.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                className={cx(
-                  'shrink-0 border-b-2 pb-2.5 text-[13px] font-medium transition-colors',
-                  tab === key
-                    ? 'border-accent text-ink'
-                    : 'border-transparent text-ink-muted hover:text-ink',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
+          <DrawerTabs entries={entries} active={tab} onSelect={setTab} />
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-auto p-5">
@@ -339,6 +401,144 @@ export function ServiceDrawer({
         />
       )}
     </>
+  );
+}
+
+/**
+ * The grouped tab bar. A row of plain tabs and named menus; the open menu closes
+ * on a pick or on a click anywhere else. A group whose child is showing wears
+ * that child's name and the accent, so nothing about "where am I" hides behind a
+ * label you have to open to read.
+ */
+function DrawerTabs({
+  entries,
+  active,
+  onSelect,
+}: {
+  entries: NavEntry[];
+  active: Tab;
+  onSelect: (tab: Tab) => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+
+  return (
+    <nav className="-mb-px mt-3 flex flex-wrap gap-x-4 gap-y-1">
+      {entries.map((entry) => {
+        if (entry.kind === 'tab') {
+          const Icon = entry.icon;
+          return (
+            <button
+              key={entry.tab}
+              type="button"
+              onClick={() => {
+                setOpen(null);
+                onSelect(entry.tab);
+              }}
+              className={cx(
+                'flex shrink-0 items-center gap-1.5 border-b-2 pb-2.5 text-[13px] font-medium transition-colors',
+                active === entry.tab
+                  ? 'border-accent text-ink'
+                  : 'border-transparent text-ink-muted hover:text-ink',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {entry.label}
+            </button>
+          );
+        }
+
+        const activeItem = entry.clusters.flat().find((leaf) => leaf.tab === active);
+        const isOpen = open === entry.key;
+        // The button shows where you are: the open child's name and icon when one is
+        // open, else the group's own.
+        const ButtonIcon = activeItem ? activeItem.icon : entry.icon;
+        return (
+          <div key={entry.key} className="relative shrink-0">
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={isOpen}
+              onClick={() => setOpen(isOpen ? null : entry.key)}
+              className={cx(
+                'flex items-center gap-1.5 border-b-2 pb-2.5 text-[13px] font-medium transition-colors',
+                activeItem
+                  ? 'border-accent text-ink'
+                  : 'border-transparent text-ink-muted hover:text-ink',
+              )}
+            >
+              <ButtonIcon className="h-3.5 w-3.5" />
+              {activeItem ? activeItem.label : entry.label}
+              <ChevronDown
+                className={cx('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180')}
+              />
+            </button>
+
+            {isOpen && (
+              <>
+                {/* Click-anywhere-else to dismiss, without stealing the click that
+                    lands on another group's button. */}
+                <button
+                  type="button"
+                  aria-hidden
+                  tabIndex={-1}
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setOpen(null)}
+                />
+                <div
+                  role="menu"
+                  // The elevated-surface line token, not `border-line`: on this menu's
+                  // `bg-elevated` the ordinary line is a shade the eye cannot separate
+                  // from the background in dark mode, so the dividers disappeared.
+                  className="absolute top-full left-0 z-50 mt-1 min-w-44 overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--d-line-elevated)] bg-elevated py-1 shadow-[var(--d-shadow-pop)]"
+                >
+                  {entry.clusters.map((cluster, clusterIndex) => (
+                    <div
+                      // Clusters are fixed and ordered, so their position is their identity.
+                      // biome-ignore lint/suspicious/noArrayIndexKey: see above
+                      key={clusterIndex}
+                      className={cx(
+                        clusterIndex > 0 &&
+                          'mt-1 border-[color:var(--d-line-elevated)] border-t pt-1',
+                      )}
+                    >
+                      {cluster.map((leaf) => {
+                        const LeafIcon = leaf.icon;
+                        const isActive = active === leaf.tab;
+                        return (
+                          <button
+                            key={leaf.tab}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              onSelect(leaf.tab);
+                              setOpen(null);
+                            }}
+                            className={cx(
+                              'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors',
+                              isActive
+                                ? 'bg-accent/10 text-ink'
+                                : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+                            )}
+                          >
+                            <LeafIcon
+                              className={cx(
+                                'h-3.5 w-3.5 shrink-0',
+                                isActive ? 'text-accent' : 'text-ink-faint',
+                              )}
+                            />
+                            {leaf.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </nav>
   );
 }
 

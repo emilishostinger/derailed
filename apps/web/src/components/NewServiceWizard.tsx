@@ -1,5 +1,5 @@
 import type { DetectResult, ImportPlan } from '@derailed/shared';
-import { Box, ChevronLeft, Database, GitBranch, Layers, Sparkles, Upload } from 'lucide-react';
+import { Box, Database, GitBranch, Layers, Sparkles, Upload } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useProjects } from '../stores/projects.ts';
@@ -32,17 +32,12 @@ export function NewServiceWizard({
   };
 
   return (
-    <Modal title={titles[mode]} onClose={onClose} wide={mode === 'choose' || mode === 'apps'}>
-      {mode !== 'choose' && (
-        <button
-          type="button"
-          className="btn-ghost -mt-1 mb-3 -ml-1.5 px-1.5"
-          onClick={() => setMode('choose')}
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          Back
-        </button>
-      )}
+    <Modal
+      title={titles[mode]}
+      onClose={onClose}
+      onBack={mode !== 'choose' ? () => setMode('choose') : undefined}
+      wide={mode === 'choose' || mode === 'apps'}
+    >
       {mode === 'choose' && <Choose onPick={setMode} />}
       {mode === 'apps' && <FromTemplates projectId={projectId} onDone={onClose} />}
       {mode === 'github' && <FromGithub projectId={projectId} onDone={onClose} />}

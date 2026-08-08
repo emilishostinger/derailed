@@ -152,21 +152,26 @@ export function Uptime() {
                               }
                             }}
                           />
-                          <label htmlFor={`sp-${site.domain.id}`} className="min-w-0 flex-1">
-                            <span className="block truncate text-[13px] text-ink">
+                          <label
+                            htmlFor={`sp-${site.domain.id}`}
+                            className="flex min-w-0 flex-1 items-center gap-1.5"
+                          >
+                            <span className="min-w-0 truncate text-[13px] text-ink">
                               {site.domain.hostname}
                             </span>
                             {site.domain.kind === 'generated' && (
-                              <span className="block text-[11px] text-warn">
-                                This is an automatic address, so it has this server's IP written
-                                into it. Publishing it tells anyone who reads the page where the
-                                machine is.
-                              </span>
+                              <span className="shrink-0 text-[11px] text-warn">automatic</span>
                             )}
                           </label>
                         </li>
                       ))}
                     </ul>
+                    {sites.some((site) => site.domain.kind === 'generated') && (
+                      <p className="mt-2 text-[11px] text-warn">
+                        An automatic address has this server's IP written into it, so publishing one
+                        tells anyone who reads the page where the machine is.
+                      </p>
+                    )}
                     {sites.every((site) => !onPage(site.domain)) && (
                       <p className="mt-2 text-[12px] text-warn">
                         Nothing is ticked, so the page is empty. Tick an address above to put it on

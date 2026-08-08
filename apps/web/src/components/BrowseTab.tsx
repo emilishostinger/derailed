@@ -72,35 +72,101 @@ export function BrowseTab({ service }: { service: Service }) {
             : 'This database has no tables yet. Once your app has created some, they will be here.'}
         </p>
       ) : (
-        <>
-          <div className="flex flex-wrap gap-1.5">
-            {tables.map((table) => (
-              <button
-                key={table.name}
-                type="button"
-                className={cx(
-                  'flex items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 py-1 text-[12px]',
-                  selected === table.name
-                    ? 'border-accent bg-accent/10 text-ink'
-                    : 'border-line text-ink-muted',
-                )}
-                onClick={() => setSelected(table.name)}
-              >
-                <Table2 className="h-3 w-3" />
-                {table.name}
-                {table.approximateRows > 0 && (
-                  <span className="text-ink-faint">~{table.approximateRows}</span>
-                )}
-              </button>
-            ))}
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+          <TableList
+            tables={tables}
+            selected={selected}
+            noun={kind === 'documents' ? 'collection' : 'table'}
+            onSelect={setSelected}
+          />
+          <div className="min-w-0 flex-1">
+            {selected && <TableView service={service} table={selected} kind={kind ?? 'sql'} />}
           </div>
-          {selected && <TableView service={service} table={selected} kind={kind ?? 'sql'} />}
-        </>
+        </div>
       )}
 
       <QueryBox service={service} kind={kind ?? 'sql'} />
     </div>
   );
+}
+
+/**
+ * The tables, down the side.
+ *
+ * These used to be a wrapping row of chips, which was fine for the four tables a
+ * toy app has and a wall for the eighty a real one does. A single searchable
+ * column reads like every database client anyone has used, keeps the row counts
+ * lined up where the eye can compare them, and leaves the grid the whole width.
+ */
+function TableList({
+  tables,
+  selected,
+  noun,
+  onSelect,
+}: {
+  tables: TableSummary[];
+  selected: string | null;
+  noun: string;
+  onSelect: (name: string) => void;
+}) {
+  const [filter, setFilter] = useState('');
+  const needle = filter.trim().toLowerCase();
+  const shown = needle
+    ? tables.filter((table) => table.name.toLowerCase().includes(needle))
+    : tables;
+
+  return (
+    <aside className="w-full shrink-0 md:w-56">
+      {/* The search earns its place only past the point where scanning fails. */}
+      {tables.length > 8 && (
+        <div className="relative mb-1.5">
+          <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 text-ink-faint" />
+          <input
+            className="input py-1.5 pl-8 text-[12px]"
+            value={filter}
+            placeholder={`Find a ${noun}`}
+            onChange={(event) => setFilter(event.target.value)}
+          />
+        </div>
+      )}
+      <div className="max-h-96 overflow-y-auto rounded-[var(--radius-control)] border border-line md:max-h-[32rem]">
+        <ul>
+          {shown.map((table) => (
+            <li key={table.name}>
+              <button
+                type="button"
+                className={cx(
+                  'flex w-full items-center gap-2 border-line border-b px-2.5 py-1.5 text-left text-[12px] last:border-0',
+                  selected === table.name
+                    ? 'bg-accent/10 text-ink'
+                    : 'text-ink-muted hover:bg-surface-2',
+                )}
+                onClick={() => onSelect(table.name)}
+              >
+                <Table2 className="h-3 w-3 shrink-0 text-ink-faint" />
+                <span className="min-w-0 flex-1 truncate">{table.name}</span>
+                {table.approximateRows > 0 && (
+                  <span className="shrink-0 text-[11px] text-ink-faint tabular">
+                    {formatCount(table.approximateRows)}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+          {shown.length === 0 && (
+            <li className="px-2.5 py-2 text-[12px] text-ink-faint">Nothing matches.</li>
+          )}
+        </ul>
+      </div>
+    </aside>
+  );
+}
+
+/** Row counts are a glance, not an audit: 12800 reads better as 12.8k. */
+function formatCount(n: number): string {
+  if (n < 1000) return `${n}`;
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
+  return `${(n / 1_000_000).toFixed(1)}m`;
 }
 
 const PAGE = 50;

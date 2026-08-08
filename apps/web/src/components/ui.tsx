@@ -1,4 +1,4 @@
-import { AlertCircle, Check, ChevronDown, Copy } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, ChevronLeft, Copy } from 'lucide-react';
 import {
   type ReactNode,
   useCallback,
@@ -557,12 +557,17 @@ export function Modal({
   title,
   subtitle,
   onClose,
+  onBack,
   children,
   wide,
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
+  /** When set, a back control sits in the header's top-left. For step-wise modals,
+   *  where a "Back" floating above the body read as part of the content rather than
+   *  as navigation. */
+  onBack?: () => void;
   children: ReactNode;
   wide?: boolean;
 }) {
@@ -580,9 +585,22 @@ export function Modal({
         aria-label={title}
         className={cx('panel animate-fade-up relative w-full', wide ? 'max-w-2xl' : 'max-w-md')}
       >
-        <div className="border-b border-line px-5 py-4">
-          <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-[13px] text-ink-muted">{subtitle}</p>}
+        <div className="flex items-start gap-2.5 border-b border-line px-5 py-4">
+          {onBack && (
+            <button
+              type="button"
+              aria-label="Back"
+              title="Back"
+              className="btn-ghost -ml-2 mt-px shrink-0 px-1.5"
+              onClick={onBack}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+          <div className="min-w-0">
+            <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-[13px] text-ink-muted">{subtitle}</p>}
+          </div>
         </div>
         <div className="p-5">{children}</div>
       </div>
