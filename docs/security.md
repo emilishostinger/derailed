@@ -91,6 +91,35 @@ quiet scans and reports in plain verdicts:
 New findings arrive through the ordinary [alert channels](alerts.md). The same
 finding is not repeated day after day; fixing it and regressing brings it back.
 
+## SSH keys, and the toggle that matters
+
+The single highest-value hardening act on a VPS is turning off password login for
+SSH: it ends the dictionary attack that has been knocking on port 22 since the
+machine went online. Every guide says to do it; almost nobody does, because it means
+editing a config file over the very connection that file controls.
+
+**Server → Who can sign in to this machine** shows the keys that can open the
+machine (root's `authorized_keys`, public halves and OpenSSH fingerprints only),
+takes a new one by paste, and offers password login as one switch. The guards:
+
+- Passwords cannot be turned **off** while no key is on the list. There has to be a
+  way back in before the door changes locks.
+- The last key cannot be **removed** while passwords are off, for the same reason
+  read the other way round.
+- A pasted **private** key is refused loudly, with instructions to never do that.
+- The change lands in `/etc/ssh/sshd_config.d/00-derailed.conf`, named to sort
+  first because sshd honours the *first* occurrence of a directive and cloud images
+  usually ship a `50-cloud-init.conf` already saying yes. On a machine whose config
+  never includes that directory, the directives go between marked lines at the top
+  of `sshd_config` instead.
+- `sshd -t` proves the result parses before the daemon is asked to reload it, and a
+  failed check puts every file back. Reload, never restart, so open sessions stay
+  open whatever happens.
+
+The screen also says, before you press it: open a second terminal and prove `ssh`
+gets in without a password first. Derailed will not stop you being wrong about
+that, and neither will anything else.
+
 ## The network
 
 - Apps publish their port on `127.0.0.1` only. Visitors reach them through Caddy.

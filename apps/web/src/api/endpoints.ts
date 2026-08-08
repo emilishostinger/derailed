@@ -28,7 +28,9 @@ import type {
   QueryResult,
   SavedQuery,
   SecurityScan,
+  ServerSshKey,
   Service,
+  SshState,
   SwapState,
   TableSummary,
   TrashItem,
@@ -857,6 +859,17 @@ export const endpoints = {
   doctor: () => api.get<{ report: DoctorReport }>('/system/doctor').then((r) => r.report),
   lastScan: () => api.get<{ scan: SecurityScan | null }>('/system/scan').then((r) => r.scan),
   runScan: () => api.post<{ scan: SecurityScan }>('/system/scan').then((r) => r.scan),
+  ssh: () => api.get<SshState>('/system/ssh'),
+  addSshKey: (key: string) =>
+    api.post<{ key: ServerSshKey; keys: ServerSshKey[] }>('/system/ssh/keys', { key }),
+  removeSshKey: (fingerprint: string) =>
+    api.delete<{ keys: ServerSshKey[] }>(
+      `/system/ssh/keys?fingerprint=${encodeURIComponent(fingerprint)}`,
+    ),
+  setPasswordLogin: (enabled: boolean) =>
+    api.put<{ passwordLogin: SshState['passwordLogin'] }>('/system/ssh/password-login', {
+      enabled,
+    }),
   doctorFix: (action: DoctorFix) =>
     api.post<{ report: DoctorReport }>(`/system/doctor/fix/${action}`).then((r) => r.report),
 

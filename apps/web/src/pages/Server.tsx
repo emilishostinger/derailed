@@ -4,6 +4,7 @@ import { Doctor } from '../components/Doctor.tsx';
 import { OpenPorts } from '../components/OpenPorts.tsx';
 import { ScanPanel } from '../components/ScanPanel.tsx';
 import { ServerStats } from '../components/ServerStats.tsx';
+import { SshPanel } from '../components/SshPanel.tsx';
 import { cx } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
@@ -78,6 +79,11 @@ export function Server() {
           <section>
             <p className="eyebrow mb-2.5">What is open to the internet</p>
             <OpenPorts />
+          </section>
+
+          <section>
+            <p className="eyebrow mb-2.5">Who can sign in to this machine</p>
+            <SshPanel />
           </section>
 
           <section>

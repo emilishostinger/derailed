@@ -84,6 +84,11 @@ const ROUTES: [string, string][] = [
   // Is anything leaking or known-broken?
   ['GET', '/api/system/scan'],
   ['POST', '/api/system/scan'],
+  // SSH keys, and the toggle that matters
+  ['GET', '/api/system/ssh'],
+  ['POST', '/api/system/ssh/keys'],
+  ['DELETE', '/api/system/ssh/keys'],
+  ['PUT', '/api/system/ssh/password-login'],
   // The cupboard computer
   ['GET', '/api/system/tailscale'],
   ['POST', '/api/system/tailscale/connect'],

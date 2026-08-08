@@ -33,6 +33,15 @@ import { runDoctor } from '../../system/doctor.ts';
 import { openPorts } from '../../system/firewall.ts';
 import { otherSoftware } from '../../system/others.ts';
 import { lastScan, runScan } from '../../system/scan.ts';
+import {
+  addKey,
+  canManage,
+  listKeys,
+  passwordLoginState,
+  removeKey,
+  SshError,
+  setPasswordLogin,
+} from '../../system/ssh.ts';
 import { serverStats } from '../../system/stats.ts';
 import { detectServerIp, systemInfo } from '../../system/status.ts';
 import { addSwap, SwapError, swapState } from '../../system/swap.ts';
@@ -151,6 +160,62 @@ systemRoutes.get('/doctor', async (c) => c.json({ report: await runDoctor() }));
 systemRoutes.get('/scan', (c) => c.json({ scan: lastScan() }));
 
 systemRoutes.post('/scan', async (c) => c.json({ scan: await runScan() }));
+
+/**
+ * The server's door keys, and the toggle that matters.
+ *
+ * All of it under /system, so every write here is an owner's by the standing rule.
+ * The fingerprint travels as a query value rather than a path segment because
+ * OpenSSH fingerprints are base64 and base64 contains slashes.
+ */
+const presentKey = (key: { type: string; fingerprint: string; comment: string | null }) => ({
+  type: key.type,
+  fingerprint: key.fingerprint,
+  comment: key.comment,
+});
+
+systemRoutes.get('/ssh', async (c) =>
+  c.json({
+    available: canManage(),
+    keys: (await listKeys()).map(presentKey),
+    passwordLogin: await passwordLoginState(),
+  }),
+);
+
+systemRoutes.post('/ssh/keys', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { key?: string };
+  if (!body.key?.trim()) throw badRequest('Paste a public key.');
+  try {
+    const key = await addKey(body.key);
+    return c.json({ key: presentKey(key), keys: (await listKeys()).map(presentKey) }, 201);
+  } catch (err) {
+    if (err instanceof SshError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
+
+systemRoutes.delete('/ssh/keys', async (c) => {
+  const fingerprint = c.req.query('fingerprint');
+  if (!fingerprint) throw badRequest('Which key?');
+  try {
+    await removeKey(fingerprint);
+  } catch (err) {
+    if (err instanceof SshError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+  return c.json({ keys: (await listKeys()).map(presentKey) });
+});
+
+systemRoutes.put('/ssh/password-login', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  if (typeof body.enabled !== 'boolean') throw badRequest('On or off?');
+  try {
+    return c.json({ passwordLogin: await setPasswordLogin(body.enabled) });
+  } catch (err) {
+    if (err instanceof SshError) throw badRequest(err.message, err.hint);
+    throw err;
+  }
+});
 
 /**
  * Puts right whatever the doctor offered to. Deliberately a fixed set of named

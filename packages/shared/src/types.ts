@@ -641,6 +641,21 @@ export interface CostComparison {
   summary: string;
 }
 
+/** One key that can open the machine over SSH. Public halves only, of course. */
+export interface ServerSshKey {
+  type: string;
+  /** OpenSSH's own `SHA256:…` form, matching what `ssh-keygen -lf` prints. */
+  fingerprint: string;
+  comment: string | null;
+}
+
+export interface SshState {
+  /** False on a machine with no SSH server Derailed can see, e.g. a dev laptop. */
+  available: boolean;
+  keys: ServerSshKey[];
+  passwordLogin: 'on' | 'off' | 'unknown';
+}
+
 /**
  * One thing the security scan found, said plainly.
  *
