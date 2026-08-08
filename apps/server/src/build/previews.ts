@@ -1,5 +1,9 @@
+import { listSnapshots, restoreSnapshot, takeSnapshot } from '../backup/snapshots.ts';
+import { createDatabaseFromCatalog } from '../catalog/create.ts';
+import { connectServices } from '../catalog/links.ts';
 import { db } from '../db/index.ts';
-import { listEnv, replaceUserEnv } from '../db/repo/env.ts';
+import { deleteEnv, listEnv, replaceUserEnv } from '../db/repo/env.ts';
+import { linksFrom } from '../db/repo/links.ts';
 import { findProject } from '../db/repo/projects.ts';
 import {
   createAppService,
@@ -8,8 +12,10 @@ import {
   repoToken,
   softDeleteService,
 } from '../db/repo/services.ts';
-import { destroyContainer, listContainers } from '../docker/containers.ts';
+import { destroyContainer, inspectContainer, listContainers } from '../docker/containers.ts';
 import { LABELS, labelFilter } from '../docker/labels.ts';
+import { publish } from '../events/bus.ts';
+import { setSleepAfter } from '../runtime/sleep.ts';
 import { listBranches } from './git.ts';
 import { queueDeployment } from './pipeline.ts';
 
@@ -75,16 +81,154 @@ function markAsPreview(previewId: string, appId: string): void {
   db().query('UPDATE services SET preview_of = ? WHERE id = ?').run(appId, previewId);
 }
 
+/** Whether previews of this app get their own copy of its data. */
+export function previewData(appId: string): { mode: 'shared' | 'clone'; scrub: string | null } {
+  const row = db()
+    .query<{ preview_data: 'shared' | 'clone'; preview_scrub: string | null }, [string]>(
+      'SELECT preview_data, preview_scrub FROM services WHERE id = ?',
+    )
+    .get(appId);
+  return { mode: row?.preview_data ?? 'shared', scrub: row?.preview_scrub ?? null };
+}
+
+export function setPreviewData(
+  appId: string,
+  mode: 'shared' | 'clone',
+  scrub?: string | null,
+): void {
+  db()
+    .query('UPDATE services SET preview_data = ?, preview_scrub = ? WHERE id = ?')
+    .run(mode, scrub?.trim() || null, appId);
+}
+
+/** Waits for a fresh database container to report itself healthy. */
+async function waitDbHealthy(serviceId: string, timeoutMs = 180_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const containers = await listContainers(labelFilter({ [LABELS.service]: serviceId })).catch(
+      () => [],
+    );
+    const running = containers.find((container) => container.State === 'running');
+    if (running) {
+      const inspected = (await inspectContainer(running.Id).catch(() => null)) as {
+        State?: { Health?: { Status?: string } };
+      } | null;
+      if (inspected?.State?.Health?.Status === 'healthy') return true;
+    }
+    await Bun.sleep(1000);
+  }
+  return false;
+}
+
+/**
+ * Gives one preview its own copy of every database the real app is linked to.
+ *
+ * The copy comes from the newest hourly snapshot, or one taken on the spot: the
+ * machinery the Copies tab already trusts, pointed at a fresh database of the
+ * same engine and version. Redis and Valkey clones start empty, because their
+ * dumps cannot be fed to a running server and a cache is meant to warm itself.
+ */
+async function cloneDatabasesFor(
+  app: NonNullable<ReturnType<typeof findService>>,
+  previewId: string,
+  branch: string,
+  scrub: string | null,
+): Promise<void> {
+  const { restoreCommandFor, execArgs } = await import('../backup/backup.ts');
+  const { findEngine } = await import('../catalog/databases.ts');
+  const { credentialsFor } = await import('../catalog/create.ts');
+
+  for (const link of linksFrom(app.id)) {
+    const database = findService(link.toServiceId);
+    if (database?.kind !== 'database' || !database.dbEngine) continue;
+
+    const snapshot =
+      listSnapshots(database.id)[0] ?? (await takeSnapshot(database.id).catch(() => null));
+
+    const clone = await createDatabaseFromCatalog(
+      app.projectId,
+      previewName(database.name, branch),
+      database.dbEngine,
+      database.dbVersion ?? '',
+    );
+    markAsPreview(clone.id, database.id);
+    try {
+      const healthy = await waitDbHealthy(clone.id);
+      const engine = findEngine(database.dbEngine);
+      const restorable =
+        engine && restoreCommandFor(engine.engine, credentialsFor(clone)!) !== null;
+
+      if (healthy && snapshot && restorable) {
+        await restoreSnapshot(snapshot.id, clone.id);
+
+        // The scrub, against the copy and only the copy, before anything serves it.
+        if (scrub) {
+          const credentials = credentialsFor(clone)!;
+          // The command's author cannot know the copy's generated database name, so
+          // the client's own environment variables carry it: `psql -c "UPDATE …"`
+          // works bare, whatever the branch is called.
+          const env = [
+            ...(restoreCommandFor(engine.engine, credentials)?.env ?? []),
+            `DB_NAME=${credentials.dbName}`,
+            `DB_USER=${credentials.user}`,
+            ...(engine.engine === 'postgres'
+              ? [`PGUSER=${credentials.user}`, `PGDATABASE=${credentials.dbName}`]
+              : []),
+            ...(engine.engine === 'mysql' || engine.engine === 'mariadb'
+              ? [`MYSQL_USER=${credentials.user}`, `MYSQL_DATABASE=${credentials.dbName}`]
+              : []),
+          ];
+          const containers = await listContainers(labelFilter({ [LABELS.service]: clone.id }));
+          const running = containers.find((container) => container.State === 'running');
+          if (running) {
+            const proc = Bun.spawn(['docker', ...execArgs(running.Id, env), 'sh', '-c', scrub], {
+              stdout: 'pipe',
+              stderr: 'pipe',
+            });
+            const [problem, code] = await Promise.all([
+              new Response(proc.stderr).text(),
+              proc.exited,
+            ]);
+            if (code !== 0) {
+              // A scrub that failed and a preview that serves anyway is real people's
+              // data where it was not supposed to be. The copy is emptied instead.
+              throw new Error(
+                `The scrub command failed, so the copy was not kept: ${problem.slice(0, 200)}`,
+              );
+            }
+          }
+        }
+      }
+
+      // The preview inherits the parent's user variables, and a hand-typed database
+      // address among them would shadow the clone's own injection.
+      const key = link.injectAs ?? engine?.defaultInjectKey ?? 'DATABASE_URL';
+      deleteEnv(previewId, key);
+      await connectServices(previewId, clone.id, link.injectAs ?? undefined);
+    } catch (err) {
+      // A half-made copy is worse than no preview: real data may be sitting in it
+      // unscrubbed. It goes, whole, and the failure is loud.
+      const containers = await listContainers(labelFilter({ [LABELS.service]: clone.id })).catch(
+        () => [],
+      );
+      for (const container of containers) {
+        await destroyContainer(container.Id, 5).catch(() => undefined);
+      }
+      softDeleteService(clone.id);
+      throw err;
+    }
+  }
+}
+
 /**
  * Makes a copy of an app for one branch.
  *
  * The variables come across, because a preview with no database connection is a
- * preview that cannot start and teaches nobody anything. It shares the real app's
- * database rather than getting one of its own: a copy per branch would mean migrating
- * each of them, and the honest version of this feature at this size is "the same
- * data, the other code".
+ * preview that cannot start and teaches nobody anything. What the database *is*
+ * depends on the app's setting: shared, the same data and the other code, or a
+ * clone, a real copy of the real data that the preview may do anything to.
  */
-export function createPreview(appId: string, branch: string): string | null {
+export async function createPreview(appId: string, branch: string): Promise<string | null> {
   const app = findService(appId);
   const project = app && findProject(app.projectId);
   if (!app || !project || app.kind !== 'app' || !app.repoUrl) return null;
@@ -109,21 +253,61 @@ export function createPreview(appId: string, branch: string): string | null {
     .map((entry) => ({ key: entry.key, value: entry.value }));
   if (inherited.length) replaceUserEnv(preview.id, inherited);
 
+  const data = previewData(app.id);
+  if (data.mode === 'clone') {
+    try {
+      await cloneDatabasesFor(app, preview.id, branch, data.scrub);
+    } catch (err) {
+      // Deliberately not a quiet fall-back to the real database: the setting
+      // promised a copy, and the one thing worse than a preview without data is
+      // a preview quietly pointed at production.
+      publish('system', {
+        type: 'notice',
+        level: 'error',
+        message: `The preview for ${app.name} on ${branch} could not get its copy of the data: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      });
+    }
+  }
+
+  // A preview is by definition occasional. It naps after a quiet day and wakes
+  // from the dashboard, rather than idling for the life of the branch.
+  setSleepAfter(preview.id, 24 * 60);
+
   queueDeployment(preview.id, 'manual');
   return preview.id;
 }
 
-/** Takes one away, containers and all. */
+/** The cloned databases a preview drags along, found through its links. */
+function clonesOf(previewId: string): string[] {
+  return linksFrom(previewId)
+    .map((link) => findService(link.toServiceId))
+    .filter(
+      (service) =>
+        service?.kind === 'database' &&
+        !!db()
+          .query<{ preview_of: string | null }, [string]>(
+            'SELECT preview_of FROM services WHERE id = ?',
+          )
+          .get(service.id)?.preview_of,
+    )
+    .map((service) => service!.id);
+}
+
+/** Takes one away, containers, cloned data and all. */
 export async function removePreview(previewId: string): Promise<void> {
-  const containers = await listContainers(labelFilter({ [LABELS.service]: previewId })).catch(
-    () => [],
-  );
-  for (const container of containers) {
-    await destroyContainer(container.Id, 5).catch(() => undefined);
+  for (const serviceId of [previewId, ...clonesOf(previewId)]) {
+    const containers = await listContainers(labelFilter({ [LABELS.service]: serviceId })).catch(
+      () => [],
+    );
+    for (const container of containers) {
+      await destroyContainer(container.Id, 5).catch(() => undefined);
+    }
+    // Into the trash rather than deleted outright, so a branch removed by mistake is
+    // not a preview whose logs and data are gone before anybody looked.
+    softDeleteService(serviceId);
   }
-  // Into the trash rather than deleted outright, so a branch removed by mistake is
-  // not a preview whose logs are gone before anybody read them.
-  softDeleteService(previewId);
 }
 
 export interface PreviewSweep {
@@ -153,7 +337,7 @@ export async function syncPreviews(appId: string): Promise<PreviewSweep> {
 
   for (const branch of wanted) {
     if (existing.has(branch)) continue;
-    const id = createPreview(appId, branch);
+    const id = await createPreview(appId, branch);
     if (id) sweep.created.push(branch);
   }
 

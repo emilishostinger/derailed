@@ -125,6 +125,9 @@ Creating a service:
 
 ## Previews
 
+`PUT /services/:id/previews` also takes `data: 'shared' | 'clone'` and `scrub`, the
+optional command run against each copy before it serves.
+
 | | |
 | --- | --- |
 | `GET /system/adoptable` · `POST /system/adopt` | Things already on this machine, and taking one over |

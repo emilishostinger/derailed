@@ -475,7 +475,18 @@ export const endpoints = {
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
   previews: (serviceId: string) =>
-    api.get<{ enabled: boolean; previews: Service[] }>(`/services/${serviceId}/previews`),
+    api.get<{
+      enabled: boolean;
+      mode: 'shared' | 'clone';
+      scrub: string | null;
+      previews: Service[];
+    }>(`/services/${serviceId}/previews`),
+  setPreviewData: (serviceId: string, data: 'shared' | 'clone', scrub?: string | null) =>
+    api.put<{ enabled: boolean; mode: 'shared' | 'clone' }>(`/services/${serviceId}/previews`, {
+      enabled: true,
+      data,
+      scrub,
+    }),
   setPreviews: (serviceId: string, enabled: boolean) =>
     api.put<{ enabled: boolean }>(`/services/${serviceId}/previews`, { enabled }),
 

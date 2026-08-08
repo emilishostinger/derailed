@@ -3,7 +3,14 @@ import { Hono, type MiddlewareHandler } from 'hono';
 import { trafficFor } from '../../analytics/store.ts';
 import { normalizeRepoUrl, resolveDefaultBranch } from '../../build/git.ts';
 import { queueDeployment } from '../../build/pipeline.ts';
-import { previewsEnabled, previewsFor, setPreviews, syncPreviews } from '../../build/previews.ts';
+import {
+  previewData,
+  previewsEnabled,
+  previewsFor,
+  setPreviewData,
+  setPreviews,
+  syncPreviews,
+} from '../../build/previews.ts';
 import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
 import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.ts';
@@ -744,14 +751,24 @@ serviceRoutes.put('/:id/previews', async (c) => {
     );
   }
 
-  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  const body = (await c.req.json().catch(() => ({}))) as {
+    enabled?: boolean;
+    data?: 'shared' | 'clone';
+    scrub?: string | null;
+  };
   setPreviews(service.id, body.enabled === true);
+  if (body.data === 'shared' || body.data === 'clone') {
+    if (typeof body.scrub === 'string' && body.scrub.length > 2000) {
+      throw badRequest('That scrub command is unreasonably long.');
+    }
+    setPreviewData(service.id, body.data, body.scrub ?? previewData(service.id).scrub);
+  }
 
   // Straight away rather than waiting five minutes, so switching it on does
   // something visible while somebody is still looking at the screen.
   if (body.enabled) void syncPreviews(service.id).catch(() => undefined);
 
-  return c.json({ enabled: previewsEnabled(service.id) });
+  return c.json({ enabled: previewsEnabled(service.id), ...previewData(service.id) });
 });
 
 serviceRoutes.get('/:id/previews', (c) => {
@@ -759,6 +776,7 @@ serviceRoutes.get('/:id/previews', (c) => {
   if (!service) throw notFound('That service');
   return c.json({
     enabled: previewsEnabled(service.id),
+    ...previewData(service.id),
     previews: previewsFor(service.id).map((preview) => presentService(preview)),
   });
 });

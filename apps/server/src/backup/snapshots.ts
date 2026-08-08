@@ -156,17 +156,25 @@ export async function pruneSnapshots(serviceId: string): Promise<void> {
  * that works for one works for the other. Redis and Valkey are refused: their dump is
  * a binary snapshot the server reads at startup and there is no way to feed one to a
  * running instance, which the backups page already says about them.
+ *
+ * `intoServiceId` aims the copy at a different database of the same engine, which is
+ * how a preview gets a real copy of the real data: the snapshot of the live database
+ * loads into the fresh one, and the live one is never touched.
  */
-export async function restoreSnapshot(snapshotId: string): Promise<void> {
+export async function restoreSnapshot(snapshotId: string, intoServiceId?: string): Promise<void> {
   const row = db()
     .query<SnapshotRow, [string]>('SELECT * FROM db_snapshots WHERE id = ?')
     .get(snapshotId);
   if (!row) throw new FriendlyError('That copy is no longer here.');
 
-  const service = findService(row.service_id);
+  const source = findService(row.service_id);
+  const service = intoServiceId ? findService(intoServiceId) : source;
+  if (intoServiceId && service && source && service.dbEngine !== source.dbEngine) {
+    throw new FriendlyError('A copy only loads into a database of the same engine.');
+  }
   const engine = findEngine(service?.dbEngine ?? '');
   const credentials = service && credentialsFor(service);
-  const containerId = await runningContainer(row.service_id);
+  const containerId = service ? await runningContainer(service.id) : null;
   if (!service || !engine || !credentials || !containerId) {
     throw new FriendlyError(
       'That database is not running, so there is nothing to restore into.',

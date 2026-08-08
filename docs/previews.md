@@ -26,25 +26,41 @@ project, named after the app and the branch, so `shop-web · dark-mode` sits nex
 | --- | --- |
 | **The same code** | Built from the branch, the same way the real app is built |
 | **The same variables** | Everything you set by hand comes across, so it can actually start |
-| **The same database** | It connects to the real one, not a copy |
+| **The database, shared or copied** | Your choice, below. A real copy is one dropdown |
 | **Its own address** | An automatic one, with HTTPS, like any other app |
 | **Everything else** | Logs, terminal, metrics, the file browser. They are ordinary apps |
 
 They are ordinary apps on purpose. Every screen in Derailed already works on them, and
 none of those screens had to be taught what a preview is.
 
-## The database is shared
+## Shared data, or a real copy
 
-A copy connects to the real database. It is not given one of its own.
+The one setting previews have, and the one almost nobody else offers at any price
+below enterprise:
 
-This is a deliberate limit, and worth knowing before you use it. A database per branch
-sounds better until you have to migrate each of them, seed each of them, and work out
-why the copy from March will not start. The honest version of this feature at this size
-is **the same data, the other code**, which is what you want when the branch changes a
-template and is a hazard when it changes a schema.
+- **Previews share this app's real database.** The same data, the other code. Right
+  when the branch changes a template; a hazard when it changes a schema, because its
+  migrations run against the real thing. Treat such a preview as something with real
+  access, because it has real access.
+- **Each preview gets its own copy of the data.** A fresh database of the same engine
+  and version, loaded from the newest [hourly copy](backups.md), or one taken on the
+  spot. The preview can migrate it, truncate it, or destroy it artistically; the real
+  data never notices. *Test on a copy* means a real copy.
 
-So: a branch that adds a column will add it to your real database when it runs its
-migrations. Treat a preview as something with real access, because it has real access.
+With copies on:
+
+- An optional **scrub command** runs against each copy before the preview serves,
+  inside the copy's own container, for real-shaped data without real people in it:
+  `psql -c "UPDATE users SET email = 'x@example.invalid'"`. The client's environment
+  already knows the copy's database and user, so commands stay short. A scrub that
+  fails throws the whole copy away rather than serving it anyway.
+- A clone that cannot be made is a loud failure and **never** a quiet fall-back to the
+  real database: the setting promised a copy, and the one thing worse than a preview
+  without data is a preview silently pointed at production.
+- Redis and Valkey copies start empty. Their dumps cannot be fed to a running server,
+  and a cache is meant to warm itself.
+- Copies nap after a quiet day, the way sleeping apps do, and go when the branch does,
+  into the trash with everything else.
 
 ## Deleting
 

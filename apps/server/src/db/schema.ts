@@ -953,4 +953,20 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_app_sessions_service ON app_sessions(service_id);
     `,
   },
+  {
+    id: 37,
+    name: 'previews with their own copy of the data',
+    sql: `
+      -- Branch previews shared the real database, and the docs said so because it
+      -- had to be said. This closes the caveat: 'clone' gives each preview its own
+      -- copy of every linked database, restored from the newest hourly copy, so
+      -- "test on a copy" means a real copy. 'shared' remains for the apps where the
+      -- same data is the point.
+      ALTER TABLE services ADD COLUMN preview_data TEXT NOT NULL DEFAULT 'shared';
+
+      -- One optional command run against each copy before the preview starts, for
+      -- people who need real-shaped data without real people in it.
+      ALTER TABLE services ADD COLUMN preview_scrub TEXT;
+    `,
+  },
 ];
