@@ -1,7 +1,4 @@
 import type { AlertChannelKind } from '@derailed/shared';
-import { sendDirect } from '../mail/direct.ts';
-import { mailAccount, mailSettings } from '../mail/settings.ts';
-import { sendMail } from '../mail/smtp.ts';
 
 /**
  * Where an alert goes.
@@ -10,9 +7,11 @@ import { sendMail } from '../mail/smtp.ts';
  * deciding *when* to say something, and that decision should not have to know whether
  * it is talking to Slack or to a phone.
  *
- * The list is the places people running a small server actually are. ntfy is on it
- * because it is the only one that puts a notification on a phone for free with no
- * account anywhere, which for a hobby server is exactly right.
+ * The list is the places people running a small server actually are, and every one of
+ * them is a paste-one-address setup with no server-side plumbing. Email is deliberately
+ * not here: it needs SMTP or a sending domain configured first, which is exactly the
+ * not-plug-and-play step this feature exists to avoid. ntfy is the star, because it is
+ * the only one that puts a notification on a phone for free with no account anywhere.
  */
 
 export interface Alert {
@@ -29,7 +28,7 @@ export interface Alert {
 
 export interface Channel {
   kind: AlertChannelKind;
-  /** A webhook URL, an ntfy topic URL, a Telegram chat, or an email address. */
+  /** A webhook URL, an ntfy topic URL, or a Telegram chat. */
   target: string;
   /** Telegram needs a bot token as well as a chat id. */
   secret?: string | null;
@@ -124,20 +123,6 @@ export async function deliver(channel: Channel, alert: Alert): Promise<void> {
         at: Date.now(),
       });
 
-    case 'email': {
-      const account = mailAccount();
-      if (!account) throw new Error('Nothing is set up to send email with.');
-      const mail = {
-        to: channel.target,
-        subject: alert.title,
-        text: plainText(alert),
-        html: emailHtml(alert),
-      };
-      return mailSettings().delivery === 'server'
-        ? sendDirect(account, mail)
-        : sendMail(account, mail);
-    }
-
     default:
       throw new Error(`Derailed does not know how to send to ${channel.kind}.`);
   }
@@ -150,18 +135,6 @@ export async function deliver(channel: Channel, alert: Alert): Promise<void> {
  */
 function asciiHeader(value: string): string {
   return value.replace(/[^\u0020-\u007E]/g, '').slice(0, 200) || 'Derailed';
-}
-
-function emailHtml(alert: Alert): string {
-  const safe = (text: string) =>
-    text.replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[char] ?? char);
-
-  return `<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#111">
-  <p style="margin:0 0 12px;font-weight:600">${safe(alert.title)}</p>
-  <p style="margin:0 0 12px">${safe(alert.body)}</p>
-  ${alert.action ? `<p style="margin:0 0 12px;color:#555">${safe(alert.action)}</p>` : ''}
-  ${alert.url ? `<p style="margin:0"><a href="${safe(alert.url)}">Open the dashboard</a></p>` : ''}
-</div>`;
 }
 
 /**
@@ -194,10 +167,5 @@ export function describeChannel(kind: AlertChannelKind): { label: string; hint: 
       };
     case 'webhook':
       return { label: 'Anything else', hint: 'A URL. Derailed posts JSON to it.' };
-    case 'email':
-      return {
-        label: 'Email',
-        hint: 'Uses the mail settings further down this page.',
-      };
   }
 }

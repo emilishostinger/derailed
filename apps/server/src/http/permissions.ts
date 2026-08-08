@@ -139,15 +139,6 @@ const OWNER_ONLY: Rule[] = [
     methods: ['PUT'],
     why: 'Only an owner can change how many backups are kept, because saving it prunes.',
   },
-  {
-    // The AI key never comes back out, but where it is *sent* is this setting:
-    // repointing the address at a server of your own harvests the key on the next
-    // question anybody asks. The key is the server's own credential, so it is an
-    // owner's.
-    path: /^\/assist\/settings$/,
-    methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
-    why: 'Only an owner can change how the assistant thinks, because the key follows the address.',
-  },
 ];
 
 /**
@@ -209,13 +200,6 @@ export function mayCall(role: UserRole, method: string, path: string): Decision 
       if (!rule.path.test(route)) continue;
       if (rule.methods && !rule.methods.includes(method.toUpperCase())) continue;
       return { ok: false, why: rule.why };
-    }
-    // Asking is looking. The chat POST carries a conversation, not a change:
-    // every tool the model runs goes back through this same table as the viewer,
-    // and the confirm endpoint (/assist/execute) is not on this exception, so a
-    // viewer's assistant can see what a viewer can see and change nothing.
-    if (method.toUpperCase() === 'POST' && route === '/assist') {
-      return { ok: true };
     }
     if (!isRead(method)) {
       return {

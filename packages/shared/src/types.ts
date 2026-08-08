@@ -619,12 +619,12 @@ export interface CostComparison {
 }
 
 /** Where alerts can be sent. One shape for every destination. */
-export type AlertChannelKind = 'email' | 'discord' | 'slack' | 'telegram' | 'ntfy' | 'webhook';
+export type AlertChannelKind = 'discord' | 'slack' | 'telegram' | 'ntfy' | 'webhook';
 
 export interface AlertChannel {
   id: string;
   kind: AlertChannelKind;
-  /** A webhook URL, an ntfy topic address, a Telegram chat id, or an email address. */
+  /** A webhook URL, an ntfy topic address, or a Telegram chat id. */
   target: string;
   /** Only Telegram needs one. Never sent back to the browser. */
   secret?: string | null;

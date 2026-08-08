@@ -37,12 +37,6 @@ const KINDS: { kind: AlertChannelKind; label: string; hint: string; placeholder:
     placeholder: 'https://hooks.slack.com/services/…',
   },
   {
-    kind: 'email',
-    label: 'Email',
-    hint: 'Uses whatever is set up under Update emails.',
-    placeholder: 'you@example.com',
-  },
-  {
     kind: 'telegram',
     label: 'Telegram',
     hint: 'Your chat id, plus the token @BotFather gave you.',

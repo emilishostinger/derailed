@@ -10,7 +10,6 @@ find out*. **Settings → Tell me when something breaks** is the answer.
 | **My phone** | [ntfy](https://ntfy.sh). Install the app, subscribe to a topic nobody could guess, paste its address in. Free, no account anywhere |
 | **Discord** | A webhook URL from Server Settings → Integrations |
 | **Slack** | An Incoming Webhook URL |
-| **Email** | Uses whatever is set up under Update emails |
 | **Telegram** | Your chat id, plus a bot token from @BotFather |
 | **Anything else** | A URL. Derailed posts JSON to it |
 

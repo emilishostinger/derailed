@@ -28,7 +28,6 @@ about five minutes.
 - **[Moving servers](moving.md)**: taking everything with you, and what deliberately stays
 - **[Trash](trash.md)**: deleting is undoable for a week, and what that does and does not cover
 - **[Visitor figures](analytics.md)**: how visits are counted, and what is never kept
-- **[Ask your server](ask.md)**: the dashboard chat, on your own key, with changes behind a button
 - **[Coding agents (MCP)](mcp.md)**: driving Derailed from Claude Code, Cursor or Codex
 - **[More than one person](people.md)**: owners, members and viewers, and where the line is
 - **[The API](api.md)**: tokens and every endpoint

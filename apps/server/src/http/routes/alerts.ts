@@ -22,9 +22,9 @@ alertRoutes.put('/channels', async (c) => {
   for (const channel of body.channels) {
     if (!channel.id || !channel.kind) throw badRequest('Every channel needs an id and a kind.');
     if (!channel.target?.trim()) throw badRequest('Every channel needs somewhere to send to.');
-    // Anything that is not email has to be a URL we will POST to, and a typo here is
+    // Everything but Telegram (a chat id) is a URL we will POST to, and a typo here is
     // otherwise only discovered at the moment an alert matters.
-    if (channel.kind !== 'email' && channel.kind !== 'telegram') {
+    if (channel.kind !== 'telegram') {
       try {
         const url = new URL(channel.target);
         if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('scheme');
