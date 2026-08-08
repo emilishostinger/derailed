@@ -39,6 +39,7 @@ beforeEach(() => {
     'traffic_visitors',
     'traffic_paths',
     'traffic_referrers',
+    'traffic_notfound',
     'traffic_live',
   ])
     db().query(`DELETE FROM ${table}`).run();
@@ -117,6 +118,36 @@ describe('counting visits', () => {
   test('different people are different visitors', () => {
     recordTraffic([visit({ ip: '203.0.113.1' }), visit({ ip: '203.0.113.2' })]);
     expect(trafficFor(serviceId, '24h').totals.visitors).toBe(2);
+  });
+});
+
+describe('the pages people looked for and did not find', () => {
+  test('a 404 is counted with its address, and the busiest miss leads', () => {
+    recordTraffic([
+      visit({ status: 404, path: '/blog/rss' }),
+      visit({ status: 404, path: '/blog/rss' }),
+      visit({ status: 404, path: '/old-page' }),
+      visit({ status: 200, path: '/works' }),
+    ]);
+
+    const { notFound } = trafficFor(serviceId, '24h');
+    expect(notFound[0]).toEqual({ path: '/blog/rss', requests: 2 });
+    expect(notFound[1]).toEqual({ path: '/old-page', requests: 1 });
+    expect(notFound.some((row) => row.path === '/works')).toBe(false);
+  });
+
+  test('a crawler spraying made-up URLs is not the report', () => {
+    recordTraffic([visit({ status: 404, path: '/wp-admin.php', userAgent: 'Googlebot/2.1' })]);
+    expect(trafficFor(serviceId, '24h').notFound).toEqual([]);
+  });
+
+  test('the query string is not part of the missing page', () => {
+    recordTraffic([
+      visit({ status: 404, path: '/gone?utm_source=x' }),
+      visit({ status: 404, path: '/gone?utm_source=y' }),
+    ]);
+    const { notFound } = trafficFor(serviceId, '24h');
+    expect(notFound).toEqual([{ path: '/gone', requests: 2 }]);
   });
 
   test('an app nobody has visited says so, rather than showing zeroes', () => {

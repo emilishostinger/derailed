@@ -29,6 +29,7 @@ export interface TrafficReport {
   };
   topPaths: { path: string; requests: number }[];
   topReferrers: { referrer: string; requests: number }[];
+  notFound: { path: string; requests: number }[];
   slowestPaths: { path: string; requests: number; avgMs: number }[];
   live: number;
   previous: { requests: number; visitors: number; avgMs: number } | null;
@@ -205,6 +206,19 @@ export function TrafficTab({ service }: { service: Service }) {
           empty="Everyone arrived directly."
         />
       </div>
+
+      {/* A 404 with a count is a broken link with an address; the same 404 folded
+          into "client errors" is a mood. The report that makes people fix real
+          problems: an old RSS address, a moved page, a misspelt link in a footer. */}
+      <TopList
+        title="Looked for and not found"
+        rows={(report?.notFound ?? []).map((row) => ({
+          label: row.path,
+          value: row.requests,
+        }))}
+        empty="Nothing has been asked for and missed. Every link that was followed, worked."
+        mono
+      />
 
       {/* Only pages asked for enough times to mean anything, which is why this can be
           empty on a quiet site while Most read is not. */}

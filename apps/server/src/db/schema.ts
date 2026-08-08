@@ -1026,4 +1026,21 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_env_history_project ON env_history(project_id, at DESC);
     `,
   },
+  {
+    id: 40,
+    name: 'the pages people looked for and did not find',
+    sql: `
+      -- The proxy already sees every 404; until now they were folded into one
+      -- "client errors" number, which says something is missed and never what.
+      -- Grouped and counted like the path tally, people only, so the report reads
+      -- "312 people tried /blog/rss this month" and somebody fixes a real problem.
+      CREATE TABLE traffic_notfound (
+        service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        day_start  INTEGER NOT NULL,
+        path       TEXT NOT NULL,
+        requests   INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (service_id, day_start, path)
+      );
+    `,
+  },
 ];

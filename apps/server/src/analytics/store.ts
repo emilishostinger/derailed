@@ -135,6 +135,13 @@ export function recordTraffic(events: TrafficEvent[]): void {
 
       bumpTop('traffic_paths', 'path', event.serviceId, day, cleanPath(event.path), event.ms);
 
+      // The pages people looked for and did not find, kept apart from the path
+      // tally: "which pages are read" and "which pages are missed" are different
+      // questions, and mixing them buries the second under the first.
+      if (event.status === 404) {
+        bumpNotFound(event.serviceId, day, cleanPath(event.path));
+      }
+
       const referrer = cleanReferrer(event.referrer);
       if (referrer) bumpTop('traffic_referrers', 'referrer', event.serviceId, day, referrer);
     }
@@ -195,6 +202,35 @@ function bumpTop(
     .run(serviceId, day, value);
 }
 
+/**
+ * One missed page, counted. The same distinct-rows-per-day cap as the path tally,
+ * because a scanner spraying ten thousand made-up URLs would otherwise write ten
+ * thousand rows a day into a table meant for a dozen honest mistakes.
+ */
+function bumpNotFound(serviceId: string, day: number, path: string): void {
+  const database = db();
+  const changed = database
+    .query(
+      `UPDATE traffic_notfound SET requests = requests + 1
+        WHERE service_id = ? AND day_start = ? AND path = ?`,
+    )
+    .run(serviceId, day, path);
+  if (changed.changes > 0) return;
+
+  const { count } = database
+    .query<{ count: number }, [string, number]>(
+      'SELECT COUNT(*) as count FROM traffic_notfound WHERE service_id = ? AND day_start = ?',
+    )
+    .get(serviceId, day) ?? { count: 0 };
+  if (count >= MAX_DISTINCT_PER_DAY) return;
+
+  database
+    .query(
+      'INSERT INTO traffic_notfound (service_id, day_start, path, requests) VALUES (?, ?, ?, 1)',
+    )
+    .run(serviceId, day, path);
+}
+
 /** How many different people have asked for anything in the last few minutes. */
 export function liveVisitors(serviceId?: string): number {
   const since = Date.now() - 5 * 60_000;
@@ -217,6 +253,7 @@ export function pruneTraffic(): void {
   const cutoffDay = dayStart(Date.now() - KEEP_DAYS * DAY);
   db().query('DELETE FROM traffic_hourly WHERE hour_start < ?').run(cutoffHour);
   db().query('DELETE FROM traffic_paths WHERE day_start < ?').run(cutoffDay);
+  db().query('DELETE FROM traffic_notfound WHERE day_start < ?').run(cutoffDay);
   db().query('DELETE FROM traffic_referrers WHERE day_start < ?').run(cutoffDay);
   // Visitor rows are the only ones that could ever be linked back to a person, even
   // hashed, so they go sooner than the rest.
@@ -257,6 +294,13 @@ export interface TrafficReport {
   };
   topPaths: { path: string; requests: number }[];
   topReferrers: { referrer: string; requests: number }[];
+  /**
+   * The pages people looked for and did not find: "312 people tried /blog/rss this
+   * month". The report that makes somebody fix a real problem, because a 404 with a
+   * count is a broken link with an address, while the same 404 inside "client
+   * errors" is a mood.
+   */
+  notFound: { path: string; requests: number }[];
   /**
    * The pages people wait longest for, by mean time.
    *
@@ -387,6 +431,14 @@ export function trafficFor(serviceId: string, range: keyof typeof RANGES): Traff
     )
     .all(serviceId, fromDay);
 
+  const notFound = db()
+    .query<{ path: string; requests: number }, [string, number]>(
+      `SELECT path, SUM(requests) AS requests FROM traffic_notfound
+        WHERE service_id = ? AND day_start >= ?
+        GROUP BY path ORDER BY requests DESC LIMIT 10`,
+    )
+    .all(serviceId, fromDay);
+
   // The `HAVING` is the whole point. Without it the slowest page is whichever one
   // somebody hit once while the server was busy, which is not a fact about the page.
   const slowestPaths = db()
@@ -412,6 +464,7 @@ export function trafficFor(serviceId: string, range: keyof typeof RANGES): Traff
     totals,
     topPaths,
     topReferrers,
+    notFound,
     slowestPaths,
     live: liveVisitors(serviceId),
     previous: previousWindow(serviceId, range, from),

@@ -81,6 +81,15 @@ pages asked for at least five times in the window appear: the mean for a page no
 visits is one bad afternoon rather than a fact about the page, and it would otherwise
 sit at the top of the list all day looking like a problem.
 
+**Looked for and not found** groups and counts the pages that answered 404: *"312
+people tried `/blog/rss` this month."* A missed page with a count is a broken link
+with an address, an old feed URL, a moved page, a misspelt link in somebody's footer,
+where the same 404 folded into "client errors" was only a mood. Crawlers are left
+out, so a bot spraying made-up URLs is not the report, and the query string is
+stripped, so `/gone?utm_source=x` and `/gone?utm_source=y` are one missing page.
+Fixing one usually means adding the page, or a redirect, or a
+[custom 404 page](files.md) that helps people onward.
+
 **How it compares** sits under the visitor, visit and reply-time figures: the same
 window, one window earlier. "Four hundred visitors" is a number; "four hundred, up
 from two hundred and ten" is the thing you wanted to know. Not offered for the
