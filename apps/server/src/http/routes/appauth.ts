@@ -1,4 +1,5 @@
 import { schemas } from '@derailed/shared';
+import type { Context } from 'hono';
 import { Hono } from 'hono';
 import { db } from '../../db/index.ts';
 import { findService } from '../../db/repo/services.ts';
@@ -16,6 +17,7 @@ import {
 import type { AppEnv } from '../auth.ts';
 import { RateLimiter } from '../auth.ts';
 import { notFound, parseBody } from '../errors.ts';
+import { forwardedClientIp, fromProxy } from '../proxytrust.ts';
 
 /**
  * One login in front of any app: the three endpoints the proxy sends an app's
@@ -31,10 +33,20 @@ import { notFound, parseBody } from '../errors.ts';
 export const publicAppAuthRoutes = new Hono();
 export const appLoginRoutes = new Hono<AppEnv>();
 
+// Per (app, address): the ordinary brake. Plus a global ceiling on the raw
+// count of attempts, so rotating source addresses cannot buy unlimited argon2
+// verifications, which are memory-heavy enough to be a denial of service on
+// their own. Mirrors the two-limiter shape the dashboard login uses.
 const loginLimiter = new RateLimiter(5, 60_000);
+const globalLoginLimiter = new RateLimiter(200, 60_000);
 
-function requestedService(header: string | undefined) {
-  const service = findService(header ?? '');
+/**
+ * The app named by the proxy, but only when the request truly came through the
+ * proxy: the header is an authorization decision and the panel port is open.
+ */
+function requestedService(c: Context) {
+  if (!fromProxy(c)) return null;
+  const service = findService(c.req.header('x-derailed-service') ?? '');
   if (service?.kind !== 'app' || !service.loginRequired) return null;
   return service;
 }
@@ -59,10 +71,20 @@ function setSessionCookie(secure: boolean, value: string, maxAgeSeconds: number)
   ].join('; ');
 }
 
-/** What Caddy asks before every request: may this visitor through? */
+/**
+ * What Caddy asks before every request: may this visitor through?
+ *
+ * This route only exists in the proxy config while an app requires login, and
+ * the proxy stamps the shared secret on it. So a request here that fails the
+ * proxy check, or names a service that no longer requires login, is not "no
+ * gate here" but "the gate cannot be resolved", and the safe answer to that on
+ * a route whose entire reason for existing is the gate is to refuse, not to
+ * wave the visitor through to a protected app.
+ */
 publicAppAuthRoutes.get('/appauth/check', (c) => {
-  const service = requestedService(c.req.header('x-derailed-service'));
-  if (!service) return c.body(null, 200);
+  if (!fromProxy(c)) return c.text('Forbidden.', 403);
+  const service = requestedService(c);
+  if (!service) return c.text('Forbidden.', 403);
 
   const user = appSessionUser(service, cookieValue(c.req.header('cookie')));
   if (user) {
@@ -76,7 +98,7 @@ publicAppAuthRoutes.get('/appauth/check', (c) => {
 
 /** The login page itself, on the app's own address. */
 publicAppAuthRoutes.get('/appauth/login', (c) => {
-  const service = requestedService(c.req.header('x-derailed-service'));
+  const service = requestedService(c);
   if (!service) return c.text('Nothing to sign in to here.', 404);
   const returnTo = safeReturnPath(c.req.query('to'));
 
@@ -88,10 +110,10 @@ publicAppAuthRoutes.get('/appauth/login', (c) => {
 });
 
 publicAppAuthRoutes.post('/appauth/login', async (c) => {
-  const service = requestedService(c.req.header('x-derailed-service'));
+  const service = requestedService(c);
   if (!service) return c.text('Nothing to sign in to here.', 404);
 
-  const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+  const ip = forwardedClientIp(c);
   const form = await c.req.raw.formData().catch(() => null);
   const email = String(form?.get('email') ?? '').trim();
   const password = String(form?.get('password') ?? '');
@@ -101,7 +123,7 @@ publicAppAuthRoutes.post('/appauth/login', async (c) => {
   const render = (message: string, needsCode: boolean, status: 200 | 401 | 429 = 401) =>
     c.html(loginPage({ serviceName: service.name, returnTo, needsCode, email, message }), status);
 
-  if (!loginLimiter.check(`${service.id}:${ip ?? 'unknown'}`)) {
+  if (!loginLimiter.check(`${service.id}:${ip}`) || !globalLoginLimiter.check('all')) {
     return render('Too many attempts. Wait a minute before trying again.', false, 429);
   }
   if (!email || !password) return render('Both the email and the password are needed.', false);
@@ -115,7 +137,7 @@ publicAppAuthRoutes.post('/appauth/login', async (c) => {
     return render(outcome.message, outcome.needsCode);
   }
 
-  loginLimiter.reset(`${service.id}:${ip ?? 'unknown'}`);
+  loginLimiter.reset(`${service.id}:${ip}`);
   const session = createAppSession(
     service.id,
     outcome.userId,
@@ -129,7 +151,7 @@ publicAppAuthRoutes.post('/appauth/login', async (c) => {
 
 /** Signs this browser out of this app, and only this app. */
 publicAppAuthRoutes.get('/appauth/logout', (c) => {
-  const service = requestedService(c.req.header('x-derailed-service'));
+  const service = requestedService(c);
   const value = cookieValue(c.req.header('cookie'));
   if (service && value) {
     db()

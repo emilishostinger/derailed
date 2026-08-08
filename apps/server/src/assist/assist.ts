@@ -49,12 +49,27 @@ export const WRITE_TOOLS = new Set([
   'add_job',
   'run_job',
   'run_command',
+  // Re-resolves DNS and can trigger a certificate attempt: a change, not a look.
+  'check_domain',
 ]);
+
+/**
+ * Reads that hand back a live secret rather than a view of one. They run as the
+ * caller, so the caller was already allowed to see the value; the extra gate is
+ * because auto-running them ships every secret to a third-party model with no
+ * press, which is a different act from reading one in the dashboard.
+ */
+export const SECRET_TOOLS = new Set(['get_variables']);
 
 export function isWriteTool(name: string): boolean {
   // Unknown names are writes: failing open is how assistants get servers.
   const known = TOOLS.some((tool) => tool.name === name);
   return !known || WRITE_TOOLS.has(name);
+}
+
+/** Whether the model must ask before this tool runs: it writes, or it egresses secrets. */
+export function needsConfirm(name: string): boolean {
+  return isWriteTool(name) || SECRET_TOOLS.has(name);
 }
 
 export function findTool(name: string): McpTool | null {
@@ -183,26 +198,45 @@ export async function runAssist(transcript: ChatMessage[], api: Api): Promise<As
 
     if (!answer.toolCalls.length) return { messages: appended, proposal: null };
 
-    // The first write in the batch stops the world: the person decides.
-    const write = answer.toolCalls.find((call) => isWriteTool(call.name));
-    if (write) {
-      const tool = findTool(write.name);
-      return {
-        messages: appended,
-        proposal: {
-          id: write.id,
-          name: write.name,
-          args: write.args,
-          what: tool?.description ?? 'Something Derailed does not recognise.',
-        },
-      };
-    }
+    // Models emit several tool calls in one turn, and every one of them is a
+    // tool_use block that the provider will reject on the next round unless it
+    // has a matching result. So each call is answered here: the reads by running
+    // them, and the gated ones (writes, secret reads) by a placeholder, with the
+    // *first* gated call surfaced as the proposal whose real result arrives when
+    // the person presses the button.
+    const firstGated = answer.toolCalls.find((call) => needsConfirm(call.name));
+    let proposal: AssistOutcome['proposal'] = null;
 
     for (const call of answer.toolCalls) {
+      if (needsConfirm(call.name)) {
+        if (call === firstGated) {
+          proposal = {
+            id: call.id,
+            name: call.name,
+            args: call.args,
+            what: describeProposal(call.name, call.args, findTool(call.name)),
+          };
+          // No result appended for the proposal: the confirm endpoint supplies it.
+          continue;
+        }
+        // A second change in the same turn waits its turn; the transcript still
+        // needs a result for its block, so it gets an honest placeholder.
+        const placeholder: ChatMessage = {
+          role: 'tool',
+          id: call.id,
+          name: call.name,
+          result: 'Not run: review the change above first, then ask again.',
+        };
+        appended.push(placeholder);
+        working.push(placeholder);
+        continue;
+      }
       const result = await executeTool(call, api);
       appended.push(result);
       working.push(result);
     }
+
+    if (proposal) return { messages: appended, proposal };
   }
 
   appended.push({
@@ -212,8 +246,45 @@ export async function runAssist(transcript: ChatMessage[], api: Api): Promise<As
   return { messages: appended, proposal: null };
 }
 
+/**
+ * A job or command with no service runs on the *host* as whoever Derailed runs
+ * as, root on a real install. The assistant does not get to schedule those,
+ * whatever a poisoned log line talked the model into proposing: the blast radius
+ * of one misread confirm is the whole machine. The Scheduled tab is where a
+ * person does that deliberately.
+ */
+function isServerLevelJob(call: ToolCall): boolean {
+  if (call.name !== 'add_job' && call.name !== 'run_command') return false;
+  const service = call.args.service ?? call.args.serviceId ?? call.args.app;
+  return typeof service !== 'string' || service.trim() === '';
+}
+
+/** The sentence on the confirm card: the generic description, made specific where it counts. */
+function describeProposal(
+  name: string,
+  args: Record<string, unknown>,
+  tool: McpTool | null,
+): string {
+  if ((name === 'add_job' || name === 'run_command') && isServerLevelJob({ id: '', name, args })) {
+    return 'This would run on the SERVER ITSELF as root, not inside an app. The assistant is not allowed to do that; use the Scheduled tab if you mean it.';
+  }
+  if (SECRET_TOOLS.has(name)) {
+    return `${tool?.description ?? name} The values are secrets, and running this sends them to your AI provider.`;
+  }
+  return tool?.description ?? 'Something Derailed does not recognise.';
+}
+
 /** Runs one tool as the caller, and answers in the shape the transcript wants. */
 export async function executeTool(call: ToolCall, api: Api): Promise<ChatMessage> {
+  if (isServerLevelJob(call)) {
+    return {
+      role: 'tool',
+      id: call.id,
+      name: call.name,
+      result:
+        'Refused: the assistant cannot run commands on the server itself. Do it from the Scheduled tab.',
+    };
+  }
   const tool = findTool(call.name);
   if (!tool) {
     return { role: 'tool', id: call.id, name: call.name, result: 'No such tool.' };

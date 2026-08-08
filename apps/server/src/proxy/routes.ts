@@ -47,6 +47,12 @@ export interface RouteSpec {
    */
   login?: { serviceId: string; panelUpstream: string; panelPort: number } | null;
   /**
+   * The secret that proves a request reached the panel through this proxy. It is
+   * stamped on every internal route below that reaches a public endpoint, so a
+   * request straight to the panel's open port cannot forge one.
+   */
+  panelSecret?: string;
+  /**
    * The walls against automated traffic: named AI crawlers turned away, and the
    * addresses currently challenged or refused for going too hard. All enforced
    * by Caddy from this config; Derailed stays out of the request path.
@@ -484,6 +490,15 @@ function routeFor(route: RouteSpec): CaddyRoute {
           'X-Forwarded-Host': ['{http.request.host}'],
           'X-Forwarded-Proto': ['{http.request.scheme}'],
         },
+        // The app must never receive the headers Derailed uses to vouch for a
+        // request: a visitor who sends `X-Derailed-User: owner@example.com`
+        // would otherwise reach an app that trusts it.
+        delete: [
+          'X-Derailed-Proxy',
+          'X-Derailed-Service',
+          'X-Derailed-User',
+          'X-Derailed-Form-Host',
+        ],
       },
     },
     health_checks: {
@@ -501,9 +516,9 @@ function routeFor(route: RouteSpec): CaddyRoute {
             handle: [
               // The bot walls come first: an address being refused for hammering
               // should not be offered a password prompt to hammer instead.
-              ...(route.bots ? botHandlers(route.bots) : []),
+              ...(route.bots ? botHandlers(route.bots, route.panelSecret) : []),
               // Then the sign-in, when this app asks people to have one.
-              ...(route.login ? loginHandlers(route.login) : []),
+              ...(route.login ? loginHandlers(route.login, route.panelSecret) : []),
               // Access next, then forms, then the app: a password-protected
               // site's forms are exactly as private as its pages.
               ...accessHandlers(route.access),
@@ -511,7 +526,10 @@ function routeFor(route: RouteSpec): CaddyRoute {
                 ? [
                     {
                       handler: 'subroute',
-                      routes: [formsRoute(route.forms), { handle: [proxyToApp] }],
+                      routes: [
+                        formsRoute(route.forms, route.panelSecret),
+                        { handle: [proxyToApp] },
+                      ],
                     },
                   ]
                 : [proxyToApp]),
@@ -577,7 +595,7 @@ site, or come back a little later.</p></noscript>
  * addresses plainly running a script, the proof-of-work for the merely
  * suspicious, and the named AI crawlers turned away with their robots.txt.
  */
-function botHandlers(bots: NonNullable<RouteSpec['bots']>): unknown[] {
+function botHandlers(bots: NonNullable<RouteSpec['bots']>, secret?: string): unknown[] {
   const handlers: unknown[] = [];
 
   if (bots.banned.length) {
@@ -627,6 +645,7 @@ function botHandlers(bots: NonNullable<RouteSpec['bots']>): unknown[] {
                           set: {
                             'X-Derailed-Service': [bots.serviceId],
                             'X-Forwarded-For': ['{http.request.remote.host}'],
+                            ...(secret ? { 'X-Derailed-Proxy': [secret] } : {}),
                           },
                         },
                       },
@@ -703,15 +722,19 @@ function botHandlers(bots: NonNullable<RouteSpec['bots']>): unknown[] {
  * the visitor whatever the panel answered, which is how the login page appears
  * without the app being touched.
  */
-function loginHandlers(login: {
-  serviceId: string;
-  panelUpstream: string;
-  panelPort: number;
-}): unknown[] {
+function loginHandlers(
+  login: {
+    serviceId: string;
+    panelUpstream: string;
+    panelPort: number;
+  },
+  secret?: string,
+): unknown[] {
   const identity = {
     'X-Derailed-Service': [login.serviceId],
     'X-Forwarded-For': ['{http.request.remote.host}'],
     'X-Forwarded-Proto': ['{http.request.scheme}'],
+    ...(secret ? { 'X-Derailed-Proxy': [secret] } : {}),
   };
   return [
     {
@@ -774,11 +797,14 @@ function loginHandlers(login: {
  * request is rewritten to the panel's public form endpoint with the service's
  * identity attached, so the handler knows whose Messages tab it belongs on.
  */
-function formsRoute(forms: {
-  serviceId: string;
-  panelUpstream: string;
-  panelPort: number;
-}): unknown {
+function formsRoute(
+  forms: {
+    serviceId: string;
+    panelUpstream: string;
+    panelPort: number;
+  },
+  secret?: string,
+): unknown {
   return {
     match: [{ method: ['POST'] }],
     handle: [
@@ -790,8 +816,8 @@ function formsRoute(forms: {
           request: {
             set: {
               'X-Derailed-Service': [forms.serviceId],
-              'X-Derailed-Form-Host': ['{http.request.host}'],
               'X-Forwarded-For': ['{http.request.remote.host}'],
+              ...(secret ? { 'X-Derailed-Proxy': [secret] } : {}),
             },
           },
         },

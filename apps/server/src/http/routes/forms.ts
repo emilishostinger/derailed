@@ -16,6 +16,7 @@ import { emitService } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
 import { RateLimiter } from '../auth.ts';
 import { notFound, parseBody } from '../errors.ts';
+import { forwardedClientIp, fromProxy } from '../proxytrust.ts';
 
 /**
  * Forms, for the folder-of-HTML crowd.
@@ -67,20 +68,36 @@ function thanksPage(backTo: string | null): string {
  */
 export function safeRedirect(value: string | undefined | null): string | null {
   const target = value?.trim();
-  if (!target?.startsWith('/') || target.startsWith('//')) return null;
+  if (!target?.startsWith('/')) return null;
+  // `//host` and `/\host` are both a different site wearing a path: browsers
+  // treat a backslash as a slash for the special schemes a Location resolves in,
+  // so `/\evil.example` navigates off-site. Any backslash is refused outright.
+  if (target[1] === '/' || target[1] === '\\' || target.includes('\\')) return null;
   return target;
 }
 
 publicFormRoutes.post('/form', async (c) => {
+  // The service header is an authorization decision, so it is only believed when
+  // the request came through our own proxy, which a request to the panel's open
+  // port did not. Same 404 as a real miss: an attacker learns nothing.
+  if (!fromProxy(c)) return c.text('This site does not accept messages.', 404);
+
   const serviceId = c.req.header('x-derailed-service') ?? '';
   const service = findService(serviceId);
   if (service?.kind !== 'app' || !service.forms) {
     return c.text('This site does not accept messages.', 404);
   }
 
-  const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
-  if (!limiter.check(`${serviceId}:${ip ?? 'unknown'}`)) {
+  const ip = forwardedClientIp(c);
+  if (!limiter.check(`${serviceId}:${ip}`)) {
     return c.text('That is a lot of messages at once. Try again in a minute.', 429);
+  }
+
+  // Read nothing large: the whole body is buffered before this, so an unbounded
+  // POST is memory somebody else spends. A form submission is small by nature.
+  const declared = Number(c.req.header('content-length') ?? 0);
+  if (declared > MAX_TOTAL * 2) {
+    return c.text('That submission is too large.', 413);
   }
 
   const contentType = c.req.header('content-type') ?? '';
@@ -120,11 +137,13 @@ publicFormRoutes.post('/form', async (c) => {
       if (value.trim() !== '') honeypotFed = true;
       continue;
     }
-    if (Object.keys(fields).length >= MAX_FIELDS) break;
+    // Over the caps: stop *storing*, but keep scanning, so a honeypot or a
+    // redirect placed after sixty decoy fields is still seen. A `break` here let
+    // a bot hide the honeypot behind padding.
+    if (Object.keys(fields).length >= MAX_FIELDS || total > MAX_TOTAL) continue;
     const cleanKey = key.slice(0, MAX_KEY);
     const cleanValue = value.slice(0, MAX_VALUE);
     total += cleanKey.length + cleanValue.length;
-    if (total > MAX_TOTAL) break;
     fields[cleanKey] = cleanValue;
   }
 
@@ -185,7 +204,9 @@ async function emailOwners(
 messageRoutes.get('/:id/messages', (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That app');
-  const limit = Math.min(Number(c.req.query('limit') ?? 100) || 100, 200);
+  // Clamped positive: SQLite reads a negative LIMIT as "no limit", so `?limit=-1`
+  // would dump every message in one answer and defeat the page cap.
+  const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 100) || 100, 1), 200);
   const offset = Math.max(Number(c.req.query('offset') ?? 0) || 0, 0);
   return c.json({
     enabled: !!service.forms,

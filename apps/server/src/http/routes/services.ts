@@ -7,6 +7,7 @@ import {
   previewData,
   previewsEnabled,
   previewsFor,
+  removePreview,
   setPreviewData,
   setPreviews,
   syncPreviews,
@@ -64,6 +65,7 @@ import {
 } from '../../runtime/sleep.ts';
 import { type AppEnv, clientIp } from '../auth.ts';
 import { badRequest, notFound, parseBody } from '../errors.ts';
+import { requireOwnerFor } from '../permissions.ts';
 
 /**
  * A single address or a CIDR range, v4 or v6.
@@ -756,12 +758,32 @@ serviceRoutes.put('/:id/previews', async (c) => {
     data?: 'shared' | 'clone';
     scrub?: string | null;
   };
+  const wasEnabled = previewsEnabled(service.id);
   setPreviews(service.id, body.enabled === true);
+  // Turning previews off, or switching a clone app back to shared, must take the
+  // existing copies down: their databases hold copies of real data, and the only
+  // teardown path (the sweep) skips a disabled app, so nothing else ever would.
+  if ((wasEnabled && body.enabled === false) || body.data === 'shared') {
+    for (const preview of previewsFor(service.id)) {
+      await removePreview(preview.id).catch(() => undefined);
+    }
+  }
   if (body.data === 'shared' || body.data === 'clone') {
     if (typeof body.scrub === 'string' && body.scrub.length > 2000) {
       throw badRequest('That scrub command is unreasonably long.');
     }
-    setPreviewData(service.id, body.data, body.scrub ?? previewData(service.id).scrub);
+    // The scrub is a command a background timer later runs, outside any request,
+    // against a copy of production data. A stored deferred command is server
+    // territory, like a scheduled job with no service, so setting one to a real
+    // value is an owner's; a member may still turn cloning on and off.
+    const nextScrub = body.scrub ?? previewData(service.id).scrub;
+    if (nextScrub && nextScrub !== previewData(service.id).scrub) {
+      requireOwnerFor(
+        c.get('user').role,
+        'Only an owner can set a command that runs on each copy.',
+      );
+    }
+    setPreviewData(service.id, body.data, nextScrub);
   }
 
   // Straight away rather than waiting five minutes, so switching it on does

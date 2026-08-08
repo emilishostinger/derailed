@@ -77,7 +77,12 @@ importRoutes.post('/inspect', async (c) => {
   const workdir = join(paths.builds, `import-${shortId()}`);
 
   try {
-    const clone = await cloneRepo(repo.url, branch, workdir);
+    // Symlinks written as plain text: the importer reads config files straight
+    // out of this checkout, so a symlink must not be able to point one at a host
+    // file. This clone is only inspected and then deleted.
+    const clone = await cloneRepo(repo.url, branch, workdir, undefined, undefined, {
+      disableSymlinks: true,
+    });
     const lookIn = body.rootDir?.trim() ? safeJoin(workdir, body.rootDir) : workdir;
 
     const found = await formatsIn(lookIn);

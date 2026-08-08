@@ -193,18 +193,18 @@ suite('a preview with its own copy of the data', () => {
     expect(await sql(dbId, 'SELECT count(*) FROM customers')).toBe('2');
   }, 120_000);
 
-  test('a failed scrub throws the copy away rather than serving it', async () => {
+  test('a failed scrub abandons the whole preview rather than serving production', async () => {
     setPreviewData(appId, 'clone', 'exit 7');
-    const id = (await createPreview(appId, 'feature/broken-scrub'))!;
-    expect(id).toBeTruthy();
+    const id = await createPreview(appId, 'feature/broken-scrub');
 
-    // No clone survived, and the preview holds no database address at all:
-    // the one thing worse than no data is quietly pointing at production.
-    const clones = listServices(projectId).filter(
+    // No preview at all: the app inherited the parent's real DATABASE_URL, so a
+    // preview that deployed anyway would point straight at production. No preview
+    // beats a preview aimed at production, so createPreview abandons it and the
+    // clone it half-made.
+    expect(id).toBeNull();
+    const live = listServices(projectId).filter(
       (service) => service.kind === 'database' && service.id !== dbId,
     );
-    expect(clones.length).toBe(0);
-    expect(listEnv(id).find((entry) => entry.key === 'DATABASE_URL')).toBeUndefined();
-    await removePreview(id);
+    expect(live.length).toBe(0);
   }, 600_000);
 });

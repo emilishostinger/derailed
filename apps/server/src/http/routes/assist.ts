@@ -3,13 +3,14 @@ import {
   assistReady,
   assistSettings,
   executeTool,
-  isWriteTool,
+  findTool,
   runAssist,
   saveAssistSettings,
 } from '../../assist/assist.ts';
 import type { ChatMessage } from '../../assist/provider.ts';
 import type { Api } from '../../mcp/tools.ts';
 import type { AppEnv } from '../auth.ts';
+import { clientIp, RateLimiter } from '../auth.ts';
 import { badRequest } from '../errors.ts';
 
 /**
@@ -81,8 +82,15 @@ function validTranscript(value: unknown): ChatMessage[] | null {
   return value as ChatMessage[];
 }
 
+// Every other cost-bearing endpoint has one; this one spends the owner's AI key
+// and holds slow outbound fetches, so a viewer must not be able to loop it.
+const assistLimiter = new RateLimiter(20, 60_000);
+
 /** One turn: the model reads what it needs and answers, or proposes one change. */
 assistRoutes.post('/', async (c) => {
+  if (!assistLimiter.check(clientIp(c))) {
+    throw badRequest('That is a lot of questions at once. Give it a minute.');
+  }
   if (!assistReady()) {
     throw badRequest(
       'Nothing is set up to think with.',
@@ -113,10 +121,13 @@ assistRoutes.post('/execute', async (c) => {
     name?: string;
     args?: Record<string, unknown>;
   };
-  if (typeof body.id !== 'string' || typeof body.name !== 'string') {
+  if (typeof body.id !== 'string' || typeof body.name !== 'string' || !body.name) {
     throw badRequest('Which action?');
   }
-  if (!isWriteTool(body.name) && !body.name) throw badRequest('That is not an action.');
+  // Only a real tool may be run here. The name came from the browser, and while
+  // executeTool re-enters the role table as the caller anyway (so this is not an
+  // escalation), an endpoint named "execute" should not proxy arbitrary strings.
+  if (!findTool(body.name)) throw badRequest('That is not an action Derailed knows.');
 
   const result = await executeTool(
     { id: body.id, name: body.name, args: body.args ?? {} },
@@ -128,7 +139,16 @@ assistRoutes.post('/execute', async (c) => {
   return c.json({ message: result });
 });
 
-assistRoutes.get('/settings', (c) => c.json(assistSettings()));
+assistRoutes.get('/settings', (c) => {
+  const settings = assistSettings();
+  // The address the key is sent to is internal topology; a non-owner needs only
+  // to know whether the assistant is set up at all, so they see readiness, not
+  // where a self-hosted model lives.
+  if (c.get('user').role !== 'owner') {
+    return c.json({ provider: settings.provider, model: settings.model, hasKey: settings.hasKey });
+  }
+  return c.json(settings);
+});
 
 assistRoutes.put('/settings', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
@@ -140,7 +160,9 @@ assistRoutes.put('/settings', async (c) => {
   if (body.provider && !['anthropic', 'openai', 'ollama', 'custom'].includes(body.provider)) {
     throw badRequest('Derailed does not know that provider.');
   }
-  if (body.baseUrl && !/^https?:\/\//.test(body.baseUrl.trim())) {
+  // An empty string previously slipped past this check and stored a blank address
+  // that later threw an opaque invalid-URL error at request time. It is required.
+  if (body.baseUrl !== undefined && !/^https?:\/\/\S/.test(body.baseUrl.trim())) {
     throw badRequest('The address has to start with http:// or https://.');
   }
   return c.json(saveAssistSettings(body));

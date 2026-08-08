@@ -1,4 +1,4 @@
-import { createHash, createHmac } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { TrafficEvent } from '../analytics/store.ts';
 import { listServices } from '../db/repo/services.ts';
 import { getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
@@ -53,6 +53,13 @@ interface AddressState {
 
 const state = new Map<string, Map<string, AddressState>>();
 
+/**
+ * The most addresses tracked per app. Past this the oldest-inserted rows are
+ * dropped, so a flood of forged source addresses cannot grow the map without
+ * bound. Well above any real burst of distinct visitors in a minute.
+ */
+const MAX_ADDRESSES_PER_SERVICE = 20_000;
+
 function stateFor(serviceId: string, ip: string): AddressState {
   let addresses = state.get(serviceId);
   if (!addresses) {
@@ -61,6 +68,11 @@ function stateFor(serviceId: string, ip: string): AddressState {
   }
   let address = addresses.get(ip);
   if (!address) {
+    if (addresses.size >= MAX_ADDRESSES_PER_SERVICE) {
+      // Map preserves insertion order, so the first key is the oldest.
+      const oldest = addresses.keys().next().value;
+      if (oldest !== undefined) addresses.delete(oldest);
+    }
     address = { minuteStart: 0, count: 0, challengedUntil: 0, bannedUntil: 0, passUntil: 0 };
     addresses.set(ip, address);
   }
@@ -189,10 +201,26 @@ function sign(payload: string): string {
   return createHmac('sha256', challengeSecret()).update(payload).digest('hex').slice(0, 32);
 }
 
-/** A token the page can hold: who it is for, until when, and our signature. */
+/** Equal-length hex strings, compared without leaking where they first differ. */
+function sameSignature(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+/**
+ * A token the page can hold: who it is for, until when, and our signature.
+ *
+ * Each field is base64url-encoded before joining, so a value that contained the
+ * separator (a spoofed `X-Forwarded-For` of `1.1.1.1|99999999999`) cannot smuggle
+ * a second field past the parser and rewrite the expiry. The separator can then
+ * never appear inside a field.
+ */
 export function issueChallenge(serviceId: string, ip: string, now = Date.now()): string {
-  // Joined with a character an address can never hold; an IP is made of dots.
-  const payload = [serviceId, ip, String(now + CHALLENGE_TTL_MS), randomSecret(8)].join('|');
+  const payload = [serviceId, ip, String(now + CHALLENGE_TTL_MS), randomSecret(8)]
+    .map((field) => Buffer.from(field).toString('base64url'))
+    .join('.');
   return `${Buffer.from(payload).toString('base64url')}.${sign(payload)}`;
 }
 
@@ -213,11 +241,15 @@ export function verifyChallenge(
   } catch {
     return false;
   }
-  if (sign(payload) !== signature) return false;
+  if (!sameSignature(sign(payload), signature)) return false;
 
-  const [forService, forIp, expires] = payload.split('|');
+  const parts = payload.split('.');
+  if (parts.length !== 4) return false;
+  const [forService, forIp, expires] = parts.map((field) =>
+    Buffer.from(field, 'base64url').toString(),
+  );
   if (forService !== serviceId || forIp !== ip) return false;
-  if (Number(expires) < now) return false;
+  if (!/^\d+$/.test(expires!) || Number(expires) < now) return false;
   if (nonce.length > 32) return false;
 
   const digest = createHash('sha256').update(`${token}${nonce}`).digest('hex');

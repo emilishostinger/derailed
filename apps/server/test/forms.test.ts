@@ -10,6 +10,7 @@ import { createProject } from '../src/db/repo/projects.ts';
 import { createAppService, findService } from '../src/db/repo/services.ts';
 import { createApp } from '../src/http/app.ts';
 import { mayCall } from '../src/http/permissions.ts';
+import { proxySecret } from '../src/http/proxytrust.ts';
 import { safeRedirect } from '../src/http/routes/forms.ts';
 import { type RouteSpec, synthesizeCaddyConfig } from '../src/proxy/routes.ts';
 import { loadSecretKey } from '../src/util/crypto.ts';
@@ -62,6 +63,7 @@ function submit(body: Record<string, string>, overrides: Record<string, string> 
     headers: {
       'content-type': 'application/x-www-form-urlencoded',
       'x-derailed-service': siteId,
+      'x-derailed-proxy': proxySecret(),
       'x-forwarded-for': '198.51.100.7',
       ...overrides,
     },
@@ -134,7 +136,25 @@ describe('what the catcher accepts', () => {
     expect(answer.status).toBe(404);
   });
 
-  test('a redirect can only point into the same site', async () => {
+  test('a request straight to the panel port, forging the service, is refused', async () => {
+    // No proxy secret: this is what a request to the open panel port looks like,
+    // with every header attacker-chosen. It must not be able to write to an
+    // app's inbox or mail its owners.
+    const before = countSubmissions(siteId);
+    const forged = await app.request('/api/public/form', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-derailed-service': siteId,
+        'x-forwarded-for': '6.6.6.6',
+      },
+      body: new URLSearchParams({ email: 'spam@evil.example' }).toString(),
+    });
+    expect(forged.status).toBe(404);
+    expect(countSubmissions(siteId)).toBe(before);
+  });
+
+  test('a redirect can only point into the same site, backslashes included', async () => {
     const good = await submit({ email: 'x@y.z', _redirect: '/thanks.html' });
     expect(good.status).toBe(303);
     expect(good.headers.get('location')).toBe('/thanks.html');
@@ -142,10 +162,27 @@ describe('what the catcher accepts', () => {
     const bad = await submit({ email: 'x@y.z', _redirect: 'https://evil.example/' });
     expect(bad.status).toBe(200);
 
+    // The backslash bypass: `/\evil.example` is off-site to a browser.
+    const slash = await submit({ email: 'x@y.z', _redirect: '/\\evil.example' });
+    expect(slash.status).toBe(200);
+
     expect(safeRedirect('/fine')).toBe('/fine');
     expect(safeRedirect('//not-a-path.example')).toBeNull();
+    expect(safeRedirect('/\\evil.example')).toBeNull();
+    expect(safeRedirect('/ok/\\..//evil')).toBeNull();
     expect(safeRedirect('https://elsewhere.example')).toBeNull();
     expect(safeRedirect('')).toBeNull();
+  });
+
+  test('a honeypot after sixty decoy fields is still seen', async () => {
+    const padded: Record<string, string> = {};
+    for (let i = 0; i < 65; i++) padded[`field${i}`] = 'x';
+    padded._gotcha = 'i-am-a-bot';
+    const before = countSubmissions(siteId);
+    const answer = await submit(padded);
+    expect(answer.status).toBe(200);
+    // Fed the honeypot behind padding: still caught, still nothing stored.
+    expect(countSubmissions(siteId)).toBe(before);
   });
 
   test('a flood from one address is slowed down', async () => {

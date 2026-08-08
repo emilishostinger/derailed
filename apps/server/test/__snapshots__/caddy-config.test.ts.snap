@@ -60,6 +60,12 @@ exports[`caddy config synthesis matches the expected shape 1`] = `
                           "handler": "reverse_proxy",
                           "headers": {
                             "request": {
+                              "delete": [
+                                "X-Derailed-Proxy",
+                                "X-Derailed-Service",
+                                "X-Derailed-User",
+                                "X-Derailed-Form-Host",
+                              ],
                               "set": {
                                 "X-Forwarded-Host": [
                                   "{http.request.host}",
@@ -107,6 +113,12 @@ exports[`caddy config synthesis matches the expected shape 1`] = `
                           "handler": "reverse_proxy",
                           "headers": {
                             "request": {
+                              "delete": [
+                                "X-Derailed-Proxy",
+                                "X-Derailed-Service",
+                                "X-Derailed-User",
+                                "X-Derailed-Form-Host",
+                              ],
                               "set": {
                                 "X-Forwarded-Host": [
                                   "{http.request.host}",

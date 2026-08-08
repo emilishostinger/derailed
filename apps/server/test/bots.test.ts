@@ -10,6 +10,7 @@ import { createProject } from '../src/db/repo/projects.ts';
 import { createAppService, updateService } from '../src/db/repo/services.ts';
 import { createApp } from '../src/http/app.ts';
 import { mayCall } from '../src/http/permissions.ts';
+import { proxySecret } from '../src/http/proxytrust.ts';
 import {
   CHALLENGE_THRESHOLD,
   grantPass,
@@ -163,6 +164,20 @@ describe('the proof of work', () => {
     const inAnHour = Date.now() + 60 * 60 * 1000;
     expect(verifyChallenge(token, nonce, siteId, '203.0.113.22', inAnHour)).toBe(false);
   });
+
+  test('a spoofed address cannot smuggle a later expiry past the parser', () => {
+    // The old join used a plain separator; an address of `1.1.1.1|9999999999999`
+    // rewrote the expiry to never. Each field is encoded now, so the separator
+    // cannot appear inside one and the expiry stays what we set.
+    const evilIp = '1.1.1.1.99999999999999';
+    const token = issueChallenge(siteId, evilIp);
+    const nonce = solveChallenge(token);
+    // It verifies for the exact spoofed string...
+    expect(verifyChallenge(token, nonce, siteId, evilIp)).toBe(true);
+    // ...but a year on it has still expired, i.e. the TTL was not defeated.
+    const inAYear = Date.now() + 365 * 24 * 60 * 60 * 1000;
+    expect(verifyChallenge(token, nonce, siteId, evilIp, inAYear)).toBe(false);
+  });
 });
 
 describe('the challenge endpoints, as the page uses them', () => {
@@ -172,7 +187,11 @@ describe('the challenge endpoints, as the page uses them', () => {
     expect(wallsFor(siteId).challenged).toContain(ip);
 
     const issued = await app.request('/api/public/challenge', {
-      headers: { 'x-derailed-service': siteId, 'x-forwarded-for': ip },
+      headers: {
+        'x-derailed-service': siteId,
+        'x-derailed-proxy': proxySecret(),
+        'x-forwarded-for': ip,
+      },
     });
     expect(issued.status).toBe(200);
     const { token, prefix } = (await issued.json()) as { token: string; prefix: string };
@@ -183,6 +202,7 @@ describe('the challenge endpoints, as the page uses them', () => {
       headers: {
         'content-type': 'application/json',
         'x-derailed-service': siteId,
+        'x-derailed-proxy': proxySecret(),
         'x-forwarded-for': ip,
       },
       body: JSON.stringify({ token, nonce: solveChallenge(token) }),
@@ -195,7 +215,11 @@ describe('the challenge endpoints, as the page uses them', () => {
     const ip = '203.0.113.31';
     observeTraffic(burst(ip, CHALLENGE_THRESHOLD.strict + 1), strict);
     const issued = await app.request('/api/public/challenge', {
-      headers: { 'x-derailed-service': siteId, 'x-forwarded-for': ip },
+      headers: {
+        'x-derailed-service': siteId,
+        'x-derailed-proxy': proxySecret(),
+        'x-forwarded-for': ip,
+      },
     });
     const { token } = (await issued.json()) as { token: string };
     const answered = await app.request('/api/public/challenge', {
@@ -203,6 +227,7 @@ describe('the challenge endpoints, as the page uses them', () => {
       headers: {
         'content-type': 'application/json',
         'x-derailed-service': siteId,
+        'x-derailed-proxy': proxySecret(),
         'x-forwarded-for': ip,
       },
       body: JSON.stringify({ token, nonce: 'not-the-answer' }),

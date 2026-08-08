@@ -100,8 +100,18 @@ export function findAppSession(token: string): AppSession | null {
   return toSession(row);
 }
 
-export function touchAppSession(id: string): void {
-  db().query('UPDATE app_sessions SET last_seen_at = ? WHERE id = ?').run(Date.now(), id);
+/**
+ * Records that a session was just used, but at most once a minute.
+ *
+ * The proxy forward-auths every request, assets included, so a single page view
+ * is dozens of these. Writing `last_seen_at` on each one is dozens of serialized
+ * writes against the one SQLite writer, contending with deploys and analytics,
+ * for a column the sessions list only shows to the minute anyway.
+ */
+export function touchAppSession(id: string, lastSeenAt: number | null): void {
+  const now = Date.now();
+  if (lastSeenAt !== null && now - lastSeenAt < 60_000) return;
+  db().query('UPDATE app_sessions SET last_seen_at = ? WHERE id = ?').run(now, id);
 }
 
 export function listAppSessions(serviceId: string): (AppSession & { email: string })[] {
@@ -137,7 +147,7 @@ export function appSessionUser(
   const user = findUserById(session.userId);
   if (!user) return null;
   if (!emailAllowed(service, user.email)) return null;
-  touchAppSession(session.id);
+  touchAppSession(session.id, session.lastSeenAt);
   return { userId: user.id, email: user.email };
 }
 
@@ -214,14 +224,22 @@ export async function checkAppLogin(
 
 let decoy: string | null = null;
 async function decoyHash(): Promise<string> {
-  if (!decoy) decoy = await Bun.password.hash(randomSecret(24), { algorithm: 'bcrypt', cost: 12 });
+  // The default algorithm, which is what a real account's hash uses, so verifying
+  // against the decoy takes the same time as verifying a wrong password against a
+  // real hash. A bcrypt decoy against argon2id hashes was a 4x timing gap, i.e. a
+  // free account-enumeration oracle.
+  if (!decoy) decoy = await Bun.password.hash(randomSecret(24));
   return decoy;
 }
 
 /** A path on the same site, or the front page. Never somebody else's site. */
 export function safeReturnPath(value: string | null | undefined): string {
   const target = value?.trim();
-  if (!target?.startsWith('/') || target.startsWith('//')) return '/';
+  if (!target?.startsWith('/')) return '/';
+  // `//host` and `/\host` both leave the site; a backslash is a slash to the URL
+  // parser a Location resolves in. The `/__derailed/` guard is applied after, so
+  // `/\__derailed/` cannot slip past it either.
+  if (target[1] === '/' || target[1] === '\\' || target.includes('\\')) return '/';
   if (target.startsWith('/__derailed/')) return '/';
   return target;
 }

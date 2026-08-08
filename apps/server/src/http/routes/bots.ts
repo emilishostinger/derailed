@@ -1,4 +1,5 @@
 import { schemas } from '@derailed/shared';
+import type { Context } from 'hono';
 import { Hono } from 'hono';
 import { findService, updateService } from '../../db/repo/services.ts';
 import {
@@ -11,6 +12,7 @@ import {
 import { emitService } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
 import { notFound, parseBody } from '../errors.ts';
+import { forwardedClientIp, fromProxy } from '../proxytrust.ts';
 
 /**
  * The bots screen's two halves: the settings a person changes, and the two
@@ -53,31 +55,43 @@ botRoutes.put('/:id/bots', async (c) => {
  * attaches the service and the visitor's address; the browser's own JS does the
  * work in between.
  */
+/** Only a real proxied request, for an app that actually asked for the wall. */
+function challengedService(c: Context) {
+  if (!fromProxy(c)) return null;
+  const service = findService(c.req.header('x-derailed-service') ?? '');
+  if (service?.kind !== 'app' || service.botMode === 'off') return null;
+  return service;
+}
+
 publicChallengeRoutes.get('/challenge', (c) => {
-  const serviceId = c.req.header('x-derailed-service') ?? '';
-  const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? '';
-  const service = findService(serviceId);
-  if (!service || !ip) return c.text('No challenge to give.', 404);
-  return c.json({ token: issueChallenge(serviceId, ip), prefix: POW_PREFIX });
+  const service = challengedService(c);
+  const ip = forwardedClientIp(c);
+  if (!service || ip === 'unknown') return c.text('No challenge to give.', 404);
+  return c.json({ token: issueChallenge(service.id, ip), prefix: POW_PREFIX });
 });
 
 publicChallengeRoutes.post('/challenge', async (c) => {
-  const serviceId = c.req.header('x-derailed-service') ?? '';
-  const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? '';
-  const service = findService(serviceId);
-  if (!service || !ip) return c.text('No challenge to give.', 404);
+  const service = challengedService(c);
+  const ip = forwardedClientIp(c);
+  if (!service || ip === 'unknown') return c.text('No challenge to give.', 404);
 
   const body = (await c.req.json().catch(() => ({}))) as { token?: string; nonce?: string };
   if (
     typeof body.token !== 'string' ||
     typeof body.nonce !== 'string' ||
-    !verifyChallenge(body.token, body.nonce, serviceId, ip)
+    !verifyChallenge(body.token, body.nonce, service.id, ip)
   ) {
     return c.text('That is not the answer.', 400);
   }
 
-  grantPass(serviceId, ip);
-  const { syncRoutes } = await import('../../proxy/sync.ts');
-  await syncRoutes();
+  // Only push new routes when this solve actually took a wall down. Otherwise a
+  // flood of solves for un-walled addresses would spin the proxy through a full
+  // config rebuild on every request.
+  const before = wallsFor(service.id).challenged.includes(ip);
+  grantPass(service.id, ip);
+  if (before) {
+    const { syncRoutes } = await import('../../proxy/sync.ts');
+    await syncRoutes();
+  }
   return c.body(null, 204);
 });

@@ -10,6 +10,7 @@ import { createUser } from '../src/db/repo/users.ts';
 import { createApp } from '../src/http/app.ts';
 import { listAppSessions, safeReturnPath } from '../src/http/appauth.ts';
 import { mayCall } from '../src/http/permissions.ts';
+import { proxySecret } from '../src/http/proxytrust.ts';
 import { codeFor, generateSecret } from '../src/http/totp.ts';
 import { type RouteSpec, synthesizeCaddyConfig } from '../src/proxy/routes.ts';
 import { loadSecretKey } from '../src/util/crypto.ts';
@@ -88,6 +89,7 @@ function viaProxy(
 ) {
   const headers: Record<string, string> = {
     'x-derailed-service': serviceId,
+    'x-derailed-proxy': proxySecret(),
     'x-forwarded-for': '198.51.100.10',
     'x-forwarded-proto': 'https',
     ...(init.appCookie ? { cookie: `derailed_app=${init.appCookie}` } : {}),
@@ -108,6 +110,37 @@ async function signIn(serviceId: string, email: string, password: string): Promi
 }
 
 describe('the visitor at the door', () => {
+  test('a request straight to the panel, forging the service, cannot reach the gate', async () => {
+    // No proxy secret. The check must not wave the visitor through to a
+    // protected app, and login must not become an unthrottled password oracle
+    // against the dashboard accounts.
+    const check = await app.request('/api/public/appauth/check', {
+      headers: { 'x-derailed-service': photoAppId, 'x-forwarded-uri': '/' },
+    });
+    expect(check.status).toBe(403);
+
+    const login = await app.request('/api/public/appauth/login', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-derailed-service': photoAppId,
+      },
+      body: new URLSearchParams({ email: 'admin@example.com', password: 'x', to: '/' }).toString(),
+    });
+    expect(login.status).toBe(404);
+  });
+
+  test('the return path stays on-site even with a backslash', async () => {
+    const answer = await viaProxy(
+      photoAppId,
+      `/api/public/appauth/login?to=${encodeURIComponent('/\\evil.example')}`,
+    );
+    const html = await answer.text();
+    // The form's hidden return field is neutralised to the site root.
+    expect(html).toContain('value="/"');
+    expect(html).not.toContain('evil.example');
+  });
+
   test('no cookie: the check sends them to the login page, remembering where they were going', async () => {
     const answer = await viaProxy(photoAppId, '/api/public/appauth/check', {
       headers: { 'x-forwarded-uri': '/album/7' },
@@ -311,9 +344,12 @@ describe('the dashboard half', () => {
     await call('PUT', `/api/services/${photoAppId}/login`, { enabled: false });
     expect(listAppSessions(photoAppId).length).toBe(0);
     expect(findService(photoAppId)?.loginRequired).toBe(false);
-    // And with the door gone, the check waves everyone through.
+    // With the door gone the proxy removes the forward-auth route entirely and
+    // serves the app directly, so it never calls the check endpoint again. The
+    // endpoint itself now fails closed for a service it cannot resolve as gated:
+    // "no gate here" must never mean "serve the protected app to anyone".
     const check = await viaProxy(photoAppId, '/api/public/appauth/check', { appCookie: token });
-    expect(check.status).toBe(200);
+    expect(check.status).toBe(403);
     await call('PUT', `/api/services/${photoAppId}/login`, {
       enabled: true,
       allowedEmails: ['grandma@example.com', 'admin@example.com'],

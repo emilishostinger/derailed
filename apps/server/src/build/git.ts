@@ -137,8 +137,17 @@ export async function cloneRepo(
   dir: string,
   onLine?: (line: string) => void,
   token?: string | null,
+  options: { disableSymlinks?: boolean } = {},
 ): Promise<CloneResult> {
-  const args = ['clone', '--depth', '1', '--single-branch'];
+  // `core.symlinks=false` writes any symlink in the repo as a plain file holding
+  // its target text, rather than a real link. The importer reads a handful of
+  // config files out of the checkout and returns their contents; without this a
+  // committed `.env -> /root/secret` would be followed off the workdir and its
+  // lines handed back to the caller. Off by default: a real deploy build wants
+  // its symlinks intact.
+  const args = options.disableSymlinks
+    ? ['-c', 'core.symlinks=false', 'clone', '--depth', '1', '--single-branch']
+    : ['clone', '--depth', '1', '--single-branch'];
   if (branch) args.push('--branch', branch);
   // The token goes in the URL because that is the only thing `git clone` accepts
   // without an interactive prompt. It never reaches the log, which prints the plain

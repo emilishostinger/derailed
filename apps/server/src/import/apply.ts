@@ -57,6 +57,20 @@ export async function applyImportPlan(projectId: string, plan: ImportPlan): Prom
     databaseByPlanName.set(entry.name, database);
   }
 
+  // A secret the platform would have generated is one value shared across every
+  // process, e.g. Heroku's SECRET_KEY_BASE signs cookies for web and worker
+  // alike. Generating per service would give each a different value and quietly
+  // break anything that verifies across them, so it is invented once per key.
+  const generated = new Map<string, string>();
+  const generatedFor = (key: string): string => {
+    let value = generated.get(key);
+    if (!value) {
+      value = randomSecret(24);
+      generated.set(key, value);
+    }
+    return value;
+  };
+
   // Which keys each service will have injected by a link, so a value that came
   // along in the plan does not collide with the injection that replaces it.
   const injectedKeys = new Map<string, Set<string>>();
@@ -94,8 +108,9 @@ export async function applyImportPlan(projectId: string, plan: ImportPlan): Prom
       .filter((variable) => !taken.has(variable.key))
       .map((variable) => ({
         key: variable.key,
-        // The platform would have invented this value; Derailed invents one too.
-        value: variable.generate ? randomSecret(24) : variable.value,
+        // The platform would have invented this value; Derailed invents one too,
+        // once per key so processes that share the secret still agree.
+        value: variable.generate ? generatedFor(variable.key) : variable.value,
       }));
     if (env.length) replaceUserEnv(service.id, env);
     if (entry.memoryLimitMb) updateService(service.id, { memoryLimitMb: entry.memoryLimitMb });

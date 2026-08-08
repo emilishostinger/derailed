@@ -7,6 +7,7 @@ import { findProject } from '../db/repo/projects.ts';
 import { accessFor, containerName, findService } from '../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
+import { proxySecret } from '../http/proxytrust.ts';
 import { isTailnetHostname } from '../system/tailscale.ts';
 import { wallsFor } from './botguard.ts';
 import { buildCaddyConfig, HOST_GATEWAY, pushCaddyConfig } from './caddy.ts';
@@ -88,10 +89,17 @@ export function currentRoutes(): RouteSpec[] {
         blockFrom: service.access?.blockFrom ?? null,
         maintenance: service.access?.maintenance ?? false,
       },
-      // The POST a static site could never answer becomes a message instead.
-      forms: service.forms
-        ? { serviceId: service.id, panelUpstream: HOST_GATEWAY, panelPort }
-        : null,
+      // Stamped on the internal routes that reach a public endpoint, so a
+      // request straight to the panel's open port cannot pretend to be proxied.
+      panelSecret: proxySecret(),
+      // The POST a static site could never answer becomes a message instead. A
+      // PHP site answers its own POSTs, so catching every one would divert its
+      // contact form, its login, its admin: the framework tag is how a detected
+      // PHP app is told apart from the static folders forms are actually for.
+      forms:
+        service.forms && service.framework !== 'PHP site'
+          ? { serviceId: service.id, panelUpstream: HOST_GATEWAY, panelPort }
+          : null,
       // The walls against automated traffic, when this app asked for any.
       bots:
         service.botMode !== 'off' || service.blockAi
@@ -125,26 +133,41 @@ export function currentRoutes(): RouteSpec[] {
 }
 
 let pending: Promise<void> | null = null;
+let again = false;
+
+async function pushOnce(): Promise<void> {
+  try {
+    await pushCaddyConfig(buildCaddyConfig(currentRoutes(), await loadedCertificates()));
+  } catch (err) {
+    publish(topics.system, {
+      type: 'notice',
+      level: 'error',
+      message:
+        err instanceof Error
+          ? err.message
+          : "Derailed couldn't update your web addresses just now.",
+    });
+  }
+}
 
 /**
- * Pushes the full config. Calls that arrive while a push is in flight are coalesced
- * into one follow-up push, so a burst of changes never queues a burst of reloads.
+ * Pushes the full config. A call that arrives while a push is in flight sets a
+ * flag rather than queueing, so a burst of changes collapses to exactly one
+ * follow-up push, and, crucially, a change made *during* a push is not lost: the
+ * config is read fresh at the start of each push, and the flag guarantees one
+ * more read after the last change lands.
  */
 export async function syncRoutes(): Promise<void> {
-  if (pending) return pending;
+  if (pending) {
+    again = true;
+    return pending;
+  }
 
   pending = (async () => {
-    try {
-      await pushCaddyConfig(buildCaddyConfig(currentRoutes(), await loadedCertificates()));
-    } catch (err) {
-      publish(topics.system, {
-        type: 'notice',
-        level: 'error',
-        message:
-          err instanceof Error
-            ? err.message
-            : "Derailed couldn't update your web addresses just now.",
-      });
+    await pushOnce();
+    while (again) {
+      again = false;
+      await pushOnce();
     }
   })().finally(() => {
     pending = null;

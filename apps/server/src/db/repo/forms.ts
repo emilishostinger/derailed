@@ -42,6 +42,13 @@ function toSubmission(row: SubmissionRow): FormSubmission {
   };
 }
 
+/**
+ * The most one app keeps. A contact form is not a database; past this, the oldest
+ * fall off. It bounds the SQLite file against a flood on a public endpoint without
+ * ever throwing away a small site's real messages.
+ */
+const KEEP_PER_SERVICE = 5000;
+
 export function recordSubmission(
   serviceId: string,
   form: string,
@@ -54,6 +61,15 @@ export function recordSubmission(
       'INSERT INTO form_submissions (id, service_id, form, data, ip, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     )
     .run(id, serviceId, form, JSON.stringify(fields), ip, Date.now());
+  // Trim the tail past the cap, oldest first, so the table cannot grow without
+  // bound from an app whose form is being hammered.
+  db()
+    .query(
+      `DELETE FROM form_submissions WHERE service_id = ? AND id NOT IN (
+         SELECT id FROM form_submissions WHERE service_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?
+       )`,
+    )
+    .run(serviceId, serviceId, KEEP_PER_SERVICE);
   return findSubmission(id)!;
 }
 

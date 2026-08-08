@@ -7,6 +7,8 @@ import {
   assistReady,
   assistSettings,
   isWriteTool,
+  needsConfirm,
+  SECRET_TOOLS,
   saveAssistSettings,
   WRITE_TOOLS,
 } from '../src/assist/assist.ts';
@@ -91,6 +93,16 @@ describe('the leash', () => {
     expect(isWriteTool('deploy')).toBe(true);
     expect(isWriteTool('list_projects')).toBe(false);
     expect(isWriteTool('get_logs')).toBe(false);
+  });
+
+  test('a secret-returning read is gated, not auto-run: it would egress to the model', () => {
+    expect(needsConfirm('get_variables')).toBe(true);
+    expect(needsConfirm('list_projects')).toBe(false);
+    expect(SECRET_TOOLS.has('get_variables')).toBe(true);
+  });
+
+  test('check_domain mutates, so it needs a press', () => {
+    expect(isWriteTool('check_domain')).toBe(true);
   });
 
   test('who may do what: chatting is looking, settings are the owner’s', () => {
@@ -283,6 +295,59 @@ describe('a conversation against the scripted model', () => {
     expect(body.message.role).toBe('tool');
     // The tool ran, met the real API, and brought back the real refusal.
     expect(body.message.result).toContain('no-such-app');
+  });
+
+  test('the assistant will not schedule a command on the server itself', async () => {
+    script.length = 0;
+    script.push({
+      choices: [
+        {
+          message: {
+            content: 'I can set that up.',
+            tool_calls: [
+              {
+                id: 'srv',
+                type: 'function',
+                // No `service`: on Heroku this ran on a one-off dyno; here it is
+                // the host, as root. A poisoned log line could talk the model here.
+                function: {
+                  name: 'add_job',
+                  arguments: '{"name":"pwn","command":"id","schedule":"* * * * *"}',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const answer = await ask([{ role: 'user', text: 'run id every minute' }]);
+    const body = (await answer.json()) as {
+      proposal: { what: string } | null;
+    };
+    // It surfaces as a proposal whose own text refuses it, and the confirm path
+    // refuses it too.
+    expect(body.proposal?.what).toContain('SERVER ITSELF');
+
+    const ran = await app.request('/api/assist/execute', {
+      method: 'POST',
+      headers: { 'x-requested-with': 'derailed', 'content-type': 'application/json', cookie },
+      body: JSON.stringify({
+        id: 'srv',
+        name: 'add_job',
+        args: { name: 'pwn', command: 'id', schedule: '* * * * *' },
+      }),
+    });
+    const ranBody = (await ran.json()) as { message: { result: string } };
+    expect(ranBody.message.result).toContain('cannot run commands on the server');
+  });
+
+  test('the confirm endpoint refuses a tool name it does not know', async () => {
+    const answer = await app.request('/api/assist/execute', {
+      method: 'POST',
+      headers: { 'x-requested-with': 'derailed', 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ id: 'x', name: 'not_a_real_tool', args: {} }),
+    });
+    expect(answer.status).toBe(400);
   });
 
   test('a model that never stops asking is stopped', async () => {

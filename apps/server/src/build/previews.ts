@@ -39,7 +39,10 @@ import { queueDeployment } from './pipeline.ts';
 /** The default branch never gets a preview: it is the app itself. */
 function isPreviewable(branch: string, mainBranch: string | null): boolean {
   if (branch === mainBranch) return false;
-  return /^[A-Za-z0-9._\-/]{1,80}$/.test(branch);
+  // Must begin with a letter or digit: a leading dash is an option flag waiting
+  // for a future caller that places the branch positionally, and `..` is a ref
+  // traversal. Safe at every call site today; pinned here so it stays safe.
+  return /^[A-Za-z0-9][A-Za-z0-9._\-/]{0,79}$/.test(branch) && !branch.includes('..');
 }
 
 /** `shop-web` plus the branch, which is what the address ends up reading as. */
@@ -138,27 +141,47 @@ async function cloneDatabasesFor(
   const { findEngine } = await import('../catalog/databases.ts');
   const { credentialsFor } = await import('../catalog/create.ts');
 
-  for (const link of linksFrom(app.id)) {
-    const database = findService(link.toServiceId);
-    if (database?.kind !== 'database' || !database.dbEngine) continue;
+  // Every clone made this run, so a failure part way through tears down all of
+  // them, not just the one in hand.
+  const made: string[] = [];
+  const tearDownAll = async () => {
+    for (const id of made) {
+      const containers = await listContainers(labelFilter({ [LABELS.service]: id })).catch(
+        () => [],
+      );
+      for (const container of containers)
+        await destroyContainer(container.Id, 5).catch(() => undefined);
+      softDeleteService(id);
+    }
+  };
 
-    const snapshot =
-      listSnapshots(database.id)[0] ?? (await takeSnapshot(database.id).catch(() => null));
+  try {
+    for (const link of linksFrom(app.id)) {
+      const database = findService(link.toServiceId);
+      if (database?.kind !== 'database' || !database.dbEngine) continue;
 
-    const clone = await createDatabaseFromCatalog(
-      app.projectId,
-      previewName(database.name, branch),
-      database.dbEngine,
-      database.dbVersion ?? '',
-    );
-    markAsPreview(clone.id, database.id);
-    try {
-      const healthy = await waitDbHealthy(clone.id);
+      const snapshot =
+        listSnapshots(database.id)[0] ?? (await takeSnapshot(database.id).catch(() => null));
+
+      const clone = await createDatabaseFromCatalog(
+        app.projectId,
+        previewName(database.name, branch),
+        database.dbEngine,
+        database.dbVersion ?? '',
+      );
+      made.push(clone.id);
+      markAsPreview(clone.id, database.id);
+
+      // A copy that never came up is a failure, not an empty database quietly
+      // served: the whole promise is a real copy of real data.
+      if (!(await waitDbHealthy(clone.id))) {
+        throw new Error(`The copy of ${database.name} did not come up in time.`);
+      }
       const engine = findEngine(database.dbEngine);
       const restorable =
         engine && restoreCommandFor(engine.engine, credentialsFor(clone)!) !== null;
 
-      if (healthy && snapshot && restorable) {
+      if (snapshot && restorable) {
         await restoreSnapshot(snapshot.id, clone.id);
 
         // The scrub, against the copy and only the copy, before anything serves it.
@@ -180,22 +203,22 @@ async function cloneDatabasesFor(
           ];
           const containers = await listContainers(labelFilter({ [LABELS.service]: clone.id }));
           const running = containers.find((container) => container.State === 'running');
-          if (running) {
-            const proc = Bun.spawn(['docker', ...execArgs(running.Id, env), 'sh', '-c', scrub], {
-              stdout: 'pipe',
-              stderr: 'pipe',
-            });
-            const [problem, code] = await Promise.all([
-              new Response(proc.stderr).text(),
-              proc.exited,
-            ]);
-            if (code !== 0) {
-              // A scrub that failed and a preview that serves anyway is real people's
-              // data where it was not supposed to be. The copy is emptied instead.
-              throw new Error(
-                `The scrub command failed, so the copy was not kept: ${problem.slice(0, 200)}`,
-              );
-            }
+          // No running container to scrub in, after real data was just restored,
+          // is a failure: serving unscrubbed data is the one thing the scrub exists
+          // to prevent.
+          if (!running) throw new Error('The copy could not be scrubbed, so it was not kept.');
+          const proc = Bun.spawn(['docker', ...execArgs(running.Id, env), 'sh', '-c', scrub], {
+            stdout: 'pipe',
+            stderr: 'pipe',
+          });
+          const [problem, code] = await Promise.all([
+            new Response(proc.stderr).text(),
+            proc.exited,
+          ]);
+          if (code !== 0) {
+            throw new Error(
+              `The scrub command failed, so the copy was not kept: ${problem.slice(0, 200)}`,
+            );
           }
         }
       }
@@ -205,18 +228,12 @@ async function cloneDatabasesFor(
       const key = link.injectAs ?? engine?.defaultInjectKey ?? 'DATABASE_URL';
       deleteEnv(previewId, key);
       await connectServices(previewId, clone.id, link.injectAs ?? undefined);
-    } catch (err) {
-      // A half-made copy is worse than no preview: real data may be sitting in it
-      // unscrubbed. It goes, whole, and the failure is loud.
-      const containers = await listContainers(labelFilter({ [LABELS.service]: clone.id })).catch(
-        () => [],
-      );
-      for (const container of containers) {
-        await destroyContainer(container.Id, 5).catch(() => undefined);
-      }
-      softDeleteService(clone.id);
-      throw err;
     }
+  } catch (err) {
+    // A half-made set of copies is worse than no preview: real data may be sitting
+    // in one unscrubbed. They all go, and the failure is loud to the caller.
+    await tearDownAll();
+    throw err;
   }
 }
 
@@ -258,16 +275,20 @@ export async function createPreview(appId: string, branch: string): Promise<stri
     try {
       await cloneDatabasesFor(app, preview.id, branch, data.scrub);
     } catch (err) {
-      // Deliberately not a quiet fall-back to the real database: the setting
-      // promised a copy, and the one thing worse than a preview without data is
-      // a preview quietly pointed at production.
+      // The preview still holds the parent's inherited variables, which for a
+      // linked database is a hand-typed address pointing at production. Deploying
+      // now would point the preview straight at real data, the one thing clone
+      // mode exists to prevent. So the whole preview is abandoned, loudly, rather
+      // than falling back: no preview beats a preview aimed at production.
       publish('system', {
         type: 'notice',
         level: 'error',
-        message: `The preview for ${app.name} on ${branch} could not get its copy of the data: ${
+        message: `The preview for ${app.name} on ${branch} could not get its own copy of the data, so it was not started: ${
           err instanceof Error ? err.message : String(err)
         }`,
       });
+      await removePreview(preview.id);
+      return null;
     }
   }
 

@@ -86,6 +86,7 @@ export const SETTINGS = {
    */
   autoSecurityUpdates: 'auto_security_updates',
   botChallengeSecret: 'bot_challenge_secret',
+  proxySecret: 'proxy_secret',
   aiProvider: 'ai_provider',
   aiModel: 'ai_model',
   aiBaseUrl: 'ai_base_url',
