@@ -212,7 +212,7 @@ It has not yet been through a thousand other people's edge cases.
 Run it for side projects and internal tools first, keep backups, and
 [tell me what breaks](../../issues). That is the fastest way to make it better.
 
-Not there yet: deploying on push, `docker-compose` repositories, more than one server.
+Not there yet: `docker-compose` repositories, more than one server.
 
 <br>
 
