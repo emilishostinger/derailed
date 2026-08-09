@@ -149,6 +149,27 @@ export class BlockedAddressError extends Error {
  * text of a URL would let it straight through.
  */
 export async function resolvesToBlockedAddress(hostname: string): Promise<boolean> {
+  return (await vetHostname(hostname)).blocked;
+}
+
+/**
+ * What `vetHostname` decides about a name: whether it is refused, and, when it is
+ * allowed, the single literal address the caller should actually connect to.
+ *
+ * `pin` is the whole point of returning a structure rather than a boolean. The check
+ * and the connection are two separate lookups, and a name that answers a public
+ * address the first time and a private one the second (DNS rebinding) walks straight
+ * through a guard that only says yes or no. Handing back the exact address that was
+ * vetted, so the caller connects to *that* and not to whatever a second lookup
+ * returns, closes the window. `null` means "a bare literal, connect to it as written";
+ * there was nothing to resolve, so there is nothing to pin.
+ */
+interface HostVerdict {
+  blocked: boolean;
+  pin: { address: string; family: 4 | 6 } | null;
+}
+
+async function vetHostname(hostname: string): Promise<HostVerdict> {
   const bare = hostname.replace(/^\[|\]$/g, '');
   // A literal address needs no lookup, and asking the resolver about one is a way to
   // get a different answer than the one the socket will use. But only a *canonical*
@@ -157,18 +178,26 @@ export async function resolvesToBlockedAddress(hostname: string): Promise<boolea
   // 0-255 octets), so they would sail through as "not a blocked literal". Let anything
   // that is not a canonical quad fall through to `lookup()`, where the resolver
   // canonicalises it to the address the socket will actually use and it gets checked.
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(bare) || bare.includes(':'))
-    return isBlockedFetchAddress(bare);
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(bare) || bare.includes(':')) {
+    // A literal is its own pin: the socket connects to exactly what was judged.
+    return { blocked: isBlockedFetchAddress(bare), pin: null };
+  }
 
   try {
     const answers = await lookup(bare, { all: true });
     // Every answer, not the first: a name that returns one public address and one
     // private one is the oldest way around a check like this.
-    return answers.length === 0 || answers.some((answer) => isBlockedFetchAddress(answer.address));
+    if (answers.length === 0 || answers.some((a) => isBlockedFetchAddress(a.address))) {
+      return { blocked: true, pin: null };
+    }
+    // All clear. Pin the first answer so the connection cannot be re-pointed by a
+    // second lookup between here and the socket.
+    const chosen = answers[0]!;
+    return { blocked: false, pin: { address: chosen.address, family: chosen.family as 4 | 6 } };
   } catch {
     // A name that will not resolve cannot be fetched either, and refusing is the
     // safe direction to be wrong in.
-    return true;
+    return { blocked: true, pin: null };
   }
 }
 
@@ -200,13 +229,15 @@ export async function fetchPublic(
           : 'That address redirected somewhere this server will not follow.',
       );
     }
-    if (await resolvesToBlockedAddress(current.hostname)) {
+    const verdict = await vetHostname(current.hostname);
+    if (verdict.blocked) {
       throw new BlockedAddressError(
         'That address points at this machine or its private network, so it is not fetched.',
       );
     }
 
-    const response = await fetch(current, { ...init, redirect: 'manual' });
+    const [dialled, dialledInit] = pinnedRequest(current, verdict.pin, init);
+    const response = await fetch(dialled, dialledInit);
     if (response.status < 300 || response.status > 399) return response;
 
     const location = response.headers.get('location');
@@ -218,4 +249,43 @@ export async function fetchPublic(
   }
 
   throw new BlockedAddressError('That address redirected too many times.');
+}
+
+/**
+ * Build the request that actually goes on the wire, pointed at the vetted address.
+ *
+ * When `pin` is set, the socket connects to that literal IP rather than re-resolving
+ * the name, which is what shuts the rebinding window. The name still has to reach the
+ * far end, though: web servers pick a site by the `Host` header, and a TLS server
+ * proves an identity by the name in the SNI, so both are set back to the original
+ * hostname. The result is "dial this exact number, but ask for this person" rather
+ * than "look the number up again and trust whatever you get".
+ */
+function pinnedRequest(
+  target: URL,
+  pin: { address: string; family: 4 | 6 } | null,
+  init: RequestInit,
+): [string, RequestInit] {
+  if (!pin) return [target.href, { ...init, redirect: 'manual' }];
+
+  const dialled = new URL(target);
+  dialled.hostname = pin.family === 6 ? `[${pin.address}]` : pin.address;
+
+  const headers = new Headers(init.headers);
+  // `target.host` keeps a non-default port; a default one is omitted, which is the
+  // correct Host value in both cases.
+  headers.set('host', target.host);
+
+  return [
+    dialled.href,
+    {
+      ...init,
+      headers,
+      redirect: 'manual',
+      // Bun honours a TLS server name override on a per-request basis, so the
+      // certificate is still checked against the name the caller asked for, not the
+      // bare IP we dialled. On a plain-http hop this is simply ignored.
+      tls: { serverName: target.hostname },
+    } as RequestInit,
+  ];
 }

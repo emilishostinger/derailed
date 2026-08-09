@@ -53,6 +53,11 @@ export function decodeBase32(secret: string): Buffer | null {
 export function codeFor(secret: string, step: number): string | null {
   const key = decodeBase32(secret);
   if (!key || key.length === 0) return null;
+  // The counter is an unsigned 64-bit field, so a step before the epoch has no code.
+  // `Date.now()` never produces one, but `verifyCodeStep` checks a step either side of
+  // now, and the step either side of step 0 is negative: without this guard that threw
+  // an uncaught RangeError instead of simply failing to match.
+  if (!Number.isInteger(step) || step < 0) return null;
 
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(step));
@@ -96,6 +101,9 @@ export function verifyCodeStep(secret: string, code: string, at = Date.now()): n
   const step = Math.floor(at / 1000 / PERIOD_SECONDS);
   for (let drift = -DRIFT_STEPS; drift <= DRIFT_STEPS; drift++) {
     const candidate = step + drift;
+    // A negative step is before the epoch and has no code; skip it rather than let the
+    // whole check bail, so the drift window around a near-zero time still works.
+    if (candidate < 0) continue;
     const expected = codeFor(secret, candidate);
     if (!expected) return null;
     const a = Buffer.from(expected);

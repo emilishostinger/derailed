@@ -105,6 +105,16 @@ describe('which step a code belongs to', () => {
     expect(verifyCodeStep(secret, '000000x', now)).toBeNull();
   });
 
+  test('a time near the epoch returns cleanly, not an uncaught range error', () => {
+    // Found by fuzzing: at a time close to zero the drift window reaches step -1, and
+    // the counter is an unsigned 64-bit field, so building a code for it threw a
+    // RangeError that escaped the function. `Date.now()` never lands here, but a total
+    // function returns null rather than throwing. `codeFor` for a negative step is null.
+    expect(() => verifyCodeStep(secret, '000000', 0)).not.toThrow();
+    expect(verifyCodeStep(secret, '000000', 0)).toBeNull();
+    expect(codeFor(secret, -1)).toBeNull();
+  });
+
   test('drives single use: the step the caller stored blocks a replay of that code', () => {
     // What the login handler does, in miniature: accept, remember the step, then refuse
     // any code whose step is not strictly newer, which is exactly a replay of the same

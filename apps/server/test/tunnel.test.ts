@@ -10,7 +10,7 @@ import { createApp } from '../src/http/app.ts';
 import { ownerFromToken } from '../src/http/auth.ts';
 import { proxySecret } from '../src/http/proxytrust.ts';
 import { socketHandlers } from '../src/http/sockets.ts';
-import { proposeSubdomain } from '../src/runtime/devtunnel.ts';
+import { activeDevTunnels, proposeSubdomain, registerDev } from '../src/runtime/devtunnel.ts';
 import { tunnelHandlers } from '../src/runtime/tunnel.ts';
 import { loadSecretKey } from '../src/util/crypto.ts';
 
@@ -75,6 +75,7 @@ beforeAll(async () => {
               serviceId: 'x',
               target: { host: '127.0.0.1', port: echo.port },
               pending: [],
+              pendingBytes: 0,
               open: false,
             },
           });
@@ -207,7 +208,7 @@ describe('a dev tunnel', () => {
 
 describe('the pieces', () => {
   test('a proposed subdomain is two words and a tag, all url-safe', () => {
-    expect(proposeSubdomain()).toMatch(/^[a-z]+-[a-z]+-[a-z0-9]{4}$/);
+    expect(proposeSubdomain()).toMatch(/^[a-z]+-[a-z]+-[a-z0-9]{12}$/);
   });
 
   test('the tunnel handlers exist for the socket dispatcher', () => {
@@ -228,5 +229,71 @@ describe('the pieces', () => {
     });
     const { tunnelTargetFor } = await import('../src/runtime/tunnel.ts');
     await expect(tunnelTargetFor(appService.id)).rejects.toThrow(/databases/i);
+  });
+});
+
+/**
+ * The two deferred hardening items on the tunnels, closed here.
+ *
+ * Neither needs a live socket: one is about the subdomain map, one about the buffer
+ * a message handler feeds. Both are the kind of "vanishingly unlikely, but not
+ * impossible" a single-tenant panel can still be walked into by a determined caller.
+ */
+describe('the tunnel edges', () => {
+  test('two tunnels that land on the same subdomain do not evict each other', () => {
+    // A pair of stand-in sockets that share a subdomain the moment they register. The
+    // first keeps the name; the second is quietly moved to a fresh one rather than
+    // stealing the first laptop's routing.
+    const clash = 'twin-fox-abcdef012345';
+    const first = {
+      data: { kind: 'dev', userId: 'u1', sub: clash, label: 'a', pending: new Map() },
+    };
+    const second = {
+      data: { kind: 'dev', userId: 'u2', sub: clash, label: 'b', pending: new Map() },
+    };
+    // biome-ignore lint/suspicious/noExplicitAny: a minimal stand-in for the socket.
+    registerDev(first as any);
+    // biome-ignore lint/suspicious/noExplicitAny: a minimal stand-in for the socket.
+    registerDev(second as any);
+
+    expect(first.data.sub).toBe(clash);
+    expect(second.data.sub).not.toBe(clash);
+    const subs = activeDevTunnels().map((t) => t.sub);
+    expect(subs).toContain(first.data.sub);
+    expect(subs).toContain(second.data.sub);
+    // Both are actually reachable, i.e. the second did not overwrite the first.
+    expect(new Set(subs).size).toBeGreaterThanOrEqual(2);
+  });
+
+  test('a proposed subdomain has a long random tail, not a four-character one', () => {
+    // Four base36 chars is about 1.6M, which is walkable; the tail is twelve now.
+    const tail = proposeSubdomain().split('-').at(-1) ?? '';
+    expect(tail.length).toBe(12);
+  });
+
+  test('the pre-connect buffer is bounded by bytes, not by message count', () => {
+    // One oversized frame must trip the cap that a flood of small ones would, which a
+    // count-based limit (the old MAX_PENDING = 256 messages) let straight through.
+    const closed: number[] = [];
+    const ws = {
+      data: {
+        kind: 'tunnel' as const,
+        serviceId: 'x',
+        target: { host: '127.0.0.1', port: 1 },
+        pending: [] as Uint8Array[],
+        pendingBytes: 0,
+        open: false,
+      },
+      close(code?: number) {
+        closed.push(code ?? 1000);
+      },
+    };
+    // A single 3 MB frame, above the 2 MB ceiling, with the socket not yet open.
+    const huge = Buffer.alloc(3 * 1024 * 1024, 1);
+    // biome-ignore lint/suspicious/noExplicitAny: a minimal stand-in for the socket.
+    tunnelHandlers.message(ws as any, huge);
+    expect(closed).toContain(1011);
+    // Nothing the size of the flood was retained.
+    expect(ws.data.pendingBytes).toBeLessThanOrEqual(2 * 1024 * 1024);
   });
 });

@@ -98,7 +98,7 @@ export async function serve(): Promise<void> {
             });
           }
           const upgraded = server.upgrade(request, {
-            data: { kind: 'tunnel', serviceId, target, pending: [], open: false },
+            data: { kind: 'tunnel', serviceId, target, pending: [], pendingBytes: 0, open: false },
           });
           return upgraded
             ? undefined

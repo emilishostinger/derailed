@@ -7,7 +7,13 @@
  * leisure. The socket address is the only part of this a caller cannot choose.
  */
 import { describe, expect, test } from 'bun:test';
-import { isPrivateAddress, resolveClientIp, resolveHttps } from '../src/util/net.ts';
+import {
+  BlockedAddressError,
+  fetchPublic,
+  isPrivateAddress,
+  resolveClientIp,
+  resolveHttps,
+} from '../src/util/net.ts';
 
 describe('recognising our own side of the wire', () => {
   test('loopback, RFC1918 and the docker bridges are ours', () => {
@@ -92,6 +98,74 @@ describe('whether the connection was secure', () => {
   test('with no proxy header it is whatever the URL says', () => {
     expect(resolveHttps('203.0.113.7', null, 'https:')).toBe(true);
     expect(resolveHttps(null, null, 'http:')).toBe(false);
+  });
+});
+
+/**
+ * DNS rebinding: the guard resolves a name, likes the answer, and then the socket
+ * resolves it again and gets a different one. `fetchPublic` closes the gap by pinning
+ * the address it vetted and dialling that literal, while still presenting the name in
+ * the Host header and the TLS SNI so ordinary virtual hosting and certificates work.
+ *
+ * Proven here with a name that really resolves (example.com) so the resolver, not a
+ * stub, produces the address: the request that goes on the wire must be aimed at that
+ * IP and not at the name, because a second lookup is exactly what an attacker's DNS
+ * would answer differently.
+ */
+describe('a vetted fetch cannot be re-pointed by a second DNS lookup', () => {
+  test('the socket dials the resolved IP, with Host and SNI kept as the hostname', async () => {
+    const real = globalThis.fetch;
+    const seen: { dialled: string; host: string | null; sni: unknown } = {
+      dialled: '',
+      host: null,
+      sni: undefined,
+    };
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      seen.dialled = String(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      seen.host = headers.get('host');
+      seen.sni = (init as { tls?: { serverName?: string } } | undefined)?.tls?.serverName;
+      return new Response('ok', { status: 200 });
+    }) as unknown as typeof fetch;
+
+    try {
+      await fetchPublic('https://example.com/some/path');
+    } catch (err) {
+      // Only a genuine resolver failure is an acceptable reason not to assert; the
+      // point of the test is the pin, not example.com's uptime.
+      if (err instanceof BlockedAddressError) {
+        globalThis.fetch = real;
+        return;
+      }
+      throw err;
+    } finally {
+      globalThis.fetch = real;
+    }
+
+    // The name never reaches the socket layer; a literal address does.
+    expect(seen.dialled).not.toContain('example.com');
+    expect(seen.dialled).toMatch(/^https:\/\/(\d{1,3}(\.\d{1,3}){3}|\[[0-9a-f:]+\])(:\d+)?\//);
+    // But the name still reaches the far end, for vhosts and certificate checks.
+    expect(seen.host).toBe('example.com');
+    expect(seen.sni).toBe('example.com');
+  });
+
+  test('a literal address is dialled as written, since there is nothing to pin', async () => {
+    // A public literal has no second lookup to disagree with, so it is fetched
+    // directly, unchanged. (A blocked literal never gets this far; that path is the
+    // isBlockedFetchAddress tests.)
+    const real = globalThis.fetch;
+    const seen = { dialled: '' };
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      seen.dialled = String(input instanceof Request ? input.url : input);
+      return new Response('ok', { status: 200 });
+    }) as unknown as typeof fetch;
+    try {
+      await fetchPublic('https://203.0.113.7/');
+    } finally {
+      globalThis.fetch = real;
+    }
+    expect(seen.dialled).toBe('https://203.0.113.7/');
   });
 });
 

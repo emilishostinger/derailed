@@ -25,6 +25,8 @@ export interface TunnelData {
   socket?: import('bun').Socket<undefined>;
   /** Bytes that arrived before the TCP socket finished opening. */
   pending: Uint8Array[];
+  /** Total size of `pending`, in bytes, so the cap bounds memory not message count. */
+  pendingBytes: number;
   open: boolean;
 }
 
@@ -63,7 +65,16 @@ export async function tunnelTargetFor(serviceId: string): Promise<{ host: string
   return { host: ip, port: engine.port };
 }
 
-const MAX_PENDING = 256;
+/**
+ * How much unsent data a not-yet-connected tunnel may hold, in bytes.
+ *
+ * A byte ceiling rather than a message count. `MAX_PENDING = 256` capped how many
+ * websocket frames could queue, but each frame is unbounded, so 256 frames of a
+ * megabyte each was 256 MB the cap said nothing about. Dialing a container on the
+ * local Docker network is near-instant, so a real client sends almost nothing before
+ * the socket opens; a couple of megabytes is a generous window and a cheap ceiling.
+ */
+const MAX_PENDING_BYTES = 2 * 1024 * 1024;
 
 /**
  * The bridge, once the socket is upgraded: dial the database, then pipe.
@@ -75,6 +86,7 @@ const MAX_PENDING = 256;
 export const tunnelHandlers = {
   async open(ws: ServerWebSocket<TunnelData>): Promise<void> {
     ws.data.pending = [];
+    ws.data.pendingBytes = 0;
     ws.data.open = false;
     try {
       const { host, port } = ws.data.target;
@@ -93,6 +105,7 @@ export const tunnelHandlers = {
             ws.data.open = true;
             for (const chunk of ws.data.pending) socket.write(chunk);
             ws.data.pending = [];
+            ws.data.pendingBytes = 0;
           },
           close() {
             try {
@@ -127,8 +140,12 @@ export const tunnelHandlers = {
       return;
     }
     // Not connected yet: hold a little, then give up rather than grow without bound.
-    if (ws.data.pending.length < MAX_PENDING) ws.data.pending.push(new Uint8Array(chunk));
-    else {
+    // The limit is on total held bytes, so one enormous frame trips it just as a
+    // flood of small ones would.
+    if (ws.data.pendingBytes + chunk.length <= MAX_PENDING_BYTES) {
+      ws.data.pending.push(new Uint8Array(chunk));
+      ws.data.pendingBytes += chunk.length;
+    } else {
       try {
         ws.close(1011, 'too much data before the connection opened');
       } catch {

@@ -59,10 +59,25 @@ export function proposeSubdomain(): string {
   const id = newId();
   const a = ADJECTIVES[id.charCodeAt(0) % ADJECTIVES.length];
   const n = NOUNS[id.charCodeAt(1) % NOUNS.length];
-  return `${a}-${n}-${id.slice(0, 4)}`;
+  // The friendly two words are for saying down the phone; the guessing resistance is
+  // all in the random tail. Four base36 chars (about 1.6M) is small enough to walk
+  // through, and a live work-in-progress preview sitting on a guessable name is a
+  // preview a stranger can read. Twelve chars is about 4.7e18, which is not walked.
+  return `${a}-${n}-${id.slice(0, 12)}`;
 }
 
+/**
+ * Put a tunnel on the map, under a name nothing else is using.
+ *
+ * `live.set(sub, ws)` on its own let a second tunnel that happened onto the same label
+ * silently evict the first: its requests would suddenly be answered by someone else's
+ * laptop. Vanishingly unlikely with a 12-char random tail, but "unlikely" is not
+ * "cannot", and the cost of being sure is a loop that regenerates on the rare clash.
+ * The laptop is told its name in the `ready` message *after* this returns, so moving
+ * it here is invisible to the client.
+ */
 export function registerDev(ws: ServerWebSocket<DevData>): void {
+  while (live.has(ws.data.sub)) ws.data.sub = proposeSubdomain();
   live.set(ws.data.sub, ws);
 }
 
