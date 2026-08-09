@@ -196,21 +196,37 @@ export const endpoints = {
     api
       .put<{ enabled: boolean }>(`/services/${serviceId}/images`, { enabled })
       .then((r) => r.enabled),
-  sourceFiles: (serviceId: string) =>
-    api
-      .get<{ files: { path: string; sizeBytes: number; modifiedAt: number }[] }>(
-        `/services/${serviceId}/source`,
-      )
-      .then((r) => r.files),
-  readSource: (serviceId: string, path: string) =>
-    api.get<{ path: string; contents: string }>(
-      `/services/${serviceId}/source/read?path=${encodeURIComponent(path)}`,
+  // The site source, presented with the same shapes as storage files, so one
+  // browser component draws both.
+  source: (serviceId: string, path?: string) =>
+    api.get<{ roots: string[]; path: string | null; entries: FileEntry[] }>(
+      `/services/${serviceId}/source${path ? `?path=${encodeURIComponent(path)}` : ''}`,
     ),
-  writeSource: (serviceId: string, path: string, contents: string) =>
+  readSource: (serviceId: string, path: string) =>
+    api
+      .get<{ contents: string }>(
+        `/services/${serviceId}/source/read?path=${encodeURIComponent(path)}`,
+      )
+      .then((r) => r.contents),
+  writeSource: (serviceId: string, path: string, contents: string, deploy = true) =>
     api.put<{ ok: boolean; deployment: Deployment | null }>(`/services/${serviceId}/source`, {
       path,
       contents,
+      deploy,
     }),
+  newSourceFolder: (serviceId: string, path: string, name: string) =>
+    api.post<{ ok: true }>(`/services/${serviceId}/source/folder`, { path, name }),
+  renameSource: (serviceId: string, path: string, name: string) =>
+    api.post<{ ok: true }>(`/services/${serviceId}/source/rename`, { path, name }),
+  deleteSource: (serviceId: string, path: string) =>
+    api.delete<{ ok: true }>(`/services/${serviceId}/source?path=${encodeURIComponent(path)}`),
+  uploadSource: (serviceId: string, path: string, file: File) =>
+    api.putFile<{ ok: true }>(
+      `/services/${serviceId}/source/upload?path=${encodeURIComponent(path)}&name=${encodeURIComponent(file.name)}`,
+      file,
+    ),
+  downloadSourceUrl: (serviceId: string, path: string) =>
+    `/api/services/${serviceId}/source/download?path=${encodeURIComponent(path)}`,
   errorPageTemplate: (serviceId: string, kind: '404' | '500') =>
     api.get<{ contents: string }>(`/services/${serviceId}/source/error-page/${kind}`),
   envHistory: (serviceId: string) =>

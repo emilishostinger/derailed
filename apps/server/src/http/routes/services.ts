@@ -19,9 +19,14 @@ import { adoptCurrentCommit } from '../../build/pushes.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
 import {
   defaultErrorPage,
-  listSourceFiles,
+  deleteSourceEntry,
+  downloadSourceFile,
+  listSourceDir,
+  makeSourceFolder,
   readSourceFile,
+  renameSourceEntry,
   SourceError,
+  uploadIntoSource,
   writeSourceFile,
 } from '../../build/source.ts';
 import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.ts';
@@ -833,12 +838,19 @@ const sourceIsForUploadApps: MiddlewareHandler<AppEnv> = async (c, next) => {
 serviceRoutes.use('/:id/source', sourceIsForUploadApps);
 serviceRoutes.use('/:id/source/*', sourceIsForUploadApps);
 
+/** The same file-manager surface the storage browser has, on the site's source, so
+ *  the one Files tab looks and behaves identically whichever it is showing. Every
+ *  path is resolved and re-checked inside the site by `insideSite`. */
+const asSource = (err: unknown): never => {
+  if (err instanceof SourceError) throw badRequest(err.message, err.hint);
+  throw err;
+};
+
 serviceRoutes.get('/:id/source', async (c) => {
   try {
-    return c.json({ files: await listSourceFiles(c.req.param('id')) });
+    return c.json(await listSourceDir(c.req.param('id'), c.req.query('path') ?? undefined));
   } catch (err) {
-    if (err instanceof SourceError) throw badRequest(err.message, err.hint);
-    throw err;
+    return asSource(err);
   }
 });
 
@@ -848,8 +860,7 @@ serviceRoutes.get('/:id/source/read', async (c) => {
   try {
     return c.json(await readSourceFile(c.req.param('id'), path));
   } catch (err) {
-    if (err instanceof SourceError) throw badRequest(err.message, err.hint);
-    throw err;
+    return asSource(err);
   }
 });
 
@@ -867,13 +878,81 @@ serviceRoutes.put('/:id/source', async (c) => {
   try {
     await writeSourceFile(service.id, body.path, body.contents);
   } catch (err) {
-    if (err instanceof SourceError) throw badRequest(err.message, err.hint);
-    throw err;
+    return asSource(err);
   }
 
   // Save-that-deploys: the whole point of editing here is that the site updates.
   const deployment = body.deploy === false ? null : queueDeployment(service.id, 'manual');
   return c.json({ ok: true, deployment });
+});
+
+serviceRoutes.post('/:id/source/folder', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  if (!body.path) throw badRequest('Which folder should this go in?');
+  if (!body.name) throw badRequest('What should the folder be called?');
+  try {
+    await makeSourceFolder(c.req.param('id'), body.path, body.name);
+  } catch (err) {
+    return asSource(err);
+  }
+  return c.json({ ok: true }, 201);
+});
+
+serviceRoutes.post('/:id/source/rename', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  if (!body.path) throw badRequest('Which one?');
+  if (!body.name) throw badRequest('What should it be called?');
+  try {
+    await renameSourceEntry(c.req.param('id'), body.path, body.name);
+  } catch (err) {
+    return asSource(err);
+  }
+  return c.json({ ok: true });
+});
+
+serviceRoutes.delete('/:id/source', async (c) => {
+  const path = c.req.query('path');
+  if (!path) throw badRequest('Which one?');
+  try {
+    await deleteSourceEntry(c.req.param('id'), path);
+  } catch (err) {
+    return asSource(err);
+  }
+  return c.json({ ok: true });
+});
+
+serviceRoutes.post('/:id/source/upload', async (c) => {
+  const path = c.req.query('path');
+  const name = c.req.query('name');
+  if (!path) throw badRequest('Which folder should this go in?');
+  if (!name) throw badRequest('What is this file called?');
+  const size = Number(c.req.header('content-length') ?? Number.NaN);
+  const stream = c.req.raw.body;
+  if (!stream) throw badRequest('No file arrived.');
+  try {
+    await uploadIntoSource(c.req.param('id'), path, name, size, stream);
+  } catch (err) {
+    return asSource(err);
+  }
+  return c.json({ ok: true }, 201);
+});
+
+serviceRoutes.get('/:id/source/download', async (c) => {
+  const path = c.req.query('path');
+  if (!path) throw badRequest('Which file?');
+  let file: Awaited<ReturnType<typeof downloadSourceFile>>;
+  try {
+    file = await downloadSourceFile(c.req.param('id'), path);
+  } catch (err) {
+    return asSource(err);
+  }
+  return new Response(file.body as unknown as ReadableStream, {
+    headers: {
+      'content-type': 'application/octet-stream',
+      'content-length': String(file.size),
+      'content-disposition': `attachment; filename="${file.name.replace(/["\\]/g, '\\$&')}"`,
+    },
+  });
 });
 
 /**

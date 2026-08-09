@@ -1,27 +1,76 @@
 import type { Service } from '@derailed/shared';
-import { useState } from 'react';
-import { FilesTab } from './FilesTab.tsx';
-import { SiteEditorTab } from './SiteEditorTab.tsx';
+import { useMemo, useState } from 'react';
+import { endpoints } from '../api/endpoints.ts';
+import { type FileAdapter, FileBrowser } from './FileBrowser.tsx';
 import { cx } from './ui.tsx';
 
 /**
- * One Files tab, whatever the app is.
+ * One Files tab, one look, whatever the app is.
  *
- * Files used to be two tabs that looked alike and were not: one edited the source a
- * dragged-in site is built and published from, the other browsed the storage volumes
- * an app keeps its data in. They shared a shape and confused people, so they are one
- * tab now, and this decides which thing "Files" means for this app:
+ * "My files" means one of two things depending on the app, and it used to be two
+ * tabs that looked and behaved differently, which is the confusing part: they are
+ * the same thing to a person. So there is one browser (`FileBrowser`) and this only
+ * chooses where its bytes come from:
  *
- * - A dragged-in site's files ARE its source, so that is what you get, with the real
- *   editor, a save that publishes, and the one-button 404 page.
- * - Every other app has no editable source (its code lives in git or an image), so
- *   Files is its storage: the folders whose contents survive a deploy.
- * - The rare app that is both a dragged-in site and has attached storage gets a small
- *   switch, so neither is hidden.
+ * - A dragged-in site's files ARE its source, so Files edits them and a save
+ *   publishes, with the one-button 404 page.
+ * - Every other app has no editable source (git or an image is the truth), so Files
+ *   is its storage: the folders whose contents survive a deploy.
+ * - The rare app that is both gets a small Site files / Stored data switch.
  *
- * The editor itself is the same component in both, so a file looks and behaves the
- * same wherever it is opened.
+ * The browser is identical in every case; only the adapter differs.
  */
+
+function storageAdapter(serviceId: string): FileAdapter {
+  return {
+    list: (path) => endpoints.files(serviceId, path),
+    read: (path) => endpoints.readFile(serviceId, path),
+    write: (path, contents) => endpoints.writeFile(serviceId, path, contents),
+    makeFolder: (path, name) => endpoints.newFolder(serviceId, path, name),
+    rename: (path, name) => endpoints.renameFile(serviceId, path, name),
+    remove: (path) => endpoints.deleteFile(serviceId, path),
+    upload: (path, file) => endpoints.uploadFile(serviceId, path, file),
+    downloadUrl: (path) => endpoints.downloadFileUrl(serviceId, path),
+  };
+}
+
+function sourceAdapter(serviceId: string): FileAdapter {
+  return {
+    list: (path) => endpoints.source(serviceId, path),
+    read: (path) => endpoints.readSource(serviceId, path),
+    // The save publishes; the server queues a deploy off this write.
+    write: (path, contents) => endpoints.writeSource(serviceId, path, contents, true),
+    makeFolder: (path, name) => endpoints.newSourceFolder(serviceId, path, name),
+    rename: (path, name) => endpoints.renameSource(serviceId, path, name),
+    remove: (path) => endpoints.deleteSource(serviceId, path),
+    upload: (path, file) => endpoints.uploadSource(serviceId, path, file),
+    downloadUrl: (path) => endpoints.downloadSourceUrl(serviceId, path),
+  };
+}
+
+const NO_STORAGE = (
+  <p className="rounded-[var(--radius-card)] border border-line border-dashed px-3 py-8 text-center text-[13px] text-ink-faint">
+    This app has no storage attached, so there are no files that outlive a deploy. Add some on the
+    Storage tab.
+  </p>
+);
+
+function SiteFiles({ service }: { service: Service }) {
+  const adapter = useMemo(() => sourceAdapter(service.id), [service.id]);
+  return (
+    <FileBrowser
+      adapter={adapter}
+      publish
+      errorPage={(kind) => endpoints.errorPageTemplate(service.id, kind).then((r) => r.contents)}
+    />
+  );
+}
+
+function StorageFiles({ service }: { service: Service }) {
+  const adapter = useMemo(() => storageAdapter(service.id), [service.id]);
+  return <FileBrowser adapter={adapter} emptyState={NO_STORAGE} />;
+}
+
 export function FilesWorkspace({ service }: { service: Service }) {
   const hasSource = service.source === 'upload';
   const hasStorage = (service.volumes?.length ?? 0) > 0;
@@ -50,10 +99,10 @@ export function FilesWorkspace({ service }: { service: Service }) {
             </button>
           ))}
         </div>
-        {view === 'site' ? <SiteEditorTab service={service} /> : <FilesTab service={service} />}
+        {view === 'site' ? <SiteFiles service={service} /> : <StorageFiles service={service} />}
       </div>
     );
   }
 
-  return hasSource ? <SiteEditorTab service={service} /> : <FilesTab service={service} />;
+  return hasSource ? <SiteFiles service={service} /> : <StorageFiles service={service} />;
 }

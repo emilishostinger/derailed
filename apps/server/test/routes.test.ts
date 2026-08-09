@@ -103,6 +103,11 @@ const ROUTES: [string, string][] = [
   ['GET', '/api/services/nope/source/read'],
   ['PUT', '/api/services/nope/source'],
   ['GET', '/api/services/nope/source/error-page/404'],
+  ['POST', '/api/services/nope/source/folder'],
+  ['POST', '/api/services/nope/source/rename'],
+  ['DELETE', '/api/services/nope/source'],
+  ['POST', '/api/services/nope/source/upload'],
+  ['GET', '/api/services/nope/source/download'],
   // What will change
   ['GET', '/api/projects/nope/pending'],
   ['POST', '/api/projects/nope/pending/apply'],
