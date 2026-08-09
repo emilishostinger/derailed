@@ -193,9 +193,13 @@ describe('a dev tunnel', () => {
     const response = await fetch(`http://${base()}/`, {
       headers: { 'x-derailed-dev': 'someone-elses-tunnel' },
     });
-    // The SPA (or its shell) answers, never the dev path.
+    // The whole security property is here: the dev-forward path echoes the request
+    // path back in `x-echo-path`, and this request never reached it, so the forged
+    // header was ignored. What the dashboard fallback then answers with depends on
+    // whether the Vite dev server happens to be up (it proxies to it in dev, and
+    // returns a 502 "start bun dev" page when it is not), which is not what this test
+    // is about, so the status is deliberately not asserted.
     expect(response.headers.get('x-echo-path')).toBeNull();
-    expect(response.status).toBeLessThan(500);
   });
 
   test('a request for a subdomain nobody is serving is a plain 502', async () => {
