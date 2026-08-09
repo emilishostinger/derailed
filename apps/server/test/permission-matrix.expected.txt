@@ -1,0 +1,272 @@
+# The permission matrix, written down.
+#
+# One line per mounted route: what a member and a viewer may do with it, or
+# 'public' for the surface that deliberately answers without a session. Owners
+# are always allowed and unauthenticated callers are always refused outside the
+# public surface; both are asserted by the test, not recorded here.
+#
+# permission-matrix.test.ts regenerates this grid from the real router and the
+# real policy function on every run. If your diff touches this file, you are
+# answering the question 'may a member or a viewer do this?' on purpose. Answer
+# it, do not just paste the new line in.
+#
+# Sorted by path, then method. Comments and blank lines are ignored.
+
+GET /api/alerts member=allow viewer=allow
+PUT /api/alerts/channels member=deny viewer=deny
+POST /api/alerts/channels/:id/test member=deny viewer=deny
+PUT /api/alerts/events member=deny viewer=deny
+POST /api/alerts/test member=deny viewer=deny
+GET /api/audit member=allow viewer=allow
+POST /api/auth/login public
+POST /api/auth/logout public
+GET /api/auth/me public
+PATCH /api/auth/me/email public
+PATCH /api/auth/me/password public
+GET /api/auth/sessions public
+DELETE /api/auth/sessions/:id public
+POST /api/auth/setup public
+GET /api/auth/status public
+DELETE /api/auth/totp public
+POST /api/auth/totp/confirm public
+POST /api/auth/totp/start public
+GET /api/backups member=allow viewer=allow
+POST /api/backups member=allow viewer=deny
+DELETE /api/backups/:id member=allow viewer=deny
+GET /api/backups/:id/download member=deny viewer=deny
+POST /api/backups/:id/restore member=deny viewer=deny
+GET /api/backups/drill member=allow viewer=allow
+POST /api/backups/drill member=allow viewer=deny
+POST /api/backups/move/export member=deny viewer=deny
+POST /api/backups/move/import member=deny viewer=deny
+GET /api/backups/move/plan member=deny viewer=deny
+DELETE /api/backups/offsite member=deny viewer=deny
+GET /api/backups/offsite member=deny viewer=deny
+PUT /api/backups/offsite member=deny viewer=deny
+POST /api/backups/offsite/test member=deny viewer=deny
+GET /api/backups/retention member=allow viewer=allow
+PUT /api/backups/retention member=deny viewer=deny
+PUT /api/backups/schedule member=allow viewer=deny
+GET /api/catalog/databases member=allow viewer=allow
+GET /api/deployments/:id member=allow viewer=allow
+POST /api/deployments/:id/cancel member=allow viewer=deny
+GET /api/deployments/:id/changes member=allow viewer=allow
+GET /api/deployments/:id/logs member=allow viewer=allow
+POST /api/deployments/:id/rollback member=allow viewer=deny
+GET /api/deployments/:id/search member=allow viewer=allow
+GET /api/deployments/:id/why member=allow viewer=allow
+POST /api/detect member=allow viewer=deny
+GET /api/domains member=allow viewer=allow
+POST /api/domains member=allow viewer=deny
+GET /api/domains/_panel member=allow viewer=allow
+DELETE /api/domains/:id member=allow viewer=deny
+POST /api/domains/:id/check member=allow viewer=deny
+PUT /api/domains/:id/path member=allow viewer=deny
+PUT /api/domains/:id/primary member=allow viewer=deny
+PUT /api/domains/:id/service member=allow viewer=deny
+GET /api/health public
+POST /api/import/inspect member=allow viewer=deny
+GET /api/jobs member=allow viewer=allow
+POST /api/jobs member=allow viewer=deny
+DELETE /api/jobs/:id member=allow viewer=deny
+PATCH /api/jobs/:id member=allow viewer=deny
+POST /api/jobs/:id/run member=allow viewer=deny
+GET /api/jobs/:id/runs member=allow viewer=allow
+POST /api/jobs/preview member=allow viewer=deny
+DELETE /api/links/:id member=allow viewer=deny
+GET /api/mail member=allow viewer=allow
+PATCH /api/mail member=deny viewer=deny
+GET /api/mail/direct member=allow viewer=allow
+POST /api/mail/notify member=deny viewer=deny
+POST /api/mail/test member=deny viewer=deny
+GET /api/people member=deny viewer=deny
+POST /api/people member=deny viewer=deny
+DELETE /api/people/:id member=deny viewer=deny
+PUT /api/people/:id/role member=deny viewer=deny
+GET /api/projects member=allow viewer=allow
+POST /api/projects member=allow viewer=deny
+DELETE /api/projects/:id member=deny viewer=deny
+GET /api/projects/:id member=allow viewer=allow
+PATCH /api/projects/:id member=allow viewer=deny
+GET /api/projects/:id/env member=allow viewer=deny
+PUT /api/projects/:id/env member=allow viewer=deny
+GET /api/projects/:id/env/history member=allow viewer=allow
+POST /api/projects/:id/import member=allow viewer=deny
+PUT /api/projects/:id/limits member=allow viewer=deny
+DELETE /api/projects/:id/pending member=allow viewer=deny
+GET /api/projects/:id/pending member=allow viewer=allow
+DELETE /api/projects/:id/pending/:changeId member=allow viewer=deny
+POST /api/projects/:id/pending/apply member=allow viewer=deny
+PUT /api/projects/:id/review member=allow viewer=deny
+POST /api/projects/:id/services member=allow viewer=deny
+POST /api/projects/:id/templates member=allow viewer=deny
+GET /api/public/appauth/check public
+GET /api/public/appauth/login public
+POST /api/public/appauth/login public
+GET /api/public/appauth/logout public
+GET /api/public/challenge public
+POST /api/public/challenge public
+POST /api/public/form public
+GET /api/public/status.json public
+DELETE /api/services/:id member=deny viewer=deny
+GET /api/services/:id member=allow viewer=allow
+PATCH /api/services/:id member=allow viewer=deny
+PUT /api/services/:id/access member=allow viewer=deny
+PUT /api/services/:id/auto-update member=allow viewer=deny
+GET /api/services/:id/bots member=allow viewer=allow
+PUT /api/services/:id/bots member=allow viewer=deny
+DELETE /api/services/:id/collections/:name/:documentId member=allow viewer=deny
+GET /api/services/:id/collections/:name/:documentId member=allow viewer=allow
+PUT /api/services/:id/collections/:name/:documentId member=allow viewer=deny
+GET /api/services/:id/connection member=allow viewer=deny
+GET /api/services/:id/deployments member=allow viewer=allow
+POST /api/services/:id/deployments member=allow viewer=deny
+GET /api/services/:id/domains member=allow viewer=allow
+POST /api/services/:id/domains member=allow viewer=deny
+GET /api/services/:id/env member=allow viewer=deny
+PUT /api/services/:id/env member=allow viewer=deny
+GET /api/services/:id/env/history member=allow viewer=allow
+POST /api/services/:id/expose member=deny viewer=deny
+DELETE /api/services/:id/files member=allow viewer=deny
+GET /api/services/:id/files member=allow viewer=allow
+PUT /api/services/:id/files member=allow viewer=deny
+GET /api/services/:id/files/download member=allow viewer=allow
+POST /api/services/:id/files/folder member=allow viewer=deny
+GET /api/services/:id/files/read member=allow viewer=allow
+POST /api/services/:id/files/rename member=allow viewer=deny
+POST /api/services/:id/files/upload member=allow viewer=deny
+GET /api/services/:id/images member=allow viewer=allow
+PUT /api/services/:id/images member=allow viewer=deny
+GET /api/services/:id/jobs member=allow viewer=allow
+DELETE /api/services/:id/keys member=allow viewer=deny
+GET /api/services/:id/keys member=allow viewer=allow
+GET /api/services/:id/keys/value member=allow viewer=allow
+PUT /api/services/:id/keys/value member=allow viewer=deny
+GET /api/services/:id/links member=allow viewer=allow
+POST /api/services/:id/links member=allow viewer=deny
+GET /api/services/:id/login member=allow viewer=allow
+PUT /api/services/:id/login member=allow viewer=deny
+DELETE /api/services/:id/login/sessions/:sessionId member=allow viewer=deny
+GET /api/services/:id/logs member=allow viewer=allow
+GET /api/services/:id/mail member=allow viewer=allow
+PUT /api/services/:id/mail member=allow viewer=deny
+GET /api/services/:id/messages member=allow viewer=allow
+DELETE /api/services/:id/messages/:messageId member=allow viewer=deny
+GET /api/services/:id/messages/export member=allow viewer=allow
+PUT /api/services/:id/messages/settings member=allow viewer=deny
+GET /api/services/:id/metrics member=allow viewer=allow
+GET /api/services/:id/pitr member=allow viewer=allow
+PUT /api/services/:id/pitr member=allow viewer=deny
+POST /api/services/:id/pitr/restore member=allow viewer=deny
+POST /api/services/:id/preview member=allow viewer=deny
+GET /api/services/:id/previews member=allow viewer=allow
+PUT /api/services/:id/previews member=allow viewer=deny
+GET /api/services/:id/queries member=allow viewer=allow
+POST /api/services/:id/queries member=allow viewer=deny
+DELETE /api/services/:id/queries/:queryId member=allow viewer=deny
+POST /api/services/:id/query member=allow viewer=deny
+PUT /api/services/:id/repo-token member=allow viewer=deny
+POST /api/services/:id/restart member=allow viewer=deny
+GET /api/services/:id/sleep member=allow viewer=allow
+PUT /api/services/:id/sleep member=allow viewer=deny
+GET /api/services/:id/snapshots member=allow viewer=allow
+POST /api/services/:id/snapshots member=allow viewer=deny
+PUT /api/services/:id/snapshots member=allow viewer=deny
+POST /api/services/:id/snapshots/:snapshotId/restore member=allow viewer=deny
+GET /api/services/:id/snapshots/at member=allow viewer=allow
+DELETE /api/services/:id/source member=allow viewer=deny
+GET /api/services/:id/source member=allow viewer=allow
+PUT /api/services/:id/source member=allow viewer=deny
+GET /api/services/:id/source/download member=allow viewer=allow
+GET /api/services/:id/source/error-page/:kind member=allow viewer=allow
+POST /api/services/:id/source/folder member=allow viewer=deny
+GET /api/services/:id/source/read member=allow viewer=allow
+POST /api/services/:id/source/rename member=allow viewer=deny
+POST /api/services/:id/source/upload member=allow viewer=deny
+POST /api/services/:id/start member=allow viewer=deny
+POST /api/services/:id/stop member=allow viewer=deny
+GET /api/services/:id/tables member=allow viewer=allow
+GET /api/services/:id/tables/:table member=allow viewer=allow
+PUT /api/services/:id/tables/:table/cell member=allow viewer=deny
+GET /api/services/:id/template member=allow viewer=allow
+GET /api/services/:id/traffic member=allow viewer=allow
+GET /api/services/:id/update member=allow viewer=allow
+POST /api/services/:id/update member=allow viewer=deny
+POST /api/services/:id/update/revert member=allow viewer=deny
+GET /api/services/:id/upgrade member=allow viewer=allow
+POST /api/services/:id/upgrade member=allow viewer=deny
+POST /api/services/:id/upload member=allow viewer=deny
+GET /api/services/:id/volumes member=allow viewer=allow
+POST /api/services/:id/volumes member=allow viewer=deny
+POST /api/services/:id/wake member=allow viewer=deny
+GET /api/services/:id/wordpress member=allow viewer=allow
+POST /api/services/:id/wordpress/login member=allow viewer=deny
+POST /api/services/:id/wordpress/staging member=allow viewer=deny
+POST /api/services/:id/wordpress/staging/push member=deny viewer=deny
+POST /api/services/:id/wordpress/update member=allow viewer=deny
+GET /api/services/:id/wordpress/updates member=allow viewer=allow
+GET /api/services/previews/:name member=allow viewer=allow
+GET /api/system member=allow viewer=allow
+PATCH /api/system member=deny viewer=deny
+POST /api/system/adopt member=deny viewer=deny
+GET /api/system/adoptable member=allow viewer=allow
+GET /api/system/app-domain member=allow viewer=allow
+PUT /api/system/app-domain member=deny viewer=deny
+GET /api/system/cost member=allow viewer=allow
+GET /api/system/disk member=allow viewer=allow
+POST /api/system/disk/reclaim member=deny viewer=deny
+GET /api/system/dns member=allow viewer=allow
+PUT /api/system/dns member=deny viewer=deny
+POST /api/system/dns/write member=deny viewer=deny
+GET /api/system/doctor member=allow viewer=allow
+POST /api/system/doctor/fix/:action member=deny viewer=deny
+DELETE /api/system/free-domain member=deny viewer=deny
+GET /api/system/free-domain member=allow viewer=allow
+PUT /api/system/free-domain member=deny viewer=deny
+GET /api/system/logs member=allow viewer=allow
+GET /api/system/my-address member=allow viewer=allow
+GET /api/system/others member=allow viewer=allow
+GET /api/system/panel-domain member=allow viewer=allow
+PUT /api/system/panel-domain member=deny viewer=deny
+GET /api/system/ports member=allow viewer=allow
+GET /api/system/previews member=allow viewer=allow
+PUT /api/system/previews member=deny viewer=deny
+GET /api/system/scan member=allow viewer=deny
+POST /api/system/scan member=deny viewer=deny
+GET /api/system/ssh member=allow viewer=deny
+DELETE /api/system/ssh/keys member=deny viewer=deny
+POST /api/system/ssh/keys member=deny viewer=deny
+PUT /api/system/ssh/password-login member=deny viewer=deny
+GET /api/system/stats member=allow viewer=allow
+GET /api/system/swap member=allow viewer=allow
+POST /api/system/swap member=deny viewer=deny
+GET /api/system/tailscale member=allow viewer=allow
+POST /api/system/tailscale/connect member=deny viewer=deny
+PUT /api/system/tailscale/funnel member=deny viewer=deny
+POST /api/system/tailscale/install member=deny viewer=deny
+GET /api/system/traffic member=allow viewer=allow
+GET /api/system/update member=allow viewer=allow
+GET /api/templates member=allow viewer=allow
+POST /api/templates/from-url member=allow viewer=deny
+GET /api/tokens member=deny viewer=deny
+POST /api/tokens member=deny viewer=deny
+DELETE /api/tokens/:id member=deny viewer=deny
+GET /api/trash member=allow viewer=allow
+DELETE /api/trash/:kind/:id member=deny viewer=deny
+POST /api/trash/:kind/:id/restore member=deny viewer=deny
+GET /api/updates member=allow viewer=allow
+POST /api/updates/:id/apply member=deny viewer=deny
+GET /api/updates/automatic member=allow viewer=allow
+PUT /api/updates/automatic member=deny viewer=deny
+POST /api/updates/automatic/run member=deny viewer=deny
+GET /api/uptime member=allow viewer=allow
+POST /api/uptime/:id/check member=allow viewer=deny
+PUT /api/uptime/:id/status-page member=deny viewer=deny
+PUT /api/uptime/status-page member=deny viewer=deny
+DELETE /api/volumes/:id member=deny viewer=deny
+GET /api/webhooks member=deny viewer=deny
+POST /api/webhooks member=deny viewer=deny
+DELETE /api/webhooks/:id member=deny viewer=deny
+PATCH /api/webhooks/:id member=deny viewer=deny
+POST /api/webhooks/:id/test member=deny viewer=deny
+GET /status public

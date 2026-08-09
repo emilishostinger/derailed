@@ -24,7 +24,11 @@ const dir = mkdtempSync(join(tmpdir(), 'derailed-privilege2-'));
 let app: ReturnType<typeof createApp>;
 let projectId = '';
 let appId = '';
-const cookies: Record<'owner' | 'member' | 'viewer', string> = { owner: '', member: '', viewer: '' };
+const cookies: Record<'owner' | 'member' | 'viewer', string> = {
+  owner: '',
+  member: '',
+  viewer: '',
+};
 
 beforeAll(async () => {
   initDb(join(dir, 'test.db'));
@@ -56,7 +60,11 @@ afterAll(async () => {
 function call(who: 'owner' | 'member' | 'viewer', method: string, path: string, body?: unknown) {
   return app.request(path, {
     method,
-    headers: { 'x-requested-with': 'derailed', 'content-type': 'application/json', cookie: cookies[who] },
+    headers: {
+      'x-requested-with': 'derailed',
+      'content-type': 'application/json',
+      cookie: cookies[who],
+    },
     body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
   });
 }
