@@ -56,6 +56,10 @@ describe('a password on a site', () => {
     expect(JSON.stringify(service)).not.toContain('$2');
   });
 
+  // Three bcrypt operations in one test (the hash on save, then two verifies), and bcrypt
+  // is slow on purpose. Under `--coverage --parallel` the workers fight for the same cores
+  // and instrumentation adds its own tax, which is enough to push three hashes past the 5s
+  // default. The work is honest, not hung, so it gets the room it needs.
   test('is a bcrypt hash, because that is what the proxy checks', async () => {
     const app = anApp();
     await setAccess(app.id, { username: 'friend', password: 'open sesame' });
@@ -64,7 +68,7 @@ describe('a password on a site', () => {
     expect(stored?.hash).toStartWith('$2');
     expect(await Bun.password.verify('open sesame', stored?.hash ?? '')).toBe(true);
     expect(await Bun.password.verify('wrong', stored?.hash ?? '')).toBe(false);
-  });
+  }, 20_000);
 
   test('defaults the username rather than leaving it blank', async () => {
     const app = anApp();

@@ -48,7 +48,10 @@ describe('the password', () => {
     updatePassword(user.id, await Bun.password.hash(PASSWORD));
     stored = findUserByEmail(EMAIL)!;
     expect(await Bun.password.verify(PASSWORD, stored.passwordHash)).toBe(true);
-  });
+    // Two hashes and three verifies of deliberately-slow bcrypt; under `--coverage
+    // --parallel` the CPU contention pushes that past the 5s default even though nothing
+    // is stuck. Give it room rather than let it flake.
+  }, 20_000);
 
   test('changing it ends every session', () => {
     const user = findUserByEmail(EMAIL)!;
