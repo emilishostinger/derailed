@@ -39,6 +39,16 @@ const MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
 /** And a ceiling per entry, so no single member can be inflated into memory unbounded. */
 const MAX_ENTRY_BYTES = 512 * 1024 * 1024;
 
+/**
+ * And a ceiling on the *count*, which the byte caps do not touch.
+ *
+ * An archive of a million empty files weighs almost nothing and passes every size
+ * check above, then spends a million inodes and a million syscalls on the way to
+ * filling a filesystem's index rather than its space. A real dragged-in site is a few
+ * thousand files at the very most, so a cap well above that costs nobody anything.
+ */
+const MAX_ENTRIES = 50_000;
+
 class TooBig extends Error {}
 
 const tooBig = () =>
@@ -104,6 +114,12 @@ export async function extractZip(archive: string, destination: string): Promise<
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, contents);
     files++;
+    if (files > MAX_ENTRIES) {
+      throw new FriendlyError(
+        'That zip file holds more files than Derailed unpacks.',
+        'Remove anything that can be rebuilt, like node_modules, and zip it again.',
+      );
+    }
   }
 
   return { files, bytes };
