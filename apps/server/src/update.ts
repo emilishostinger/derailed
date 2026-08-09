@@ -86,9 +86,10 @@ export async function checkForUpdate(): Promise<ReleaseInfo | null> {
  * binary or the new one is at the path, never a half-written file. The running
  * process keeps its own open file handle, so it survives until systemd restarts it.
  */
-export async function selfUpdate(log: (line: string) => void = console.log): Promise<boolean> {
-  const target = process.execPath;
-
+export async function selfUpdate(
+  log: (line: string) => void = console.log,
+  target: string = process.execPath,
+): Promise<boolean> {
   if (!target || target.includes('/bun')) {
     log("This looks like a development run, so there's nothing to update.");
     log('Updating only works on an installed Derailed binary.');
