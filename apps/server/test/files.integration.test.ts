@@ -217,4 +217,37 @@ suite('files in a real container', () => {
     await makeFolder(serviceId, STORAGE, 'themes');
     await expect(downloadFile(serviceId, `${STORAGE}/themes`)).rejects.toThrow(/folder/);
   }, 30_000);
+
+  test('reading a real file works on a BusyBox image', async () => {
+    // The symlink guard resolves the real path with `realpath` before reading. It was
+    // written `realpath -- <path>`, and BusyBox (which is what Alpine, and so a large
+    // share of real images, ships) treats `--` as a literal path and fails on it, so
+    // every read here returned "not part of this app's storage" and the file browser
+    // was quietly broken on those images. `owned.txt` above is a real file inside
+    // storage on this alpine container; it must read back plainly.
+    await uploadInto(
+      serviceId,
+      STORAGE,
+      'plain.txt',
+      5,
+      streamOf(new TextEncoder().encode('hello')),
+    );
+    expect(await readFile(serviceId, `${STORAGE}/plain.txt`)).toBe('hello');
+  }, 60_000);
+
+  test('a symlink pointing out of storage is still refused, guard intact on BusyBox', async () => {
+    // Dropping the `--` must not have reopened the hole the guard exists to close: a
+    // link inside storage aimed at a secret outside it. `realpath` follows it to
+    // `/etc/hostname`, which is not under a storage root, so the read is refused.
+    Bun.spawnSync([
+      'docker',
+      'exec',
+      containerId,
+      'ln',
+      '-sf',
+      '/etc/hostname',
+      `${STORAGE}/escape`,
+    ]);
+    await expect(readFile(serviceId, `${STORAGE}/escape`)).rejects.toThrow(/not part of/);
+  }, 30_000);
 });

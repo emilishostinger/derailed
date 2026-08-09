@@ -189,7 +189,7 @@ export const MAX_EDIT_BYTES = 512 * 1024;
  *
  * `resolveInsideStorage` is lexical: it rejects `..` and NUL, but it cannot see a
  * symlink, and a symlink is exactly what an app (or its own start-up) can drop inside
- * a volume — `/data/current -> /app`, say, or a link straight at `/proc/self/environ`.
+ * a volume (`/data/current -> /app`, say, or a link straight at `/proc/self/environ`).
  * `cat --` would follow it and hand back the target's bytes, which for a viewer is a
  * clean way around the env and connection-string walls: the app's own secrets read out
  * through the file browser. So resolve the real path in the container and confirm it is
@@ -202,8 +202,13 @@ async function realPathInsideStorage(
   safe: string,
 ): Promise<string | null> {
   // `realpath` is a coreutils and a BusyBox applet both, so it is on essentially every
-  // image that already has the `cat`/`stat`/`find` this browser leans on.
-  const resolved = await run(containerId, ['realpath', '--', safe]);
+  // image that already has the `cat`/`stat`/`find` this browser leans on. No `--`
+  // guard here, unlike the calls around it: BusyBox's `realpath` treats `--` as a
+  // literal path rather than the end-of-options marker and fails on it, which quietly
+  // broke the file browser on every Alpine image. The guard is not needed anyway,
+  // because `safe` came through `resolveInsideStorage` and so always begins with `/`,
+  // which no tool reads as an option.
+  const resolved = await run(containerId, ['realpath', safe]);
   if (resolved.code !== 0) return null;
   const real = resolved.out.trim();
   if (!real) return null;
