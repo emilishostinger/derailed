@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { activeJobCount, stopAllDeployments } from '../src/build/pipeline.ts';
 import { closeDb, initDb } from '../src/db/index.ts';
-import { findDeployment, latestDeployment } from '../src/db/repo/deployments.ts';
+import { latestDeployment } from '../src/db/repo/deployments.ts';
 import { listProjects } from '../src/db/repo/projects.ts';
 import { findService, listServices } from '../src/db/repo/services.ts';
 import { SETTINGS, setSetting } from '../src/db/repo/settings.ts';

@@ -17,6 +17,12 @@ import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import fc from 'fast-check';
+
+// The nightly job sets FUZZ_RUNS to push each property's sample budget far past what a
+// push can wait for; inline runs use the smaller default baked into each call.
+const RUNS = (n: number): number =>
+  process.env.FUZZ_RUNS ? Math.max(n, Number(process.env.FUZZ_RUNS)) : n;
+
 import { safeJoin } from '../src/build/detect.ts';
 import { validName as validSiteName } from '../src/build/source.ts';
 import { isReadOnlyCommand } from '../src/catalog/browse.ts';
@@ -90,7 +96,7 @@ describe('safeJoin never escapes the repository root', () => {
         }
         return out === base || out.startsWith(`${base}/`);
       }),
-      { numRuns: 5000 },
+      { numRuns: RUNS(5000) },
     );
   });
 
@@ -116,7 +122,7 @@ describe('a validated name is always a single harmless segment', () => {
           new TextEncoder().encode(out).length <= 100
         );
       }),
-      { numRuns: 5000 },
+      { numRuns: RUNS(5000) },
     );
   });
 
@@ -127,7 +133,7 @@ describe('a validated name is always a single harmless segment', () => {
         if (out === null) return true;
         return !out.includes('/') && !out.includes('\\') && !out.includes('\0');
       }),
-      { numRuns: 5000 },
+      { numRuns: RUNS(5000) },
     );
   });
 });
@@ -145,7 +151,7 @@ describe('resolveInsideStorage never returns a path outside a storage root', () 
         }
         return true;
       }),
-      { numRuns: 5000 },
+      { numRuns: RUNS(5000) },
     );
   });
 });
@@ -197,7 +203,7 @@ describe('the address blocklist never calls a private or reserved address public
           isBlockedFetchAddress(`10.${c}.${d}.1`)
         );
       }),
-      { numRuns: 3000 },
+      { numRuns: RUNS(3000) },
     );
   });
 
@@ -206,7 +212,7 @@ describe('the address blocklist never calls a private or reserved address public
       fc.property(fc.integer({ min: 16, max: 31 }), fc.integer({ min: 0, max: 255 }), (b, d) => {
         return isPrivateAddress(`172.${b}.${d}.1`);
       }),
-      { numRuns: 2000 },
+      { numRuns: RUNS(2000) },
     );
     expect(isPrivateAddress('172.15.0.1')).toBe(false);
     expect(isPrivateAddress('172.32.0.1')).toBe(false);
@@ -239,7 +245,7 @@ describe('the permission oracle keeps its two hard promises', () => {
   test('an owner is allowed everything, always', () => {
     fc.assert(
       fc.property(methods, pathish, (method, path) => mayCall('owner', method, path).ok),
-      { numRuns: 5000 },
+      { numRuns: RUNS(5000) },
     );
   });
 
@@ -250,7 +256,7 @@ describe('the permission oracle keeps its two hard promises', () => {
         if (!isWrite) return true;
         return mayCall('viewer', method, path).ok === false;
       }),
-      { numRuns: 5000 },
+      { numRuns: RUNS(5000) },
     );
   });
 
@@ -312,7 +318,7 @@ describe('the SQL read-only guard never blesses a write', () => {
   test('every mutation of a known write is refused', () => {
     fc.assert(
       fc.property(mutate, ([sql, mutator]) => isReadOnly(mutator(sql)) === false),
-      { numRuns: 3000 },
+      { numRuns: RUNS(3000) },
     );
   });
 
@@ -326,7 +332,7 @@ describe('the SQL read-only guard never blesses a write', () => {
       fc.property(fc.constantFrom(...writes), (write) => {
         return isReadOnly(`SELECT 1; ${write}`) === false;
       }),
-      { numRuns: 2000 },
+      { numRuns: RUNS(2000) },
     );
   });
 });
@@ -359,7 +365,7 @@ describe('the Mongo read-only guard never blesses a write', () => {
     );
     fc.assert(
       fc.property(mutate, ([expr, mutator]) => isReadOnlyMongo(mutator(expr)) === false),
-      { numRuns: 3000 },
+      { numRuns: RUNS(3000) },
     );
   });
 
@@ -382,7 +388,7 @@ describe('the Redis read-only guard never blesses a write', () => {
         ),
         (cmd, mut) => isReadOnlyCommand(mut(cmd)) === false,
       ),
-      { numRuns: 2000 },
+      { numRuns: RUNS(2000) },
     );
   });
   test('GET and friends are allowed', () => {
@@ -406,7 +412,7 @@ describe('the ssh key parser never yields a multi-line key', () => {
           return !parsed.line.includes('\n') && !parsed.line.includes('\r');
         },
       ),
-      { numRuns: 3000 },
+      { numRuns: RUNS(3000) },
     );
   });
 
@@ -430,7 +436,7 @@ describe('the ssh key parser never yields a multi-line key', () => {
         // the parser returns null on any structural mismatch, which is the guarantee.
         return parsed === null || parsed.type === 'ssh-ed25519';
       }),
-      { numRuns: 2000 },
+      { numRuns: RUNS(2000) },
     );
   });
 });
@@ -451,7 +457,7 @@ describe('the bot challenge token round-trips and refuses smuggling', () => {
           return wrongService === false && wrongIp === false;
         },
       ),
-      { numRuns: 2000 },
+      { numRuns: RUNS(2000) },
     );
   });
 
@@ -474,7 +480,7 @@ describe('the bot challenge token round-trips and refuses smuggling', () => {
         const tampered = `${token.slice(0, token.lastIndexOf('.'))}.${junk}`;
         return verifyChallenge(tampered, '0', 'svc', '2.2.2.2', 2000) === false;
       }),
-      { numRuns: 2000 },
+      { numRuns: RUNS(2000) },
     );
   });
 });
@@ -504,7 +510,7 @@ describe('hexLiteral cannot break out of the literal it is placed in', () => {
           return hex !== null && /^[0-9a-f]*$/.test(hex);
         },
       ),
-      { numRuns: 4000 },
+      { numRuns: RUNS(4000) },
     );
   });
 
@@ -530,7 +536,7 @@ describe('the TOTP step is single-use by construction', () => {
         const second = verifyCodeStep(secret, code, at * 1000);
         return first === second;
       }),
-      { numRuns: 2000 },
+      { numRuns: RUNS(2000) },
     );
   });
 
@@ -540,7 +546,7 @@ describe('the TOTP step is single-use by construction', () => {
         if (/^\d{6}$/.test(code.replace(/\s/g, ''))) return true; // that shape is the valid one
         return verifyCodeStep('JBSWY3DPEHPK3PXP', code, 1_000_000) === null;
       }),
-      { numRuns: 3000 },
+      { numRuns: RUNS(3000) },
     );
   });
 });
@@ -599,7 +605,7 @@ describe('the synthesised Caddy config strips inbound trust headers from every a
         const { proxies, allStrip } = appProxiesStrip(config);
         return proxies >= 1 && allStrip;
       }),
-      { numRuns: 1000 },
+      { numRuns: RUNS(1000) },
     );
   });
 });

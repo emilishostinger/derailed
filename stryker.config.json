@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing for the security-critical modules. A mutant is a small change to the source (a > flipped to >=, a line deleted, a boolean negated); if the tests still pass with the mutant in place, the mutant 'survived', which means no test would have caught that change, which means the test was decoration. The mutation score is the share of mutants the tests kill. This is the effectiveness metric the whole test program is pointed at: a high line-coverage number with a low mutation score is a suite that runs code without checking it. Scoped to the pure, catastrophic-if-wrong modules first (the ones the fuzz and permission tests already cover), because those are where a surviving mutant matters most and where the fast, Docker-free tests can judge it. Uses the command runner because Bun's test runner has no native Stryker plugin: Stryker copies the source into a sandbox, applies one mutant, and runs the command; a non-zero exit means the mutant was killed.",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test apps/server/test/fuzz.test.ts apps/server/test/permissions.test.ts apps/server/test/permission-matrix.test.ts apps/server/test/net.test.ts apps/server/test/totp.test.ts apps/server/test/ssh.test.ts apps/server/test/browse.test.ts apps/server/test/regression-corpus.test.ts apps/server/test/proxy-metamorphic.test.ts"
+  },
+  "coverageAnalysis": "off",
+  "mutate": [
+    "apps/server/src/http/permissions.ts",
+    "apps/server/src/util/net.ts",
+    "apps/server/src/http/totp.ts",
+    "apps/server/src/catalog/browse-sql.ts",
+    "apps/server/src/catalog/browse-mongo.ts",
+    "apps/server/src/catalog/browse-keys.ts",
+    "apps/server/src/system/ssh.ts",
+    "apps/server/src/proxy/botguard.ts"
+  ],
+  "reporters": ["progress", "clear-text", "html"],
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "thresholds": { "high": 90, "low": 80, "break": 0 },
+  "timeoutMS": 60000,
+  "concurrency": 4
+}

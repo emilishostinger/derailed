@@ -1,0 +1,53 @@
+# The expensive tests, kept off the per-push path so they never gate a merge, but run
+# every night so they never rot either. Two of them: a long fast-check run with a far
+# bigger sample budget than the inline fuzz uses, and the full StrykerJS mutation run
+# over the security-critical modules. A surviving mutant, or a fuzz counterexample the
+# smaller inline run never reached, opens as a finding to fix.
+name: nightly
+
+on:
+  schedule:
+    # 03:00 UTC, when nobody is waiting on it.
+    - cron: '0 3 * * *'
+  # And on demand, for when you want the long run without waiting for the night.
+  workflow_dispatch:
+
+jobs:
+  deep-fuzz:
+    name: long fuzz run
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      # A far larger per-property sample than the inline run: the boundaries get many
+      # more adversarial inputs thrown at them than a push could afford to wait for.
+      - name: fuzz the security-critical pure functions, hard
+        run: bun test apps/server/test/fuzz.test.ts apps/server/test/schema-fuzz.test.ts
+        env:
+          FUZZ_RUNS: '50000'
+
+  mutation:
+    name: mutation score on the security modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      # A mutant that survives means a test that would not have caught it. The score is
+      # published as an artifact; the goal is to drive it toward 100% on these modules.
+      - name: run StrykerJS over the security-critical modules
+        run: bunx stryker run
+      - name: publish the mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: ignore
