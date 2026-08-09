@@ -37,7 +37,15 @@ Three things worth knowing:
 - **The integration tests skip themselves without Docker.** Files ending
   `.integration.test.ts` check for a Docker socket and turn into no-ops when it is not
   there. That is why a green run on a laptop without Docker proves less than it looks:
-  the container-touching half simply did not run. CI has Docker, so there it does.
+  the container-touching half simply did not run.
+
+CI runs the integration tests too, serially, but as a best-effort step rather than a
+gate. Most pass on the hosted runner; a handful (the Caddy tests, a couple of
+engine-connection tests) need host networking that GitHub's Docker does not give a
+container the way a real Docker host does, and they pass on a real box. That box is the
+point of the VPS smoke test in `docs/release-checklist.md`, which is where the deploy
+path is actually proven. The hard CI gates are typecheck, lint, and the isolated unit
+suite with its coverage floor.
 
 ## What runs where
 
