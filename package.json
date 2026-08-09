@@ -11,7 +11,7 @@
     "dev": "bun run scripts/dev.ts",
     "build": "bun run scripts/build.ts",
     "typecheck": "bun run --filter '*' typecheck",
-    "test": "bun test",
+    "test": "bun test --parallel",
     "lint": "biome check . && bun run scripts/check-style.ts",
     "format": "biome format --write .",
     "check:style": "bun run scripts/check-style.ts"

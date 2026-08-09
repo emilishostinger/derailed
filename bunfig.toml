@@ -10,3 +10,11 @@ coverageDir = "coverage"
 coverageSkipTestFiles = true
 # Generated code and the dashboard bundle are not what the server suite measures.
 coveragePathIgnorePatterns = ["**/generated/**", "apps/web/**", "scripts/**"]
+
+# The ratchet floor. A `bun test --coverage` run fails if line or function coverage
+# dips below these, and the only allowed edit is upward: when coverage climbs and
+# holds, raise the floor in the same change. Set conservatively from the first
+# measured run (line coverage was ~56% with the container suite skipped, higher with
+# it running), so CI clears it comfortably today and the room above it is what the
+# ratchet closes over time. See docs/testing.md.
+coverageThreshold = { line = 0.50, function = 0.50 }

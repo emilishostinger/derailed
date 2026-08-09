@@ -4,7 +4,7 @@
   "packageManager": "npm",
   "testRunner": "command",
   "commandRunner": {
-    "command": "bun test apps/server/test/fuzz.test.ts apps/server/test/permissions.test.ts apps/server/test/permission-matrix.test.ts apps/server/test/net.test.ts apps/server/test/totp.test.ts apps/server/test/ssh.test.ts apps/server/test/browse.test.ts apps/server/test/regression-corpus.test.ts apps/server/test/proxy-metamorphic.test.ts"
+    "command": "bun test --parallel apps/server/test/fuzz.test.ts apps/server/test/permissions.test.ts apps/server/test/permission-matrix.test.ts apps/server/test/net.test.ts apps/server/test/totp.test.ts apps/server/test/ssh.test.ts apps/server/test/browse.test.ts apps/server/test/regression-corpus.test.ts apps/server/test/proxy-metamorphic.test.ts"
   },
   "coverageAnalysis": "off",
   "mutate": [

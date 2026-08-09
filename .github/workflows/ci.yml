@@ -47,11 +47,14 @@ jobs:
         with:
           path: /tmp/derailed-nixpacks-cache
           key: nixpacks-${{ runner.os }}
-      # Coverage is enforced by the threshold in bunfig.toml: the run fails if
-      # it ever dips below the recorded floor. The floor only moves up; see
-      # docs/testing.md for the ratchet rule.
+      # `--parallel` runs each test file in its own worker process, which is what
+      # isolate means: the process-wide singletons (the database handle, the rate
+      # limiters) can no longer leak across files, so the suite is deterministic
+      # rather than order- and timing-dependent. Coverage is enforced by the
+      # threshold in bunfig.toml: the run fails if it dips below the recorded floor,
+      # and the floor only moves up. See docs/testing.md for the ratchet rule.
       - name: run the suite
-        run: bun test --coverage
+        run: bun test --parallel --coverage
       - name: publish the coverage report
         if: always()
         uses: actions/upload-artifact@v4

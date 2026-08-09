@@ -8,13 +8,22 @@ whole thing green somewhere that actually has Docker.
 ## Running it
 
 ```sh
-bun test                      # the whole suite, from the repo root (the preload needs it)
+bun run test                  # the whole suite, isolated (this is `bun test --parallel`)
 bun test ./apps/server/test/net.test.ts   # one file
-bun test --coverage           # with the coverage report
+bun test --parallel --coverage            # isolated, with the coverage report
 ```
 
-Two things worth knowing:
+Three things worth knowing:
 
+- **Use `--parallel` (or `bun run test`, which adds it) for the whole suite.** It runs
+  each test file in its own worker process. That is not just for speed: the server
+  keeps a few process-wide singletons (the database handle in `db/index.ts`, the rate
+  limiters in `routes/auth.ts`), and a plain `bun test` runs all ~115 files in one
+  process where those singletons are shared. On a fast run, one file's teardown or a
+  late async callback can swap the shared database out from under the next file's
+  request, which then 401s because the session it just created is in a database that is
+  no longer current. Isolation gives each file its own copy of everything, so the suite
+  is deterministic instead of order- and timing-dependent. CI runs `--parallel`.
 - **Run it from the repo root.** `bunfig.toml` preloads `apps/server/test/setup.ts`,
   which gives every run its own throwaway data directory (so nothing touches
   `/var/lib/derailed` or your `.dev-data`) and its own Caddy name, network and ports.
