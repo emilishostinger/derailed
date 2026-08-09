@@ -3,7 +3,7 @@ import { AlertTriangle, Database, Eye, EyeOff, Link2, Unlink } from 'lucide-reac
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useProjects } from '../stores/projects.ts';
-import { CopyButton, cx, ErrorNote, Select, Spinner } from './ui.tsx';
+import { CopyButton, ErrorNote, Select, Spinner } from './ui.tsx';
 
 interface Connection {
   host: string;

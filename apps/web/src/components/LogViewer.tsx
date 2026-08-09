@@ -60,7 +60,6 @@ export function LogViewer({
     overscan: 24,
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pinning to the bottom must react to the line list changing, which `visible.length` already stands in for.
   useEffect(() => {
     if (!follow || visible.length === 0) return;
     virtualizer.scrollToIndex(visible.length - 1, { align: 'end' });
