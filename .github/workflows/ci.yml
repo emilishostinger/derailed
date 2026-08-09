@@ -47,18 +47,21 @@ jobs:
         with:
           path: /tmp/derailed-nixpacks-cache
           key: nixpacks-${{ runner.os }}
-      # Serial on purpose. The runner has Docker, so the container tests run, which
-      # makes the suite slow enough that the unit files are spaced well apart and the
-      # process-global singletons (the database handle, the rate limiters) never
-      # overlap between files. The fast-run leakage that `--parallel` exists to prevent
-      # only appears when the container tests SKIP (no Docker), which is not this job.
-      # And `--parallel` cannot be used here anyway: the container tests share one
-      # fixed test-Caddy (name, network, ports), so running two integration files at
-      # once fights over it. Coverage is enforced by the threshold in bunfig.toml: the
-      # run fails if it dips below the recorded floor, and the floor only moves up.
-      # See docs/testing.md.
-      - name: run the suite
-        run: bun test --coverage
+      # Two runs, because the unit and the container tests want opposite things.
+      #
+      # The unit files run isolated (`--parallel`, each in its own worker) with the
+      # Docker socket pointed at nothing, so the container tests self-skip and cannot
+      # collide over the one shared test-Caddy. Isolation is what makes this
+      # deterministic: without it, a fast single-process run lets the process-global
+      # database handle leak between files and a later file 401s on a session it just
+      # created. This run carries coverage and its bunfig floor.
+      - name: unit tests, isolated, with coverage
+        run: DOCKER_SOCKET=/tmp/derailed-no-docker.sock bun test --parallel --coverage
+      # The container tests run serially against the runner's real Docker: one file at a
+      # time, so nothing fights over the shared Caddy, and each pulls the images it
+      # needs. If the daemon is somehow absent they self-skip rather than fail.
+      - name: integration tests, serial, real containers
+        run: bun test integration
       - name: publish the coverage report
         if: always()
         uses: actions/upload-artifact@v4
