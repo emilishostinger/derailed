@@ -251,9 +251,7 @@ describe('the tunnel edges', () => {
     const second = {
       data: { kind: 'dev', userId: 'u2', sub: clash, label: 'b', pending: new Map() },
     };
-    // biome-ignore lint/suspicious/noExplicitAny: a minimal stand-in for the socket.
     registerDev(first as any);
-    // biome-ignore lint/suspicious/noExplicitAny: a minimal stand-in for the socket.
     registerDev(second as any);
 
     expect(first.data.sub).toBe(clash);
@@ -290,7 +288,6 @@ describe('the tunnel edges', () => {
     };
     // A single 3 MB frame, above the 2 MB ceiling, with the socket not yet open.
     const huge = Buffer.alloc(3 * 1024 * 1024, 1);
-    // biome-ignore lint/suspicious/noExplicitAny: a minimal stand-in for the socket.
     tunnelHandlers.message(ws as any, huge);
     expect(closed).toContain(1011);
     // Nothing the size of the flood was retained.

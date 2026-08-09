@@ -66,7 +66,7 @@ afterAll(async () => {
  * public here but absent from app.ts's pre-auth block would fail the 401 sweep, so
  * the two files cannot quietly drift apart.
  */
-function isPublic(method: string, path: string): boolean {
+function isPublic(_method: string, path: string): boolean {
   if (path === '/api/health' || path === '/status') return true;
   if (path.startsWith('/api/public/')) return true;
   if (path.startsWith('/api/auth/')) return true;
