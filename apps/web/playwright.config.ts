@@ -14,6 +14,10 @@ const PORT = 8499;
 
 export default defineConfig({
   testDir: './e2e',
+  // `.pw.ts`, deliberately not `.spec.ts` or `.test.ts`: those globs are what `bun test`
+  // scans for, and it would otherwise try to run this Playwright spec as a unit test and
+  // fail. This pattern is Playwright's alone.
+  testMatch: '**/*.pw.ts',
   timeout: 30_000,
   expect: { timeout: 8_000 },
   fullyParallel: false,

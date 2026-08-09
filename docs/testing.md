@@ -55,7 +55,7 @@ suite with its coverage floor.
 | Integration | `.integration.test.ts` | a Docker socket; pulls its own images |
 | Property-based fuzz | `fuzz.test.ts` | nothing; uses `fast-check` |
 | Permission matrix | `permission-matrix.test.ts` | nothing; walks the real router |
-| Browser e2e | `apps/web/e2e/*.spec.ts` | Playwright + the compiled binary + Chrome |
+| Browser e2e | `apps/web/e2e/*.pw.ts` | Playwright + the compiled binary + Chrome |
 
 ## The browser end-to-end tests
 
