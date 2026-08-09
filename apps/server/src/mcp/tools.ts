@@ -21,6 +21,7 @@ export interface Api {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body?: unknown): Promise<T>;
   put<T>(path: string, body?: unknown): Promise<T>;
+  patch<T>(path: string, body?: unknown): Promise<T>;
   del<T>(path: string): Promise<T>;
 }
 
@@ -610,6 +611,217 @@ export const TOOLS: McpTool[] = [
         return await api.post<unknown>(`/jobs/${job.id}/run`);
       } finally {
         await api.del(`/jobs/${job.id}`).catch(() => undefined);
+      }
+    },
+  },
+  {
+    name: 'configure_app',
+    description:
+      "Change an app's settings: the port it listens on, how Derailed decides it is healthy (http, contains, tcp, command or started), the health path or expected text, its memory limit, or which branch it builds. Redeploy for most of these to take effect.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string', description: 'App name or id' },
+        port: { type: 'number', description: 'The port the app listens on' },
+        healthCheck: {
+          type: 'string',
+          description: 'One of: http, contains, tcp, command, started',
+        },
+        healthExpect: {
+          type: 'string',
+          description: 'Text the reply must contain, for "contains"',
+        },
+        healthCommand: { type: 'string', description: 'Command that must exit 0, for "command"' },
+        healthPath: { type: 'string', description: 'The path Derailed asks for, e.g. /healthz' },
+        memoryLimitMb: { type: 'number', description: 'Memory ceiling in MB' },
+        branch: { type: 'string', description: 'Which branch to build' },
+      },
+      required: ['service'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      const patch: Record<string, unknown> = {};
+      for (const key of [
+        'port',
+        'healthCheck',
+        'healthExpect',
+        'healthCommand',
+        'healthPath',
+        'memoryLimitMb',
+        'branch',
+      ]) {
+        if (args[key] !== undefined) patch[key] = args[key];
+      }
+      if (Object.keys(patch).length === 0) throw new Error('Nothing to change was given.');
+      return api.patch(`/services/${service.id}`, patch);
+    },
+  },
+  {
+    name: 'update_app',
+    description:
+      'Update an image-based app to the newest version of its image, backup-first: a copy is taken, the new version is checked before it takes over, and the old one is kept to roll back to.',
+    inputSchema: {
+      type: 'object',
+      properties: { service: { type: 'string', description: 'App name or id' } },
+      required: ['service'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      return api.post(`/services/${service.id}/update`);
+    },
+  },
+  {
+    name: 'security_scan',
+    description:
+      'Run the leak-and-known-holes scan now and return its findings: things shaped like live keys in your repos and variables, the passwords nobody changed, and known vulnerabilities in the images behind your apps.',
+    inputSchema: { type: 'object', properties: {} },
+    async run(api) {
+      const { scan } = await api.post<{ scan: unknown }>('/system/scan');
+      return scan;
+    },
+  },
+  {
+    name: 'get_traffic',
+    description:
+      'Visitor figures for an app: requests, visitors, bots, the busiest pages, the slowest pages, and the pages people looked for and did not find (grouped 404s). Counted by the proxy, no tracker.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string', description: 'App name or id' },
+        range: { type: 'string', description: 'One of: 24h, 7d, 30d. Default 24h' },
+      },
+      required: ['service'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      const range = typeof args.range === 'string' ? args.range : '24h';
+      const { traffic } = await api.get<{ traffic: unknown }>(
+        `/services/${service.id}/traffic?range=${encodeURIComponent(range)}`,
+      );
+      return traffic;
+    },
+  },
+  {
+    name: 'edit_site_file',
+    description:
+      'Edit a file in a dragged-in website and publish it. Reads the file first if you pass no contents; with contents it saves and (unless deploy is false) redeploys. New paths are welcome, which is how a custom 404.html is added. Dragged-in sites only.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string', description: 'Site app name or id' },
+        path: { type: 'string', description: 'File path inside the site, e.g. index.html' },
+        contents: { type: 'string', description: 'New contents. Omit to just read the file' },
+        deploy: { type: 'boolean', description: 'Publish after saving. Default true' },
+      },
+      required: ['service', 'path'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      const path = str(args, 'path');
+      if (args.contents === undefined) {
+        return api.get(`/services/${service.id}/source/read?path=${encodeURIComponent(path)}`);
+      }
+      return api.put(`/services/${service.id}/source`, {
+        path,
+        contents: String(args.contents),
+        deploy: args.deploy !== false,
+      });
+    },
+  },
+  {
+    name: 'set_image_resizing',
+    description:
+      'Turn on-the-fly image resizing on or off for an app. When on, /_img/photo.jpg?w=800 serves the picture resized and re-encoded (WebP where supported), cached by the browser.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string', description: 'App name or id' },
+        enabled: { type: 'boolean', description: 'On or off' },
+      },
+      required: ['service', 'enabled'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      return api.put(`/services/${service.id}/images`, { enabled: args.enabled === true });
+    },
+  },
+  {
+    name: 'write_dns_records',
+    description:
+      'Write the DNS records a domain needs (A record, www CNAME, and optionally the wildcard) at the connected Cloudflare account, DNS-only so certificates keep working. Cloudflare must already be connected in the dashboard.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        hostname: { type: 'string', description: 'The domain, e.g. example.com' },
+        wildcard: { type: 'boolean', description: 'Also write the *.domain wildcard' },
+      },
+      required: ['hostname'],
+    },
+    async run(api, args) {
+      return api.post('/system/dns/write', {
+        hostname: str(args, 'hostname'),
+        wildcard: args.wildcard === true,
+      });
+    },
+  },
+  {
+    name: 'list_pending_changes',
+    description:
+      'List the edits waiting to be applied in a project that has review-changes turned on, with a human-readable diff of each. Variable values are never included.',
+    inputSchema: {
+      type: 'object',
+      properties: { project: { type: 'string', description: 'Project name or id' } },
+      required: ['project'],
+    },
+    async run(api, args) {
+      const project = await findProject(api, str(args, 'project'));
+      return api.get(`/projects/${project.id}/pending`);
+    },
+  },
+  {
+    name: 'apply_pending_changes',
+    description:
+      'Apply every waiting edit in a project, oldest first. An edit whose target has since changed reports why and stays; the rest still land.',
+    inputSchema: {
+      type: 'object',
+      properties: { project: { type: 'string', description: 'Project name or id' } },
+      required: ['project'],
+    },
+    async run(api, args) {
+      const project = await findProject(api, str(args, 'project'));
+      return api.post(`/projects/${project.id}/pending/apply`);
+    },
+  },
+  {
+    name: 'wordpress',
+    description:
+      'WordPress superpowers for a WordPress app. action is one of: "login" (a one-time wp-admin sign-in link), "updates" (list waiting plugin/theme/core updates), "update" (apply them, backup-first; pass what=plugins|themes|core|all), "staging" (make a staging copy), or "push" (push staging to live, backup-first).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string', description: 'WordPress app name or id' },
+        action: { type: 'string', description: 'login, updates, update, staging, or push' },
+        what: { type: 'string', description: 'For update: plugins, themes, core, or all' },
+      },
+      required: ['service', 'action'],
+    },
+    async run(api, args) {
+      const service = await findService(api, str(args, 'service'));
+      const action = str(args, 'action');
+      const base = `/services/${service.id}/wordpress`;
+      switch (action) {
+        case 'login':
+          return api.post(`${base}/login`);
+        case 'updates':
+          return api.get(`${base}/updates`);
+        case 'update':
+          return api.post(`${base}/update`, { what: (args.what as string) ?? 'all' });
+        case 'staging':
+          return api.post(`${base}/staging`);
+        case 'push':
+          return api.post(`${base}/staging/push`);
+        default:
+          throw new Error('action must be one of: login, updates, update, staging, push');
       }
     },
   },

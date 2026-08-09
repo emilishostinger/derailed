@@ -48,6 +48,10 @@ function recordingApi(responses: Record<string, unknown> = {}) {
       calls.push({ method: 'PUT', path, body });
       return answer(path) as never;
     },
+    async patch(path, body) {
+      calls.push({ method: 'PATCH', path, body });
+      return answer(path) as never;
+    },
     async del(path) {
       calls.push({ method: 'DELETE', path });
       return answer(path) as never;
@@ -221,6 +225,10 @@ describe('running one command in an app', () => {
         calls.push({ method: 'PUT', path });
         return {} as never;
       },
+      async patch(path) {
+        calls.push({ method: 'PATCH', path });
+        return {} as never;
+      },
       async del(path) {
         calls.push({ method: 'DELETE', path });
         return {} as never;
@@ -242,5 +250,116 @@ describe('running one command in an app', () => {
 
     const created = calls.find((call) => call.method === 'POST' && call.path === '/jobs');
     expect((created?.body as { serviceId: string } | undefined)?.serviceId).toBe('s2');
+  });
+});
+
+describe("the tools built for this session's features", () => {
+  const WP = {
+    projects: [
+      { id: 'p1', name: 'Blog', slug: 'blog', services: [{ id: 'w1', name: 'wp', kind: 'app' }] },
+    ],
+  };
+
+  test('configure_app PATCHes only the settings given', async () => {
+    const { api, calls } = recordingApi({ '/projects': PROJECTS });
+    await tool('configure_app').run(api, {
+      service: 'Web',
+      healthCheck: 'contains',
+      healthExpect: 'Welcome',
+    });
+    const patch = calls.find((call) => call.method === 'PATCH');
+    expect(patch?.path).toBe('/services/s1');
+    expect(patch?.body).toEqual({ healthCheck: 'contains', healthExpect: 'Welcome' });
+  });
+
+  test('configure_app refuses when nothing to change is given', async () => {
+    const { api } = recordingApi({ '/projects': PROJECTS });
+    await expect(tool('configure_app').run(api, { service: 'Web' })).rejects.toThrow(/nothing/i);
+  });
+
+  test('security_scan runs the scan and hands back its findings', async () => {
+    const { api, calls } = recordingApi({ '/system/scan': { scan: { findings: [] } } });
+    const result = await tool('security_scan').run(api, {});
+    expect(calls.at(-1)).toEqual({ method: 'POST', path: '/system/scan', body: undefined });
+    expect(result).toEqual({ findings: [] });
+  });
+
+  test('get_traffic passes the range through and returns the traffic block', async () => {
+    const { api, calls } = recordingApi({
+      '/projects': PROJECTS,
+      '/services/s1/traffic': { traffic: { notFound: [] } },
+    });
+    await tool('get_traffic').run(api, { service: 'Web', range: '7d' });
+    expect(calls.at(-1)?.path).toBe('/services/s1/traffic?range=7d');
+  });
+
+  test('edit_site_file reads when no contents, writes-and-deploys when given', async () => {
+    const { api, calls } = recordingApi({ '/projects': PROJECTS });
+    await tool('edit_site_file').run(api, { service: 'Web', path: '404.html' });
+    expect(calls.at(-1)).toEqual({
+      method: 'GET',
+      path: '/services/s1/source/read?path=404.html',
+    });
+    await tool('edit_site_file').run(api, { service: 'Web', path: '404.html', contents: '<h1>x' });
+    expect(calls.at(-1)).toEqual({
+      method: 'PUT',
+      path: '/services/s1/source',
+      body: { path: '404.html', contents: '<h1>x', deploy: true },
+    });
+  });
+
+  test('set_image_resizing toggles the app', async () => {
+    const { api, calls } = recordingApi({ '/projects': PROJECTS });
+    await tool('set_image_resizing').run(api, { service: 'Web', enabled: true });
+    expect(calls.at(-1)).toEqual({
+      method: 'PUT',
+      path: '/services/s1/images',
+      body: { enabled: true },
+    });
+  });
+
+  test('write_dns_records writes to the connected provider', async () => {
+    const { api, calls } = recordingApi({});
+    await tool('write_dns_records').run(api, { hostname: 'example.com', wildcard: true });
+    expect(calls.at(-1)).toEqual({
+      method: 'POST',
+      path: '/system/dns/write',
+      body: { hostname: 'example.com', wildcard: true },
+    });
+  });
+
+  test('pending changes can be listed and applied by project', async () => {
+    const { api, calls } = recordingApi({ '/projects': PROJECTS });
+    await tool('list_pending_changes').run(api, { project: 'Shop' });
+    expect(calls.at(-1)?.path).toBe('/projects/p1/pending');
+    await tool('apply_pending_changes').run(api, { project: 'Shop' });
+    expect(calls.at(-1)).toEqual({
+      method: 'POST',
+      path: '/projects/p1/pending/apply',
+      body: undefined,
+    });
+  });
+
+  test('wordpress routes each action to its endpoint', async () => {
+    const cases: [string, string, string][] = [
+      ['login', 'POST', '/services/w1/wordpress/login'],
+      ['updates', 'GET', '/services/w1/wordpress/updates'],
+      ['update', 'POST', '/services/w1/wordpress/update'],
+      ['staging', 'POST', '/services/w1/wordpress/staging'],
+      ['push', 'POST', '/services/w1/wordpress/staging/push'],
+    ];
+    for (const [action, method, path] of cases) {
+      const { api, calls } = recordingApi({ '/projects': WP });
+      await tool('wordpress').run(api, { service: 'wp', action });
+      expect(calls.at(-1)?.method).toBe(method);
+      expect(calls.at(-1)?.path).toBe(path);
+    }
+  });
+
+  test('wordpress refuses an action it does not know', async () => {
+    const { api } = recordingApi({ '/projects': WP });
+    await expect(tool('wordpress').run(api, { service: 'wp', action: 'nonsense' })).rejects.toThrow(
+      /action must be/i,
+    );
   });
 });

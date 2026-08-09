@@ -63,6 +63,20 @@ one of these used to mean leaving the editor and opening the dashboard:
 | `get_job_runs` | What a job printed the last few times |
 | `run_command` | Run one command inside an app or database and get its output |
 
+And the newer features, so an agent is not stuck a version behind the dashboard:
+
+| Tool | What it does |
+| --- | --- |
+| `configure_app` | Change port, memory, branch, or how healthy is decided (http, contains, tcp, command, started) |
+| `update_app` | Update an image app to its newest version, backup-first, with a way back |
+| `security_scan` | Run the leak-and-known-holes scan and get its findings |
+| `get_traffic` | Visitors, busiest pages, slowest pages, and the pages people looked for and did not find |
+| `edit_site_file` | Read or write a file in a dragged-in site and publish it. New paths welcome, which is how a custom 404 is added |
+| `set_image_resizing` | Turn `/_img/…?w=…` on-the-fly resizing on or off |
+| `write_dns_records` | Write the A, www and wildcard records at a connected Cloudflare account |
+| `list_pending_changes` / `apply_pending_changes` | See and apply the edits waiting in a project that reviews changes |
+| `wordpress` | Sign-in link, list or apply updates, make a staging copy, or push staging to live |
+
 `run_command` is the one that is not a straight translation of an endpoint. The Terminal
 tab is an interactive shell over a websocket, which is not a shape an agent can use:
 there is no session to hold and no prompt to read. So it borrows a scheduled job, which

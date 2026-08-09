@@ -50,6 +50,7 @@ function makeApi(baseUrl: string, token: string): Api {
     get: (path) => call('GET', path),
     post: (path, body) => call('POST', path, body ?? {}),
     put: (path, body) => call('PUT', path, body ?? {}),
+    patch: (path, body) => call('PATCH', path, body ?? {}),
     del: (path) => call('DELETE', path),
   };
 }
