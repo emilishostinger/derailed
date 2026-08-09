@@ -8,7 +8,6 @@ import {
   Copy,
   Download,
   ExternalLink,
-  FileCode,
   FolderOpen,
   Gauge,
   Globe,
@@ -46,14 +45,13 @@ import { ConnectionTab } from './ConnectionTab.tsx';
 import { DbUpgradeCard } from './DbUpgrade.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
 import { EnvEditor } from './EnvEditor.tsx';
-import { FilesTab } from './FilesTab.tsx';
+import { FilesWorkspace } from './FilesTab.workspace.tsx';
 import { JobsTab } from './JobsTab.tsx';
 import { LogsTab } from './LogsTab.tsx';
 import { LogViewer } from './LogViewer.tsx';
 import { MessagesTab } from './MessagesTab.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
-import { SiteEditorTab } from './SiteEditorTab.tsx';
 import { Snapshots } from './Snapshots.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
@@ -76,7 +74,6 @@ type Tab =
   | 'metrics'
   | 'browse'
   | 'files'
-  | 'edit'
   | 'wordpress'
   | 'deployments'
   | 'variables'
@@ -208,12 +205,9 @@ export function ServiceDrawer({
           clusters: [
             [
               { tab: 'terminal', label: 'Terminal', icon: SquareTerminal },
+              // One Files tab for everything: a dragged-in site's own source (edit
+              // and publish), or an app's storage volumes, decided per app inside.
               { tab: 'files', label: 'Files', icon: FolderOpen },
-              // Only dragged-in sites are edited here: a repository app's source
-              // of truth is git, and the next deploy would overwrite the edit.
-              ...((service.source === 'upload'
-                ? [{ tab: 'edit', label: 'Edit site', icon: FileCode }]
-                : []) as Leaf[]),
             ],
           ],
         },
@@ -399,8 +393,7 @@ export function ServiceDrawer({
           {tab === 'metrics' && <MetricsTab service={service} />}
           {tab === 'browse' && <BrowseTab service={service} />}
           {tab === 'snapshots' && <Snapshots service={service} />}
-          {tab === 'files' && <FilesTab service={service} />}
-          {tab === 'edit' && <SiteEditorTab service={service} />}
+          {tab === 'files' && <FilesWorkspace service={service} />}
           {tab === 'wordpress' && <WordPressTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}

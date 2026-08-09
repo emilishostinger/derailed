@@ -1,17 +1,27 @@
 # Files, and letting apps send email
 
-## Edit a file, and it's live
+## The Files tab
 
-Dragged-in sites get a real editor: the **Edit site** tab (under Tools) lists every
-uploaded file, opens any of them with syntax highlighting for whatever language it
-is, and **Save and publish** writes the change and redeploys through the ordinary
-pipeline. Fixing a typo stops meaning editing at home and dragging the whole folder
-in again. Cmd-S (or Ctrl-S) saves, because the muscle memory is universal.
+There is one **Files** tab, under Tools, and what it shows depends on what the app is,
+because "my files" means two different things:
 
-Deliberately for dragged-in sites only. A repository app's source of truth is git,
-and an editor that writes to a checkout the next deploy throws away would be a lie
-with a save button. Binary files (images, fonts) are replaced by uploading a new
-one, not edited as text.
+- **A dragged-in site** has no separate source: the files you uploaded *are* the site.
+  So Files lists them, opens any of them in a real editor, and **Save and publish**
+  writes the change and redeploys through the ordinary pipeline. One button adds a
+  custom 404 or 500 page. Fixing a typo stops meaning editing at home and dragging the
+  whole folder in again.
+- **Every other app** (built from a repository or an image) has no editable source:
+  its code lives in git or the image, and an editor that wrote to a checkout the next
+  deploy throws away would be a lie with a save button. So Files is its **storage**
+  instead: the folders attached as storage, which are the only places whose contents
+  survive a deploy, with browse, upload, download, rename, delete, and the same editor.
+- **A dragged-in site that also has attached storage** gets a small switch between
+  *Site files* and *Stored data*, so neither is hidden.
+
+The editor is the same everywhere: syntax highlighting for whatever language the file
+is, line numbers, and Cmd-S (or Ctrl-S) to save, because the muscle memory is
+universal. Binary files (images, fonts) are replaced by uploading a new one, not
+edited as text.
 
 ### Pages for when things go wrong
 

@@ -15,20 +15,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { formatBytes } from '../pages/Layout.tsx';
 import { useToasts } from '../stores/toasts.ts';
+import { CodeEditor } from './CodeEditor.tsx';
 import { ContextMenu, useContextMenu } from './ContextMenu.tsx';
 import { cx, ErrorNote, Modal, Spinner } from './ui.tsx';
 
 /**
- * An app's files, without SSH.
+ * An app's stored files, without SSH.
  *
- * For the WordPress-and-PHP audience, which is the largest self-hosting audience
- * there is, this is the hosting-panel feature they will look for first. It is scoped
- * to the folders attached as storage, which are also the only places whose contents
- * survive a deploy, so it is the only place worth editing anyway.
+ * The storage half of the one Files tab (see `FilesTab.workspace.tsx`, which decides
+ * whether "Files" means this or a dragged-in site's own source). It is scoped to the
+ * folders attached as storage, which are also the only places whose contents survive
+ * a deploy, so it is the only place worth editing anyway.
  *
  * Everything here can be done by dragging or by clicking. A file browser whose only
  * route to uploading is a drag is a file browser that half the people using it will
- * think cannot upload.
+ * think cannot upload. The editor is the shared one, so a file looks the same here as
+ * it does in a dragged-in site.
  */
 export function FilesTab({ service }: { service: Service }) {
   const [roots, setRoots] = useState<string[]>([]);
@@ -95,6 +97,20 @@ export function FilesTab({ service }: { service: Service }) {
     [load, path, push, service.id],
   );
 
+  const save = useCallback(() => {
+    if (!editing) return;
+    setBusy(true);
+    setError(null);
+    endpoints
+      .writeFile(service.id, editing.path, editing.contents)
+      .then(() => {
+        push({ message: 'Saved.', tone: 'ok' });
+        setEditing(null);
+      })
+      .catch(setError)
+      .finally(() => setBusy(false));
+  }, [editing, push, service.id]);
+
   if ((service.volumes?.length ?? 0) === 0) {
     return (
       <p className="text-[13px] text-ink-faint">
@@ -109,7 +125,7 @@ export function FilesTab({ service }: { service: Service }) {
 
   if (editing) {
     return (
-      <div className="space-y-3">
+      <div className="flex h-[32rem] min-h-0 flex-col gap-3">
         <div className="flex items-center gap-2">
           <button type="button" className="btn-ghost" onClick={() => setEditing(null)}>
             <ChevronLeft className="h-3.5 w-3.5" />
@@ -118,33 +134,24 @@ export function FilesTab({ service }: { service: Service }) {
           <p className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink-muted">
             {editing.path}
           </p>
+          <button type="button" className="btn-primary" disabled={busy} onClick={save}>
+            {busy ? <Spinner /> : <Save className="h-3.5 w-3.5" />}
+            Save it
+          </button>
         </div>
-        <textarea
-          className="input h-96 font-mono text-[12px]"
-          value={editing.contents}
-          onChange={(event) => setEditing({ ...editing, contents: event.target.value })}
-        />
+        {/* The same real editor the site editor uses, so a file looks the same
+            wherever you open it: syntax highlighting, line numbers, Cmd-S to save. */}
+        <div className="min-h-0 flex-1 overflow-hidden rounded-[var(--radius-card)] border border-line">
+          <CodeEditor
+            value={editing.contents}
+            filename={editing.path}
+            onChange={(next) =>
+              setEditing((current) => (current ? { ...current, contents: next } : current))
+            }
+            onSave={save}
+          />
+        </div>
         <ErrorNote error={error} />
-        <button
-          type="button"
-          className="btn-primary"
-          disabled={busy}
-          onClick={() => {
-            setBusy(true);
-            setError(null);
-            endpoints
-              .writeFile(service.id, editing.path, editing.contents)
-              .then(() => {
-                push({ message: 'Saved.', tone: 'ok' });
-                setEditing(null);
-              })
-              .catch(setError)
-              .finally(() => setBusy(false));
-          }}
-        >
-          {busy ? <Spinner /> : <Save className="h-3.5 w-3.5" />}
-          Save it
-        </button>
       </div>
     );
   }
