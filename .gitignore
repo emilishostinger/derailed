@@ -11,3 +11,4 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/web/.playwright/
 reports/
+.stryker-tmp/

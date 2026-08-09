@@ -17,4 +17,4 @@ coveragePathIgnorePatterns = ["**/generated/**", "apps/web/**", "scripts/**"]
 # measured run (line coverage was ~56% with the container suite skipped, higher with
 # it running), so CI clears it comfortably today and the room above it is what the
 # ratchet closes over time. See docs/testing.md.
-coverageThreshold = { line = 0.50, function = 0.50 }
+coverageThreshold = { line = 0.55, function = 0.55 }
