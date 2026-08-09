@@ -99,6 +99,34 @@ describe('caddy config synthesis', () => {
     expect(proxies).toHaveLength(1);
   });
 
+  test('a dev tunnel strips the caller-supplied trust headers before stamping its own', () => {
+    // The dev route hands every path to the panel with a freshly-minted, valid proxy
+    // secret, and the panel's public sinks trust `X-Derailed-Service` once the secret
+    // checks out. If a visitor's own `X-Derailed-Service` rode through beside that
+    // secret, they could post into another tenant's Messages or wave an IP past its bot
+    // wall. So the caller's copies must be deleted, exactly as the app route does.
+    const config = synthesizeCaddyConfig(
+      [
+        route({
+          hostname: 'sunny-fox-1a2b.apps.example.com',
+          panelSecret: 'the-real-secret',
+          dev: { sub: 'sunny-fox-1a2b', panelUpstream: '127.0.0.1', panelPort: 8422 },
+        }),
+      ],
+      OPTIONS,
+    );
+    const devRoute = config.apps.http.servers.derailed!.routes.find((r) =>
+      JSON.stringify(r.handle).includes('X-Derailed-Dev'),
+    )!;
+    const request = (devRoute.handle[0] as { headers: { request: Record<string, unknown> } })
+      .headers.request;
+    expect(request.delete).toEqual(
+      expect.arrayContaining(['X-Derailed-Proxy', 'X-Derailed-Service', 'X-Derailed-User']),
+    );
+    // The secret it mints is still set, so the panel keeps trusting the route itself.
+    expect(JSON.stringify(request.set)).toContain('the-real-secret');
+  });
+
   test('matches the expected shape', () => {
     expect(
       synthesizeCaddyConfig(

@@ -204,13 +204,38 @@ export async function deleteDocument(session: Session, name: string, id: string)
 const READING_METHODS =
   /\.(find|findOne|aggregate|countDocuments|estimatedDocumentCount|distinct|getIndexes|explain|stats)\s*\(/;
 const WRITING_METHODS =
-  /\.(insert|insertOne|insertMany|update|updateOne|updateMany|replaceOne|delete|deleteOne|deleteMany|remove|drop|dropDatabase|createIndex|renameCollection|bulkWrite|save|createCollection|runCommand|eval|adminCommand)\s*\(/;
+  /\.(insert|insertOne|insertMany|update|updateOne|updateMany|replaceOne|delete|deleteOne|deleteMany|remove|drop|dropDatabase|createIndex|renameCollection|bulkWrite|save|createCollection|runCommand|eval|adminCommand|mapReduce)\s*\(/;
+
+/**
+ * The writes that hide inside a reading method, and the JavaScript that hides inside a
+ * query object.
+ *
+ * `aggregate` is a reading method, but an `$out` or `$merge` stage at the end of its
+ * pipeline lands the result in a collection — a write wearing a read's name. `mapReduce`
+ * can do the same through its `out` option. And `$where`, `$function` and `$accumulator`
+ * are server-side JavaScript: an expression that runs whatever it likes on the database
+ * host, which is not something a box that promises it only reads should hand through.
+ */
+const DANGEROUS_MONGO = /\$out\b|\$merge\b|\$where\b|\$function\b|\$accumulator\b/i;
+
+/**
+ * A method reached by a string key rather than a dot.
+ *
+ * `db.orders["drop"]()` runs the same drop as `db.orders.drop()`, but the writing-method
+ * list only knows the `.drop(` shape and never sees it. A reading query names things with
+ * dots and uses brackets only for array literals and numeric indexes, so a bracket with a
+ * quoted key right after a value — `x["drop"]`, `find()['forEach']`, `db['users']` — is
+ * the computed-access dodge, not an honest query. Refuse it.
+ */
+const COMPUTED_ACCESS = /[\w)\]]\s*\[\s*['"`]/;
 
 export function isReadOnlyMongo(expression: string): boolean {
   const trimmed = expression.trim().replace(/;+\s*$/, '');
   if (trimmed.includes(';')) return false;
   if (!/^db\b/.test(trimmed)) return false;
   if (WRITING_METHODS.test(trimmed)) return false;
+  if (DANGEROUS_MONGO.test(trimmed)) return false;
+  if (COMPUTED_ACCESS.test(trimmed)) return false;
   return READING_METHODS.test(trimmed);
 }
 

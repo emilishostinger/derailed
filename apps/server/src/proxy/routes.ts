@@ -499,6 +499,20 @@ function routeFor(route: RouteSpec): CaddyRoute {
                 'X-Forwarded-For': ['{http.request.remote.host}'],
                 ...(route.panelSecret ? { 'X-Derailed-Proxy': [route.panelSecret] } : {}),
               },
+              // The same strip the app route does, and for a sharper reason here: this
+              // route hands every path to the panel with a freshly-minted, valid proxy
+              // secret beside it, and the panel's public sinks (forms, the bot
+              // challenge, app-auth) trust `X-Derailed-Service` once the secret checks
+              // out. A visitor who sent their own `X-Derailed-Service` would otherwise
+              // have it vouched for, and could post into another tenant's Messages or
+              // wave an IP past another tenant's bot wall. Strip the caller's copies so
+              // only what this route sets survives.
+              delete: [
+                'X-Derailed-Proxy',
+                'X-Derailed-Service',
+                'X-Derailed-User',
+                'X-Derailed-Form-Host',
+              ],
             },
           },
         },

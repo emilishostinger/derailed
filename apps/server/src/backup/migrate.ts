@@ -1,5 +1,6 @@
 import { mkdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { schemas } from '@derailed/shared';
 import { paths } from '../config.ts';
 import { allDomains, createDomain } from '../db/repo/domains.ts';
 import { listEnv, replaceUserEnv } from '../db/repo/env.ts';
@@ -287,6 +288,14 @@ export function importInstall(plan: MigrationPlan): ImportResult {
 
       for (const domain of service.domains ?? []) {
         if (domain.kind !== 'custom') continue;
+        // The normal create path enforces the hostname grammar; the restore path is the
+        // one place a hostname reaches the database without passing it. Keep the DB
+        // invariant — every stored hostname is a valid one — so nothing downstream that
+        // interpolates a hostname has to wonder whether this row is the exception.
+        if (!schemas.isHostname(domain.hostname)) {
+          result.warnings.push(`${domain.hostname} is not a valid address, so it was skipped.`);
+          continue;
+        }
         try {
           createDomain(
             created.id,

@@ -184,6 +184,35 @@ function parseLs(output: string): FileEntry[] {
 /** Anything bigger is a download, not something to put in a text box. */
 export const MAX_EDIT_BYTES = 512 * 1024;
 
+/**
+ * Proves the path, once every symlink in it is followed, still lands inside storage.
+ *
+ * `resolveInsideStorage` is lexical: it rejects `..` and NUL, but it cannot see a
+ * symlink, and a symlink is exactly what an app (or its own start-up) can drop inside
+ * a volume — `/data/current -> /app`, say, or a link straight at `/proc/self/environ`.
+ * `cat --` would follow it and hand back the target's bytes, which for a viewer is a
+ * clean way around the env and connection-string walls: the app's own secrets read out
+ * through the file browser. So resolve the real path in the container and confirm it is
+ * still under a storage root before anything reads it. Fails closed: if the real path
+ * cannot be established, the read is refused rather than allowed on trust.
+ */
+async function realPathInsideStorage(
+  serviceId: string,
+  containerId: string,
+  safe: string,
+): Promise<string | null> {
+  // `realpath` is a coreutils and a BusyBox applet both, so it is on essentially every
+  // image that already has the `cat`/`stat`/`find` this browser leans on.
+  const resolved = await run(containerId, ['realpath', '--', safe]);
+  if (resolved.code !== 0) return null;
+  const real = resolved.out.trim();
+  if (!real) return null;
+  for (const root of storageRoots(serviceId)) {
+    if (real === root || real.startsWith(`${root}/`)) return real;
+  }
+  return null;
+}
+
 export async function readFile(serviceId: string, path: string): Promise<string> {
   const safe = resolveInsideStorage(serviceId, path);
   if (!safe) throw new Error("That file is not part of this app's storage.");
@@ -191,12 +220,15 @@ export async function readFile(serviceId: string, path: string): Promise<string>
   const containerId = await runningContainer(serviceId);
   if (!containerId) throw new Error('This app is not running.');
 
-  const size = await run(containerId, ['stat', '-c', '%s', '--', safe]);
+  const real = await realPathInsideStorage(serviceId, containerId, safe);
+  if (!real) throw new Error("That file is not part of this app's storage.");
+
+  const size = await run(containerId, ['stat', '-c', '%s', '--', real]);
   if (size.code === 0 && Number(size.out.trim()) > MAX_EDIT_BYTES) {
     throw new Error('That file is too big to open here. Download it instead.');
   }
 
-  const { code, out } = await run(containerId, ['cat', '--', safe]);
+  const { code, out } = await run(containerId, ['cat', '--', real]);
   if (code !== 0) throw new Error('That file could not be read.');
   return out;
 }

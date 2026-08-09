@@ -109,6 +109,14 @@ export async function forwardDevRequest(sub: string, request: Request): Promise<
     return new Response('That preview is not running any more.', { status: 502 });
   }
 
+  // The endpoint is public and unauthenticated by design, so the size is checked from
+  // the declared length *before* the body is pulled into memory: reading it first and
+  // measuring after is how a flood of oversized requests exhausts the panel.
+  const declared = Number(request.headers.get('content-length') ?? '');
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+    return new Response('That upload is too big for a dev preview.', { status: 413 });
+  }
+
   const body = new Uint8Array(await request.arrayBuffer());
   if (body.byteLength > MAX_BODY_BYTES) {
     return new Response('That upload is too big for a dev preview.', { status: 413 });

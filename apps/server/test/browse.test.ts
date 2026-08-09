@@ -138,6 +138,19 @@ describe('which mongo expressions only read', () => {
       'db.users.find({}); db.users.drop()',
       'db.adminCommand("shutdown")',
       'db.runCommand({ dropDatabase: 1 })',
+      // A write dressed as a read: `aggregate` is a reading method, but an `$out` or
+      // `$merge` stage at the end of the pipeline lands the result in a collection.
+      'db.orders.aggregate([{ $match: {} }, { $out: "pwned" }])',
+      'db.x.aggregate([{ $merge: { into: "users" } }])',
+      // `mapReduce` can write through its `out` option.
+      'db.orders.mapReduce(function () {}, function () {}, { out: "stolen" })',
+      // Server-side JavaScript, which can do anything the database process can.
+      'db.users.find({ $where: "sleep(10000)" })',
+      'db.users.aggregate([{ $match: { $function: { body: "x", args: [], lang: "js" } } }])',
+      // A writing method reached by a string key instead of a dot, to dodge the
+      // `.drop(`-shaped check.
+      'db.x["drop"]() || db.x.find({})',
+      "db['users'].drop()",
       // Not rooted at `db`, so there is no telling what it is.
       'process.exit(1)',
       'while (true) {}',

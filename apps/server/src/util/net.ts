@@ -151,8 +151,14 @@ export class BlockedAddressError extends Error {
 export async function resolvesToBlockedAddress(hostname: string): Promise<boolean> {
   const bare = hostname.replace(/^\[|\]$/g, '');
   // A literal address needs no lookup, and asking the resolver about one is a way to
-  // get a different answer than the one the socket will use.
-  if (/^[\d.]+$/.test(bare) || bare.includes(':')) return isBlockedFetchAddress(bare);
+  // get a different answer than the one the socket will use. But only a *canonical*
+  // dotted quad is judged directly: `2130706433`, `127.1` and `0177.0.0.1` are all
+  // names for loopback that `isBlockedFetchAddress` does not understand (it wants four
+  // 0-255 octets), so they would sail through as "not a blocked literal". Let anything
+  // that is not a canonical quad fall through to `lookup()`, where the resolver
+  // canonicalises it to the address the socket will actually use and it gets checked.
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(bare) || bare.includes(':'))
+    return isBlockedFetchAddress(bare);
 
   try {
     const answers = await lookup(bare, { all: true });

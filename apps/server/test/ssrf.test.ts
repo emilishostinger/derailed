@@ -76,6 +76,15 @@ describe('addresses the server will not fetch', () => {
   test('a name that does not resolve is refused rather than attempted', async () => {
     expect(await resolvesToBlockedAddress('this-name-does-not-exist.invalid')).toBe(true);
   });
+
+  test('a number that spells loopback the long way round is still refused', async () => {
+    // `isBlockedFetchAddress` only understands a canonical dotted quad, so these were
+    // waved through by the literal fast-path and then expanded to 127.0.0.1 by the
+    // socket. Now anything that is not a canonical quad falls through to the resolver,
+    // which canonicalises it to the address the connection will actually use.
+    expect(await resolvesToBlockedAddress('2130706433')).toBe(true);
+    expect(await resolvesToBlockedAddress('127.1')).toBe(true);
+  });
 });
 
 describe('fetchPublic', () => {

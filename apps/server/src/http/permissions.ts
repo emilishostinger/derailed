@@ -165,6 +165,14 @@ const NOT_FOR_VIEWERS: Rule[] = [
     why: 'The variables include secrets, so only a member or owner can read them.',
   },
   {
+    // The side door to the same secrets. An app's own variables are fenced off above,
+    // but a project's shared variables are where the database password and the API key
+    // every app leans on actually live, and they come back decrypted just the same.
+    path: /^\/projects\/[^/]+\/env$/,
+    methods: ['GET'],
+    why: 'Shared variables include secrets, so only a member or owner can read them.',
+  },
+  {
     path: /^\/services\/[^/]+\/connection$/,
     methods: ['GET'],
     why: 'A connection string includes the database password, so it is not for a viewer.',
@@ -175,6 +183,14 @@ const NOT_FOR_VIEWERS: Rule[] = [
     path: /^\/system\/scan$/,
     methods: ['GET'],
     why: 'The scan report says where secrets live, so it is not for a viewer.',
+  },
+  {
+    // Which keys open the machine, and whether password login is still on, is a
+    // map of how to get in. A look-but-not-touch guest, who is often a client or
+    // someone being shown a problem, has no business being handed it.
+    path: /^\/system\/ssh$/,
+    methods: ['GET'],
+    why: "The machine's door keys and login settings are not for a viewer.",
   },
 ];
 
