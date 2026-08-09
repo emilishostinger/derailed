@@ -77,9 +77,24 @@ export const HELP: HelpGroup[] = [
         blurb: 'Working forms on a plain site: one attribute, no backend.',
       },
       {
+        slug: 'images',
+        title: 'Pictures the right size',
+        blurb: 'One switch and /_img/photo.jpg?w=800 resizes on the fly.',
+      },
+      {
+        slug: 'wordpress',
+        title: 'WordPress',
+        blurb: 'Passwordless wp-admin, backed-up updates, and a staging copy.',
+      },
+      {
+        slug: 'review',
+        title: 'What will change',
+        blurb: 'Collect edits into one reviewable screen before they go live.',
+      },
+      {
         slug: 'analytics',
         title: 'Visitor figures',
-        blurb: 'How visitors are counted and what is deliberately not kept.',
+        blurb: 'How visitors are counted, and the pages people could not find.',
       },
     ],
   },
