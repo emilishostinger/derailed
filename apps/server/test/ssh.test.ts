@@ -86,6 +86,58 @@ describe('reading keys', () => {
   });
 });
 
+/**
+ * A valid key blob is a run of length-prefixed fields whose lengths add up to exactly
+ * the blob, with the first field naming the type. `parseKeyLine` walks those fields and
+ * refuses anything that does not land cleanly, because a blob that decodes as base64 but
+ * is structurally wrong is what a paste that lost or gained characters looks like, and
+ * writing it into root's authorized_keys is not something to do on the strength of "it
+ * was valid base64". These build the blob by hand to poke at each of those checks.
+ */
+describe('the shape of the key blob itself', () => {
+  /** A blob: for each field, its length as a 4-byte big-endian prefix, then its bytes. */
+  function blob(fields: (string | Buffer)[]): string {
+    const parts: Buffer[] = [];
+    for (const field of fields) {
+      const bytes = Buffer.isBuffer(field) ? field : Buffer.from(field, 'utf8');
+      const len = Buffer.alloc(4);
+      len.writeUInt32BE(bytes.length);
+      parts.push(len, bytes);
+    }
+    return `ssh-ed25519 ${Buffer.concat(parts).toString('base64')} test@host`;
+  }
+
+  test('a well-formed two-field blob that names its type is accepted', () => {
+    // Type field, then a 32-byte "public key": the shape a real ed25519 key has.
+    const key = parseKeyLine(blob(['ssh-ed25519', Buffer.alloc(32, 7)]));
+    expect(key).not.toBeNull();
+    expect(key?.type).toBe('ssh-ed25519');
+  });
+
+  test('a blob with only one field is refused (a key has at least a type and a value)', () => {
+    expect(parseKeyLine(blob(['ssh-ed25519']))).toBeNull();
+  });
+
+  test('a blob whose first field is not the named type is refused', () => {
+    expect(parseKeyLine(blob(['ssh-rsa', Buffer.alloc(32, 7)]))).toBeNull();
+  });
+
+  test('a blob whose fields do not add up to its length is refused', () => {
+    // A valid two-field blob with one stray byte glued on the end: the walk lands one
+    // byte short of the buffer, which is exactly what a corrupted paste produces.
+    const good = Buffer.from(blob(['ssh-ed25519', Buffer.alloc(32, 7)]).split(' ')[1]!, 'base64');
+    const trailing = Buffer.concat([good, Buffer.from([0x00])]);
+    expect(parseKeyLine(`ssh-ed25519 ${trailing.toString('base64')} test`)).toBeNull();
+  });
+
+  test('a blob claiming a type-name longer than it holds is refused', () => {
+    // First uint32 says the type name is 200 bytes, in a buffer far shorter than that.
+    const buf = Buffer.alloc(24, 9);
+    buf.writeUInt32BE(200, 0);
+    expect(parseKeyLine(`ssh-ed25519 ${buf.toString('base64')} test`)).toBeNull();
+  });
+});
+
 describe('adding and removing', () => {
   test('a key is added once, however often it is pasted', async () => {
     await addKey(ED25519, keysFile);
