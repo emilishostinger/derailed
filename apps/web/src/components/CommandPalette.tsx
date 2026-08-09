@@ -2,17 +2,23 @@ import {
   Activity,
   Archive,
   ArrowUpCircle,
+  BarChart3,
   BookOpen,
   Bot,
   Boxes,
   CornerDownLeft,
   Database,
   Globe,
+  Heart,
   Moon,
+  Power,
   RotateCw,
+  ScrollText,
   Search,
   Settings2,
   Sun,
+  Table2,
+  Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -104,14 +110,46 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         });
 
         if (service.kind === 'app') {
+          items.push(
+            {
+              id: `deploy-${service.id}`,
+              label: `Deploy ${service.name}`,
+              detail: project.name,
+              group: 'Actions',
+              keywords: 'redeploy build ship',
+              icon: <RotateCw className="h-4 w-4" />,
+              run: () => void endpoints.deploy(service.id).catch(() => undefined),
+            },
+            {
+              id: `restart-${service.id}`,
+              label: `Restart ${service.name}`,
+              detail: project.name,
+              group: 'Actions',
+              keywords: 'restart bounce reboot',
+              icon: <Power className="h-4 w-4" />,
+              run: () => void endpoints.restartService(service.id).catch(() => undefined),
+            },
+            {
+              id: `logs-${service.id}`,
+              label: `Logs for ${service.name}`,
+              detail: project.name,
+              group: 'Actions',
+              keywords: 'logs output errors journal',
+              icon: <ScrollText className="h-4 w-4" />,
+              run: () => navigate(`/p/${project.slug}?service=${service.id}&tab=logs`),
+            },
+          );
+        }
+
+        if (service.kind === 'database') {
           items.push({
-            id: `deploy-${service.id}`,
-            label: `Deploy ${service.name}`,
+            id: `query-${service.id}`,
+            label: `Query ${service.name}`,
             detail: project.name,
             group: 'Actions',
-            keywords: 'redeploy build ship',
-            icon: <RotateCw className="h-4 w-4" />,
-            run: () => void endpoints.deploy(service.id).catch(() => undefined),
+            keywords: 'browse query sql read table data rows',
+            icon: <Table2 className="h-4 w-4" />,
+            run: () => navigate(`/p/${project.slug}?service=${service.id}&tab=browse`),
           });
         }
 
@@ -164,6 +202,38 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         keywords: 'backup restore archive snapshot schedule',
         icon: <Archive className="h-4 w-4" />,
         run: () => navigate('/backups'),
+      },
+      {
+        id: 'go-analytics',
+        label: 'Go to analytics',
+        group: 'Navigate',
+        keywords: 'traffic visitors bots requests charts referrers not found 404',
+        icon: <BarChart3 className="h-4 w-4" />,
+        run: () => navigate('/analytics'),
+      },
+      {
+        id: 'go-uptime',
+        label: 'Go to uptime',
+        group: 'Navigate',
+        keywords: 'monitor status page availability probe alerts health',
+        icon: <Heart className="h-4 w-4" />,
+        run: () => navigate('/uptime'),
+      },
+      {
+        id: 'go-logs',
+        label: 'Go to logs',
+        group: 'Navigate',
+        keywords: 'logs output journal errors tail',
+        icon: <ScrollText className="h-4 w-4" />,
+        run: () => navigate('/logs'),
+      },
+      {
+        id: 'go-trash',
+        label: 'Go to the trash',
+        group: 'Navigate',
+        keywords: 'deleted removed restore recover bin',
+        icon: <Trash2 className="h-4 w-4" />,
+        run: () => navigate('/trash'),
       },
       {
         id: 'go-updates',
