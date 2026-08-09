@@ -1,4 +1,4 @@
-import { mkdir, rm, stat } from 'node:fs/promises';
+import { mkdir, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { schemas } from '@derailed/shared';
 import { paths } from '../config.ts';
@@ -192,10 +192,18 @@ export async function exportInstall(
   await mkdir(join(paths.dataDir, 'backups'), { recursive: true });
   const file = join(paths.dataDir, 'backups', `derailed-move-${Date.now()}.tar.gz`);
 
-  const proc = Bun.spawn(['tar', '-czf', file, '-C', work, '.'], { stderr: 'pipe' });
+  // Build under a `.part` name and only move it into place once tar has succeeded, so a
+  // tar that dies half way (the disk fills, the process is killed) leaves no truncated
+  // archive sitting in the backups folder for someone to later mistake for a whole one.
+  const part = `${file}.part`;
+  const proc = Bun.spawn(['tar', '-czf', part, '-C', work, '.'], { stderr: 'pipe' });
   const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
   await rm(work, { recursive: true, force: true });
-  if (code !== 0) throw new Error(`Could not build the file. ${stderr}`.trim());
+  if (code !== 0) {
+    await rm(part, { force: true }).catch(() => undefined);
+    throw new Error(`Could not build the file. ${stderr}`.trim());
+  }
+  await rename(part, file);
 
   const info = await stat(file);
   return { file, sizeBytes: info.size };
