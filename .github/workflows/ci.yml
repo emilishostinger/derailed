@@ -47,14 +47,18 @@ jobs:
         with:
           path: /tmp/derailed-nixpacks-cache
           key: nixpacks-${{ runner.os }}
-      # `--parallel` runs each test file in its own worker process, which is what
-      # isolate means: the process-wide singletons (the database handle, the rate
-      # limiters) can no longer leak across files, so the suite is deterministic
-      # rather than order- and timing-dependent. Coverage is enforced by the
-      # threshold in bunfig.toml: the run fails if it dips below the recorded floor,
-      # and the floor only moves up. See docs/testing.md for the ratchet rule.
+      # Serial on purpose. The runner has Docker, so the container tests run, which
+      # makes the suite slow enough that the unit files are spaced well apart and the
+      # process-global singletons (the database handle, the rate limiters) never
+      # overlap between files. The fast-run leakage that `--parallel` exists to prevent
+      # only appears when the container tests SKIP (no Docker), which is not this job.
+      # And `--parallel` cannot be used here anyway: the container tests share one
+      # fixed test-Caddy (name, network, ports), so running two integration files at
+      # once fights over it. Coverage is enforced by the threshold in bunfig.toml: the
+      # run fails if it dips below the recorded floor, and the floor only moves up.
+      # See docs/testing.md.
       - name: run the suite
-        run: bun test --parallel --coverage
+        run: bun test --coverage
       - name: publish the coverage report
         if: always()
         uses: actions/upload-artifact@v4

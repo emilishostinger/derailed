@@ -8,22 +8,28 @@ whole thing green somewhere that actually has Docker.
 ## Running it
 
 ```sh
-bun run test                  # the whole suite, isolated (this is `bun test --parallel`)
+bun run test                  # the whole suite (serial); with Docker up, this is what CI runs
 bun test ./apps/server/test/net.test.ts   # one file
-bun test --parallel --coverage            # isolated, with the coverage report
+bun test --coverage           # the whole suite with the coverage report
+DOCKER_SOCKET=/tmp/nope bun test --parallel   # units only, isolated (no Docker; see below)
 ```
 
 Three things worth knowing:
 
-- **Use `--parallel` (or `bun run test`, which adds it) for the whole suite.** It runs
-  each test file in its own worker process. That is not just for speed: the server
-  keeps a few process-wide singletons (the database handle in `db/index.ts`, the rate
-  limiters in `routes/auth.ts`), and a plain `bun test` runs all ~115 files in one
-  process where those singletons are shared. On a fast run, one file's teardown or a
-  late async callback can swap the shared database out from under the next file's
-  request, which then 401s because the session it just created is in a database that is
-  no longer current. Isolation gives each file its own copy of everything, so the suite
-  is deterministic instead of order- and timing-dependent. CI runs `--parallel`.
+- **Serial with Docker; `--parallel` only without it.** The server keeps a few
+  process-wide singletons (the database handle in `db/index.ts`, the rate limiters in
+  `routes/auth.ts`), and a plain `bun test` runs all ~115 files in one process where
+  those are shared. That is fine as long as the files do not overlap, and with Docker up
+  the container tests make the run slow enough that they don't: each unit file starts
+  well after the last one finished. Without Docker the container tests skip, the run is
+  fast, and files can overlap: one file's teardown or a late async callback swaps the
+  shared database out from under the next file's request, which then 401s because the
+  session it just created is in a database that is no longer current. For that case
+  `--parallel` gives each file its own worker process and its own copy of everything, so
+  the units are deterministic. It is **not** for a run with Docker, though: the
+  integration tests share one fixed test-Caddy (name, network, ports), so two of them at
+  once fight over it. So: Docker up → serial (`bun run test`); no Docker → `--parallel`.
+  CI has Docker and runs serial.
 - **Run it from the repo root.** `bunfig.toml` preloads `apps/server/test/setup.ts`,
   which gives every run its own throwaway data directory (so nothing touches
   `/var/lib/derailed` or your `.dev-data`) and its own Caddy name, network and ports.
