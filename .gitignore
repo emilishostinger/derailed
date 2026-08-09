@@ -6,3 +6,4 @@ derailed
 derailed-*
 *.tsbuildinfo
 .DS_Store
+coverage/
