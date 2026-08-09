@@ -70,6 +70,20 @@ export function currentUser(c: Context): User | null {
 }
 
 /** Same check as `currentUser`, for places without a Hono context (the WS upgrade). */
+/**
+ * The owner behind an API token on a websocket handshake.
+ *
+ * The CLI drives the tunnels from a laptop with no dashboard cookie, so these
+ * sockets authenticate by bearer token, and a token stands in for an owner (the
+ * same rule the REST API uses). Returns null when there is no valid token, so the
+ * caller answers 401 rather than opening a socket to nobody.
+ */
+export function ownerFromToken(request: Request): User | null {
+  const bearer = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  if (!bearer?.startsWith(TOKEN_PREFIX) || !verifyToken(bearer)) return null;
+  return firstOwner();
+}
+
 export function userFromRequest(request: Request): User | null {
   const cookies = request.headers.get('cookie');
   if (!cookies) return null;

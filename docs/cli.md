@@ -14,7 +14,50 @@ derailed logs <app>               What an app last printed
 derailed reset-password [email]   Set a new password for the admin account
 derailed version                  Print the version
 derailed help                     Show this
+
+# From your laptop, after: derailed login <https://your-server>
+derailed login <url>              Save a server address and an API token
+derailed dev [--port N]           Share this folder (or a local dev server) on a
+                                  temporary subdomain of the server
+derailed tunnel <db> [--port N]   Reach a database at 127.0.0.1, no port opened
 ```
+
+## From your laptop
+
+Three commands run on your own machine and reach the server over the network, unlike
+every other command, which runs on the box. They read one small config written by
+`derailed login`, stored at `~/.derailed/config.json` (mode 600): the server's address
+and an API token you made in Settings. `DERAILED_URL` and `DERAILED_TOKEN` override the
+file, for CI.
+
+### derailed dev
+
+```
+cd my-site
+derailed dev                 # serves this folder
+derailed dev --port 5173     # or forwards to a dev server already running
+```
+
+Your laptop holds one websocket to the server. The server gives you a throwaway
+subdomain, routes it through the proxy to itself, and forwards every request that
+arrives on it down the socket to your machine, which answers. The result is a real
+HTTPS URL (under your [app base domain](domains.md)'s wildcard, or plain HTTP off an
+sslip.io name on a bare box) that shows a client the work-in-progress without anything
+being deployed or stored. Close the terminal and the subdomain is gone.
+
+### derailed tunnel
+
+```
+derailed tunnel blog-db              # opens 127.0.0.1:6543
+derailed tunnel blog-db --port 5555  # or a port you pick
+```
+
+Opens a local port that reaches the database over the same kind of websocket. Point
+TablePlus, `psql` or anything else at `127.0.0.1`, and no port is ever opened to the
+internet: the server dials the database over the network it already shares with it,
+and every byte crosses a connection the token check and the audit log have seen. It is
+the opposite of the "expose to the internet" button, and it is the one you almost
+always want.
 
 ## serve
 

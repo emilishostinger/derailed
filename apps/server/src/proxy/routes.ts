@@ -59,6 +59,12 @@ export interface RouteSpec {
    */
   images?: boolean;
   /**
+   * Set when this whole hostname is a laptop's dev tunnel. Every request is handed
+   * to the panel, stamped with the subdomain and the proxy secret, and the panel
+   * forwards it down the control socket to the laptop.
+   */
+  dev?: { sub: string; panelUpstream: string; panelPort: number } | null;
+  /**
    * The walls against automated traffic: named AI crawlers turned away, and the
    * addresses currently challenged or refused for going too hard. All enforced
    * by Caddy from this config; Derailed stays out of the request path.
@@ -468,6 +474,32 @@ function routeFor(route: RouteSpec): CaddyRoute {
           status_code: 308,
           headers: {
             Location: [`https://${route.redirectTo}{http.request.uri}`],
+          },
+        },
+      ],
+      terminal: true,
+    };
+  }
+
+  // A dev tunnel is the whole host: hand every request to the panel, stamped with
+  // the subdomain it is for and the proxy secret that proves it came this way, and
+  // the panel forwards it to the laptop. The app the panel serves is not reached;
+  // only the dev-forward path is.
+  if (route.dev) {
+    return {
+      match: [{ host: [route.hostname] }],
+      handle: [
+        {
+          handler: 'reverse_proxy',
+          upstreams: [{ dial: `${route.dev.panelUpstream}:${route.dev.panelPort}` }],
+          headers: {
+            request: {
+              set: {
+                'X-Derailed-Dev': [route.dev.sub],
+                'X-Forwarded-For': ['{http.request.remote.host}'],
+                ...(route.panelSecret ? { 'X-Derailed-Proxy': [route.panelSecret] } : {}),
+              },
+            },
           },
         },
       ],

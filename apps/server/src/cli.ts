@@ -1,5 +1,6 @@
 import { schemas } from '@derailed/shared';
 import { queueDeployment } from './build/pipeline.ts';
+import { dev, login, tunnel } from './cli/laptop.ts';
 import { ensureDirs, paths, VERSION } from './config.ts';
 import { initDb } from './db/index.ts';
 import { listDomains } from './db/repo/domains.ts';
@@ -227,6 +228,12 @@ const HELP = `
     derailed deploy <app>          Deploy an app now
     derailed logs <app>            What an app last printed
     derailed reset-password [email]  Set a new password for an account
+
+  From your laptop (after: derailed login <https://your-server>)
+    derailed login <url>           Save a server address and API token
+    derailed dev [--port N]        Share the current folder (or a local dev
+                                   server on --port) on a temporary subdomain
+    derailed tunnel <db> [--port N]  Reach a database at 127.0.0.1, no port opened
     derailed version               Print the version
     derailed help                  Show this message
 
@@ -284,6 +291,18 @@ export async function runCli(argv: string[]): Promise<void> {
 
     case 'reset-password':
       await resetPassword(argv[1]);
+      return;
+
+    case 'login':
+      await login(argv[1]);
+      return;
+
+    case 'dev':
+      await dev(argv.slice(1));
+      return;
+
+    case 'tunnel':
+      await tunnel(argv.slice(1));
       return;
 
     case 'help':

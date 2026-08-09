@@ -15,7 +15,7 @@ import { pruneExpiredSessions } from './db/repo/sessions.ts';
 import { publish } from './events/bus.ts';
 import { createApp } from './http/app.ts';
 import { pruneAudit } from './http/audit.ts';
-import { isSameOrigin, userFromRequest } from './http/auth.ts';
+import { isSameOrigin, ownerFromToken, userFromRequest } from './http/auth.ts';
 import { socketHandlers } from './http/sockets.ts';
 import { startJobs, stopJobs } from './jobs/run.ts';
 import { startUpdateNotifier, stopUpdateNotifier } from './mail/notify.ts';
@@ -24,6 +24,7 @@ import { startDomainWatcher, stopDomainWatcher } from './proxy/domainwatch.ts';
 import { startFreeDomainRenewal, stopFreeDomainRenewal } from './proxy/freedomain.ts';
 import { ensureImagesSidecar } from './proxy/images.ts';
 import { syncRoutes } from './proxy/sync.ts';
+import { proposeSubdomain } from './runtime/devtunnel.ts';
 import {
   checkDiskSpace,
   pruneOldDeployments,
@@ -36,6 +37,7 @@ import { startPreviews, stopPreviews } from './runtime/preview.ts';
 import { reconcile } from './runtime/reconcile.ts';
 import { startSleeper, stopSleeper } from './runtime/sleep.ts';
 import { startTrashSweep, stopTrashSweep } from './runtime/trash.ts';
+import { tunnelTargetFor } from './runtime/tunnel.ts';
 import { startUptime, stopUptime } from './runtime/uptime.ts';
 import { startAppUpdates, stopAppUpdates } from './system/appupdate.ts';
 import { startAutoUpdates, stopAutoUpdates } from './system/autoupdate.ts';
@@ -57,7 +59,7 @@ export async function serve(): Promise<void> {
     hostname: host,
     idleTimeout: 60,
     development: isDev,
-    fetch(request, server) {
+    async fetch(request, server) {
       const url = new URL(request.url);
       if (url.pathname === '/api/ws' || url.pathname === '/api/terminal') {
         // Before the cookie is even looked at: a socket opened by a page on another
@@ -72,6 +74,46 @@ export async function serve(): Promise<void> {
         if (!user) return new Response('Unauthorized', { status: 401 });
         const upgraded = server.upgrade(request, {
           data: { kind: 'events', userId: user.id, topics: new Set<string>() },
+        });
+        return upgraded ? undefined : new Response('Expected a WebSocket upgrade', { status: 426 });
+      }
+
+      // A tunnel to a database from a laptop, and a laptop's folder on a
+      // temporary subdomain. Both are driven by the CLI with an API token, so
+      // they authenticate by bearer token rather than by a dashboard cookie, and
+      // both are the token holder's, who is an owner.
+      if (url.pathname === '/api/tunnel' || url.pathname === '/api/dev') {
+        const authed = ownerFromToken(request);
+        if (!authed) return new Response('Unauthorized', { status: 401 });
+
+        if (url.pathname === '/api/tunnel') {
+          const serviceId = url.searchParams.get('service');
+          if (!serviceId) return new Response('Which database?', { status: 400 });
+          let target: { host: string; port: number };
+          try {
+            target = await tunnelTargetFor(serviceId);
+          } catch (err) {
+            return new Response(err instanceof Error ? err.message : 'No such database', {
+              status: 400,
+            });
+          }
+          const upgraded = server.upgrade(request, {
+            data: { kind: 'tunnel', serviceId, target, pending: [], open: false },
+          });
+          return upgraded
+            ? undefined
+            : new Response('Expected a WebSocket upgrade', { status: 426 });
+        }
+
+        const label = (url.searchParams.get('label') ?? 'a folder').slice(0, 60);
+        const upgraded = server.upgrade(request, {
+          data: {
+            kind: 'dev',
+            userId: authed.id,
+            sub: proposeSubdomain(),
+            label,
+            pending: new Map(),
+          },
         });
         return upgraded ? undefined : new Response('Expected a WebSocket upgrade', { status: 426 });
       }

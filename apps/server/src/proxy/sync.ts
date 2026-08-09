@@ -8,6 +8,7 @@ import { accessFor, containerName, findService } from '../db/repo/services.ts';
 import { getSetting, SETTINGS } from '../db/repo/settings.ts';
 import { publish } from '../events/bus.ts';
 import { proxySecret } from '../http/proxytrust.ts';
+import { activeDevTunnels, devHostname } from '../runtime/devtunnel.ts';
 import { isTailnetHostname } from '../system/tailscale.ts';
 import { wallsFor } from './botguard.ts';
 import { buildCaddyConfig, HOST_GATEWAY, pushCaddyConfig } from './caddy.ts';
@@ -113,6 +114,25 @@ export function currentRoutes(): RouteSpec[] {
               panelPort,
             }
           : null,
+    });
+  }
+
+  // Every live dev tunnel: its throwaway subdomain, routed straight to the panel,
+  // which forwards each request to the laptop over the control socket. Covered by
+  // the app base domain's wildcard when there is one; plain HTTP off an sslip.io
+  // name otherwise.
+  for (const tunnel of activeDevTunnels()) {
+    const hostname = devHostname(tunnel.sub);
+    if (!hostname) continue;
+    const ipBased = isIpBasedHostname(hostname);
+    routes.push({
+      hostname,
+      upstream: HOST_GATEWAY,
+      port: panelPort,
+      https: !ipBased,
+      providedCert: isCoveredByFreeDomain(hostname),
+      panelSecret: proxySecret(),
+      dev: { sub: tunnel.sub, panelUpstream: HOST_GATEWAY, panelPort },
     });
   }
 

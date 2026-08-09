@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
 import { VERSION } from '../config.ts';
+import { forwardDevRequest } from '../runtime/devtunnel.ts';
 import { auditWrites, listAudit } from './audit.ts';
 import { type AppEnv, requireAuth, requireCsrfHeader } from './auth.ts';
 import { errorResponse, notFound } from './errors.ts';
 import { enforceRole } from './permissions.ts';
+import { fromProxy } from './proxytrust.ts';
 import { alertRoutes } from './routes/alerts.ts';
 import { appLoginRoutes, publicAppAuthRoutes } from './routes/appauth.ts';
 import { appUpdateRoutes } from './routes/appupdates.ts';
@@ -181,6 +183,19 @@ export function createApp() {
   app.get('/status', (c) => {
     if (!statusPageEnabled()) return serveApp(c.req.raw);
     return c.html(renderStatusPage(publicStatus()));
+  });
+
+  /**
+   * A dev tunnel's traffic, arriving from Caddy stamped for the laptop.
+   *
+   * Only ever reached through the proxy, which stamps both the subdomain and the
+   * secret that proves the request came this way; a client hitting the panel's open
+   * port with a forged `X-Derailed-Dev` gets the dashboard, not somebody's laptop.
+   */
+  app.all('*', async (c, next) => {
+    const sub = c.req.header('x-derailed-dev');
+    if (!sub || !fromProxy(c)) return next();
+    return forwardDevRequest(sub, c.req.raw);
   });
 
   // Anything that isn't /api is the dashboard.

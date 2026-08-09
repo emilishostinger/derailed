@@ -54,6 +54,29 @@ describe('the /_img route', () => {
     expect(config).toContain('"strip_path_prefix":"/_img"');
   });
 
+  test('a dev tunnel host proxies to the panel with the marker and the secret', () => {
+    const config = synthesizeCaddyConfig(
+      [
+        {
+          hostname: 'sunny-fox.apps.example.com',
+          upstream: 'host.docker.internal',
+          port: 8422,
+          https: true,
+          panelSecret: 'shh',
+          dev: { sub: 'sunny-fox', panelUpstream: 'host.docker.internal', panelPort: 8422 },
+        },
+      ],
+      OPTIONS,
+    );
+    const text = flat(config);
+    expect(text).toContain('sunny-fox.apps.example.com');
+    expect(text).toContain('X-Derailed-Dev');
+    expect(text).toContain('host.docker.internal:8422');
+    // The secret proves the hop, so the panel can tell a real dev request from a
+    // client forging the marker at its open port.
+    expect(text).toContain('X-Derailed-Proxy');
+  });
+
   test('pictures sit behind the same access rules as pages', () => {
     // The images subroute must come after the basic-auth handler in the chain: a
     // password-protected site's pictures are exactly as private as its pages.

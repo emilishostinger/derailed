@@ -292,6 +292,17 @@ Deleting is undoable for seven days. See [trash](trash.md).
 | `POST /backups/:id/restore` | `{ projectId }`. Owner only: it writes over what is there now. 404 if there is no such copy |
 | `DELETE /backups/:id` | Remove a copy. 404 if there is no such copy |
 
+## From a laptop
+
+These are websocket handshakes, not JSON endpoints, authenticated by an API token in
+the `Authorization: Bearer` header rather than a cookie. Driven by `derailed dev` and
+`derailed tunnel`; see [the command line](cli.md).
+
+| | |
+| --- | --- |
+| `WS /api/tunnel?service=<db>` | A raw byte tunnel to a database. The server dials the database over its network and pipes; nothing is opened to the internet |
+| `WS /api/dev?label=<text>` | A control socket for a dev tunnel. The server allocates a subdomain, routes it to itself, and forwards each request down this socket for the laptop to answer |
+
 ## The cupboard computer
 
 | | |
