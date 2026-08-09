@@ -10,7 +10,7 @@ import {
 } from '../../db/repo/settings.ts';
 import { checkNow, summaryFor } from '../../runtime/uptime.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 
 /** Behind the session, like everything else. The public half is mounted separately. */
 export const uptimeRoutes = new Hono<AppEnv>();
@@ -25,7 +25,7 @@ export const uptimeRoutes = new Hono<AppEnv>();
 uptimeRoutes.put('/:id/status-page', async (c) => {
   const domain = findDomain(c.req.param('id'));
   if (!domain) throw notFound('That address');
-  const body = (await c.req.json().catch(() => ({}))) as { show?: boolean | null };
+  const body = (await readBody(c)) as { show?: boolean | null };
   const show = body.show === null || body.show === undefined ? null : body.show === true;
   return c.json({ domain: setOnStatusPage(domain.id, show) });
 });
@@ -54,7 +54,7 @@ uptimeRoutes.post('/:id/check', async (c) => {
 });
 
 uptimeRoutes.put('/status-page', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean; title?: string };
+  const body = (await readBody(c)) as { enabled?: boolean; title?: string };
   if (body.title !== undefined && body.title.length > 80) {
     throw badRequest('Keep the title under eighty characters.');
   }

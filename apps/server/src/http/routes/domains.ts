@@ -23,7 +23,7 @@ import { isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { emitService, presentService } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, conflict, notFound, parseBody } from '../errors.ts';
+import { badRequest, conflict, notFound, parseBody, readBody } from '../errors.ts';
 
 export const serviceDomainRoutes = new Hono<AppEnv>();
 export const domainRoutes = new Hono<AppEnv>();
@@ -53,7 +53,7 @@ domainRoutes.get('/', (c) => {
  * domain was to already have the app it belonged to.
  */
 domainRoutes.post('/', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     hostname?: string;
     alsoAddWww?: boolean;
     /** Which of the pair people should see. The other redirects to it. */
@@ -145,7 +145,7 @@ domainRoutes.put('/:id/service', async (c) => {
     throw badRequest('Automatic addresses always belong to the app they were made for.');
   }
 
-  const body = (await c.req.json().catch(() => ({}))) as { serviceId?: string | null };
+  const body = (await readBody(c)) as { serviceId?: string | null };
   const serviceId = body.serviceId ?? null;
   const previous = domain.serviceId;
 
@@ -256,7 +256,7 @@ domainRoutes.put('/:id/path', async (c) => {
   const domain = findDomain(c.req.param('id'));
   if (!domain) throw notFound('That domain');
 
-  const body = (await c.req.json().catch(() => ({}))) as { pathPrefix?: string | null };
+  const body = (await readBody(c)) as { pathPrefix?: string | null };
   const raw = body.pathPrefix?.trim() ?? '';
   const pathPrefix = raw === '' || raw === '/' ? null : raw.startsWith('/') ? raw : `/${raw}`;
 

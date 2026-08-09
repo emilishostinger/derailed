@@ -3,7 +3,7 @@ import { SETTINGS, setBoolSetting } from '../../db/repo/settings.ts';
 import { autoUpdateState, runSecurityUpdates } from '../../system/autoupdate.ts';
 import { applyUpdate, checkUpdates, rebootReason } from '../../system/updates.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest } from '../errors.ts';
+import { badRequest, readBody } from '../errors.ts';
 
 export const updateRoutes = new Hono<AppEnv>();
 
@@ -11,7 +11,7 @@ export const updateRoutes = new Hono<AppEnv>();
 updateRoutes.get('/automatic', async (c) => c.json({ automatic: await autoUpdateState() }));
 
 updateRoutes.put('/automatic', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  const body = (await readBody(c)) as { enabled?: boolean };
   const wanted = body.enabled === true;
 
   if (wanted) {

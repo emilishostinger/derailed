@@ -40,7 +40,7 @@ import { destroyContainer, listContainers } from '../../docker/containers.ts';
 import { LABELS, labelFilter } from '../../docker/labels.ts';
 import { emitService } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound, parseBody } from '../errors.ts';
+import { badRequest, notFound, parseBody, readBody } from '../errors.ts';
 
 export const catalogRoutes = new Hono<AppEnv>();
 /**
@@ -107,7 +107,7 @@ browseRoutes.get('/:id/tables/:table', async (c) => {
  */
 browseRoutes.put('/:id/tables/:table/cell', async (c) => {
   const service = browsable(c.req.param('id'));
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     key?: Record<string, string | null>;
     column?: string;
     value?: string | null;
@@ -132,7 +132,7 @@ browseRoutes.put('/:id/tables/:table/cell', async (c) => {
 
 browseRoutes.post('/:id/query', async (c) => {
   const service = browsable(c.req.param('id'));
-  const body = (await c.req.json().catch(() => ({}))) as { sql?: string; body?: string };
+  const body = (await readBody(c)) as { sql?: string; body?: string };
   // `sql` is what this was called when only three engines could be browsed. Kept so an
   // older client, or a script somebody wrote against it, still works.
   const statement = (body.body ?? body.sql ?? '').trim();
@@ -156,7 +156,7 @@ browseRoutes.get('/:id/collections/:name/:documentId', async (c) => {
 
 browseRoutes.put('/:id/collections/:name/:documentId', async (c) => {
   const service = browsable(c.req.param('id'));
-  const body = (await c.req.json().catch(() => ({}))) as { document?: string };
+  const body = (await readBody(c)) as { document?: string };
   if (typeof body.document !== 'string') throw badRequest('There is nothing to save.');
 
   await speaking(
@@ -204,7 +204,7 @@ browseRoutes.get('/:id/keys/value', async (c) => {
 
 browseRoutes.put('/:id/keys/value', async (c) => {
   const service = browsable(c.req.param('id'));
-  const body = (await c.req.json().catch(() => ({}))) as { key?: string; value?: string };
+  const body = (await readBody(c)) as { key?: string; value?: string };
   if (!body.key) throw badRequest('Which key?');
   if (typeof body.value !== 'string') throw badRequest('There is nothing to save.');
 
@@ -233,7 +233,7 @@ browseRoutes.get('/:id/queries', (c) => {
 browseRoutes.post('/:id/queries', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That database');
-  const body = (await c.req.json().catch(() => ({}))) as { name?: string; body?: string };
+  const body = (await readBody(c)) as { name?: string; body?: string };
   const name = body.name?.trim();
   if (!name) throw badRequest('What should this be called?');
   if (name.length > 80) throw badRequest('That name is too long. Eighty characters is the limit.');
@@ -271,7 +271,7 @@ browseRoutes.put('/:id/snapshots', async (c) => {
   if (!service) throw notFound('That database');
   if (service.kind !== 'database') throw badRequest('Only databases are copied this way.');
 
-  const body = (await c.req.json().catch(() => ({}))) as { everyHours?: number | null };
+  const body = (await readBody(c)) as { everyHours?: number | null };
   const hours = body.everyHours ?? null;
   if (hours !== null && !(INTERVALS as readonly number[]).includes(hours)) {
     throw badRequest(
@@ -392,7 +392,7 @@ connectionRoutes.post('/:id/expose', async (c) => {
   if (!service) throw notFound('That service');
   if (service.kind !== 'database') throw badRequest('That service is not a database.');
 
-  const body = (await c.req.json().catch(() => ({}))) as { exposed?: boolean };
+  const body = (await readBody(c)) as { exposed?: boolean };
   const exposed = body.exposed === true;
 
   // A high random port is a small speed bump against drive-by scanners.
@@ -416,7 +416,7 @@ linkRoutes.post('/:id/links', async (c) => {
   if (!service) throw notFound('That service');
   const body = await parseBody(c, schemas.createLinkRequest);
 
-  const extra = (await c.req.json().catch(() => ({}))) as { discrete?: boolean };
+  const extra = (await readBody(c)) as { discrete?: boolean };
   const { key } = connectServices(service.id, body.toServiceId, body.injectAs, extra.discrete);
   return c.json({ ok: true, key }, 201);
 });

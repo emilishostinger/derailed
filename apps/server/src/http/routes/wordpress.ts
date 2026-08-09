@@ -10,7 +10,7 @@ import {
   wordPressState,
 } from '../../system/wordpress.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest } from '../errors.ts';
+import { badRequest, readBody } from '../errors.ts';
 
 /**
  * WordPress superpowers: four buttons on an app that already exists.
@@ -39,7 +39,7 @@ wordPressRoutes.get('/:id/wordpress/updates', async (c) => {
 });
 
 wordPressRoutes.post('/:id/wordpress/update', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { what?: string };
+  const body = (await readBody(c)) as { what?: string };
   const what = body.what;
   if (what !== 'plugins' && what !== 'themes' && what !== 'core' && what !== 'all') {
     throw badRequest('Update what?', 'plugins, themes, core, or all.');

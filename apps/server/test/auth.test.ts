@@ -246,3 +246,53 @@ describe('a sign-in request that is not shaped like one', () => {
     expect(response.status).toBe(401);
   });
 });
+
+/**
+ * The sign-in route was fixed for this in v0.9.0, but the *other* hand-rolled body
+ * readers were not. `/me/password`, `/me/email`, the two TOTP confirm routes and sixty
+ * more across the panel all wrote `await c.req.json().catch(() => ({}))`, which catches
+ * a body that is not JSON but not a body that is valid JSON of the wrong shape. A
+ * literal `null` parses fine, the catch never fires, and the next `body.password`
+ * throws "null is not an object", a 500. Found by schema-fuzzing every mutating route;
+ * fixed by a single `readBody` helper that turns anything that is not an object into
+ * an empty one, so the handler's own validation answers with a 400.
+ */
+describe('an authenticated write with a null or wrong-shaped body is a 4xx, never a 500', () => {
+  let cookie = '';
+  beforeEach(async () => {
+    loginLimiter.resetAll();
+    peerLimiter.resetAll();
+    if (cookie) return;
+    // A fresh account and session to make the authenticated calls with.
+    await post('/api/auth/setup', {
+      email: 'nulltest@example.com',
+      password: 'a-long-enough-password',
+    });
+    const login = await post('/api/auth/login', {
+      email: 'nulltest@example.com',
+      password: 'a-long-enough-password',
+    });
+    cookie = sessionCookie(login);
+  });
+
+  const rawBodies = ['null', '[]', '"a string"', '123', 'true', '{}', '{"wrong":1}'];
+  const routes: [string, string][] = [
+    ['PATCH', '/api/auth/me/password'],
+    ['PATCH', '/api/auth/me/email'],
+    ['POST', '/api/auth/totp/confirm'],
+    ['DELETE', '/api/auth/totp'],
+  ];
+
+  for (const [method, path] of routes) {
+    for (const raw of rawBodies) {
+      test(`${method} ${path} with body ${raw} does not 500`, async () => {
+        const res = await app.request(path, {
+          method,
+          headers: { ...HEADERS, cookie },
+          body: raw,
+        });
+        expect(res.status).toBeLessThan(500);
+      });
+    }
+  }
+});

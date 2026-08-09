@@ -11,7 +11,7 @@ import {
 } from '../../proxy/botguard.ts';
 import { emitService } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
-import { notFound, parseBody } from '../errors.ts';
+import { notFound, parseBody, readBody } from '../errors.ts';
 import { forwardedClientIp, fromProxy } from '../proxytrust.ts';
 
 /**
@@ -75,7 +75,7 @@ publicChallengeRoutes.post('/challenge', async (c) => {
   const ip = forwardedClientIp(c);
   if (!service || ip === 'unknown') return c.text('No challenge to give.', 404);
 
-  const body = (await c.req.json().catch(() => ({}))) as { token?: string; nonce?: string };
+  const body = (await readBody(c)) as { token?: string; nonce?: string };
   if (
     typeof body.token !== 'string' ||
     typeof body.nonce !== 'string' ||

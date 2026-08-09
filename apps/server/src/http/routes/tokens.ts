@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createToken, deleteToken, listTokens } from '../../db/repo/tokens.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 
 export const tokenRoutes = new Hono<AppEnv>();
 
@@ -12,7 +12,7 @@ tokenRoutes.get('/', (c) => c.json({ tokens: listTokens() }));
  * no endpoint that can ever show it again.
  */
 tokenRoutes.post('/', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { name?: string };
+  const body = (await readBody(c)) as { name?: string };
   const name = body.name?.trim();
   if (!name) throw badRequest('Give this token a name so you can recognise it later.');
 

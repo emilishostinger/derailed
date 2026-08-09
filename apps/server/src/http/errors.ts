@@ -106,3 +106,27 @@ export async function parseBody<T>(c: Context, schema: ZodType<T>): Promise<T> {
   }
   return parseValue(schema, raw);
 }
+
+/**
+ * A request's JSON body as a plain object, whatever was actually sent.
+ *
+ * The handlers that read a field or two by hand (because they take something a schema
+ * does not describe) used to write `await c.req.json().catch(() => ({}))`. That catches
+ * a body that is not JSON, but not a body that is *valid* JSON of the wrong shape:
+ * `null` parses fine, the catch never fires, and the very next `body.field` throws
+ * "null is not an object", which the user meets as a 500. It is the same shape as the
+ * sign-in 500 from before, spread across sixty-odd routes. This is the one place that
+ * knows a body is only useful as an object: a missing, malformed, null, array, or
+ * primitive body all become `{}`, so reading a field off the result is always safe and
+ * a wrong-shaped request falls through to the handler's own validation, as a 400.
+ */
+export async function readBody(c: Context): Promise<Record<string, unknown>> {
+  try {
+    const raw = await c.req.json();
+    return raw !== null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}

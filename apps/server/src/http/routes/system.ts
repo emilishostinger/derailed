@@ -54,7 +54,7 @@ import { detectServerIp, systemInfo } from '../../system/status.ts';
 import { addSwap, SwapError, swapState } from '../../system/swap.ts';
 import { checkForUpdate } from '../../update.ts';
 import { type AppEnv, clientIp } from '../auth.ts';
-import { badRequest, conflict, parseBody } from '../errors.ts';
+import { badRequest, conflict, parseBody, readBody } from '../errors.ts';
 
 export const systemRoutes = new Hono<AppEnv>();
 
@@ -85,7 +85,7 @@ systemRoutes.get('/my-address', (c) => c.json({ address: clientIp(c) }));
 systemRoutes.get('/adoptable', async (c) => c.json({ containers: await adoptable() }));
 
 systemRoutes.post('/adopt', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     containerId?: string;
     projectName?: string;
     appName?: string;
@@ -150,7 +150,7 @@ systemRoutes.get('/previews', (c) =>
  * being asked first.
  */
 systemRoutes.put('/previews', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { screenshots?: boolean };
+  const body = (await readBody(c)) as { screenshots?: boolean };
   setBoolSetting(SETTINGS.previewShots, body.screenshots === true);
   return c.json({ screenshots: getBoolSetting(SETTINGS.previewShots) });
 });
@@ -187,7 +187,7 @@ systemRoutes.get('/dns', async (c) => {
 });
 
 systemRoutes.put('/dns', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { token?: string | null };
+  const body = (await readBody(c)) as { token?: string | null };
   const value = body.token?.trim() || null;
   setDnsToken(value);
   if (!value) return c.json({ configured: false, zones: [] });
@@ -203,7 +203,7 @@ systemRoutes.put('/dns', async (c) => {
 });
 
 systemRoutes.post('/dns/write', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     hostname?: string;
     wildcard?: boolean;
   };
@@ -250,7 +250,7 @@ systemRoutes.get('/ssh', async (c) =>
 );
 
 systemRoutes.post('/ssh/keys', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { key?: string };
+  const body = (await readBody(c)) as { key?: string };
   if (!body.key?.trim()) throw badRequest('Paste a public key.');
   try {
     const key = await addKey(body.key);
@@ -274,7 +274,7 @@ systemRoutes.delete('/ssh/keys', async (c) => {
 });
 
 systemRoutes.put('/ssh/password-login', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  const body = (await readBody(c)) as { enabled?: boolean };
   if (typeof body.enabled !== 'boolean') throw badRequest('On or off?');
   try {
     return c.json({ passwordLogin: await setPasswordLogin(body.enabled) });
@@ -336,7 +336,7 @@ systemRoutes.post('/disk/reclaim', async (c) => c.json({ result: await freeUpSpa
 systemRoutes.get('/swap', async (c) => c.json({ swap: await swapState() }));
 
 systemRoutes.post('/swap', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { bytes?: number };
+  const body = (await readBody(c)) as { bytes?: number };
   const state = await swapState();
   try {
     const made = await addSwap(body.bytes ?? state.suggestedBytes);
@@ -384,7 +384,7 @@ systemRoutes.get('/panel-domain', (c) =>
  * means the admin password crosses the wire in the clear.
  */
 systemRoutes.put('/panel-domain', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { hostname?: string | null };
+  const body = (await readBody(c)) as { hostname?: string | null };
   const hostname = body.hostname?.trim().toLowerCase() || null;
 
   if (!hostname) {
@@ -442,7 +442,7 @@ systemRoutes.get('/free-domain', async (c) => c.json({ freeDomain: await freeDom
  * address in the world is already fighting over.
  */
 systemRoutes.put('/free-domain', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     name?: string;
     token?: string;
     email?: string;
@@ -516,7 +516,7 @@ systemRoutes.delete('/free-domain', async (c) => {
  * instead and every app gets its own name with a real padlock.
  */
 systemRoutes.put('/app-domain', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { domain?: string | null };
+  const body = (await readBody(c)) as { domain?: string | null };
   const domain = body.domain?.trim().toLowerCase().replace(/^\*\./, '').replace(/\.$/, '') || null;
 
   if (!domain) {

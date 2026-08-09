@@ -10,7 +10,7 @@ import {
 import { removeVolume } from '../../docker/volumes.ts';
 import { emitService } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, conflict, notFound } from '../errors.ts';
+import { badRequest, conflict, notFound, readBody } from '../errors.ts';
 
 export const serviceVolumeRoutes = new Hono<AppEnv>();
 export const volumeRoutes = new Hono<AppEnv>();
@@ -31,7 +31,7 @@ serviceVolumeRoutes.post('/:id/volumes', async (c) => {
     );
   }
 
-  const body = (await c.req.json().catch(() => ({}))) as { containerPath?: string };
+  const body = (await readBody(c)) as { containerPath?: string };
   const containerPath = body.containerPath?.trim();
 
   if (!containerPath?.startsWith('/')) {

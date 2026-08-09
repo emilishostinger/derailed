@@ -11,7 +11,7 @@ import {
   tailscaleUp,
 } from '../../system/tailscale.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 
 /**
  * The cupboard computer's screen. Mounted under /system, so every write here is
@@ -42,7 +42,7 @@ tailscaleRoutes.post('/install', async (c) => {
 
 /** Joins the tailnet: with an auth key silently, without one via a sign-in link. */
 tailscaleRoutes.post('/connect', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { authKey?: string };
+  const body = (await readBody(c)) as { authKey?: string };
   const result = await tailscaleUp(body.authKey?.trim() || undefined);
   if (!result.ok && !result.loginUrl) {
     throw badRequest(result.message ?? 'Tailscale could not connect.');
@@ -58,7 +58,7 @@ tailscaleRoutes.post('/connect', async (c) => {
  * the traffic to the proxy. Nothing about the app changes; it gains an address.
  */
 tailscaleRoutes.put('/funnel', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { serviceId?: string | null };
+  const body = (await readBody(c)) as { serviceId?: string | null };
   const state = await tailscaleState();
   if (!state.connected || !state.dnsName) {
     throw badRequest('Connect this server to your tailnet first.');

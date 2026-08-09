@@ -25,7 +25,7 @@ import { S3Error } from '../../backup/s3.ts';
 import { lastRunAt, nextRunAt, setProjectSchedule } from '../../backup/schedule.ts';
 import { findProject, listProjects } from '../../db/repo/projects.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 
 export const backupRoutes = new Hono<AppEnv>();
 
@@ -45,7 +45,7 @@ backupRoutes.get('/', async (c) =>
 
 /** One project at a time: "back up everything" is rarely what someone means. */
 backupRoutes.put('/schedule', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     projectId?: string;
     schedule?: string;
   };
@@ -59,7 +59,7 @@ backupRoutes.put('/schedule', async (c) => {
 });
 
 backupRoutes.post('/', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { projectId?: string };
+  const body = (await readBody(c)) as { projectId?: string };
   if (!body.projectId) throw badRequest('Which project should be backed up?');
   if (!findProject(body.projectId)) throw notFound('That project');
   const backup = await createBackup(body.projectId);
@@ -91,7 +91,7 @@ backupRoutes.get('/offsite', async (c) =>
  * fill in over two sittings.
  */
 backupRoutes.put('/offsite', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as Partial<SaveOffsiteInput>;
+  const body = (await readBody(c)) as Partial<SaveOffsiteInput>;
   if (!body.endpoint?.trim() || !body.bucket?.trim() || !body.accessKeyId?.trim()) {
     throw badRequest('An address, a bucket and an access key are all needed.');
   }
@@ -140,7 +140,7 @@ backupRoutes.post('/move/export', async (c) => {
 });
 
 backupRoutes.post('/move/import', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { plan?: unknown };
+  const body = (await readBody(c)) as { plan?: unknown };
   if (!body.plan || typeof body.plan !== 'object') {
     throw badRequest('That does not look like a Derailed file.');
   }
@@ -155,7 +155,7 @@ backupRoutes.get('/drill', (c) => c.json({ drill: lastDrill() }));
 
 /** Checks a backup can actually be read back. The newest one unless told otherwise. */
 backupRoutes.post('/drill', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { backupId?: string };
+  const body = (await readBody(c)) as { backupId?: string };
   const id = body.backupId ?? (await listBackups())[0]?.id;
   if (!id) throw badRequest('There are no backups to check yet.');
   return c.json({ drill: await drillBackup(id) });
@@ -164,7 +164,7 @@ backupRoutes.post('/drill', async (c) => {
 backupRoutes.get('/retention', (c) => c.json({ retention: retention() }));
 
 backupRoutes.put('/retention', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { keep?: number; keepDays?: number };
+  const body = (await readBody(c)) as { keep?: number; keepDays?: number };
   const keep = Number(body.keep);
   const keepDays = Number(body.keepDays ?? 0);
   if (!Number.isFinite(keep) || keep < 1 || keep > 100) {
@@ -195,7 +195,7 @@ backupRoutes.post('/:id/restore', async (c) => {
   // The same existence check the delete route makes, and for the same reason: a
   // missing backup is a 404, not a 400 buried inside the restore machinery.
   if (!(await Bun.file(backupFile(id)).exists())) throw notFound('That backup');
-  const body = (await c.req.json().catch(() => ({}))) as { projectId?: string };
+  const body = (await readBody(c)) as { projectId?: string };
   if (!body.projectId) throw badRequest('Which project should this be restored into?');
   if (!findProject(body.projectId)) throw notFound('That project');
   const report = await restoreBackup(id, body.projectId);

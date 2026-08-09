@@ -18,7 +18,7 @@ import { createVolume } from '../../db/repo/volumes.ts';
 import { emitProject, presentService } from '../../runtime/present.ts';
 import { randomSecret } from '../../util/crypto.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 
 export const templateRoutes = new Hono<AppEnv>();
 export const projectTemplateRoutes = new Hono<AppEnv>();
@@ -54,7 +54,7 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
   const project = findProject(c.req.param('id'));
   if (!project) throw notFound('That project');
 
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     slug?: string;
     url?: string;
     name?: string;
@@ -164,7 +164,7 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
  * is created, because the person should see what they are about to run.
  */
 templateRoutes.post('/from-url', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { url?: string };
+  const body = (await readBody(c)) as { url?: string };
   if (!body.url?.trim()) throw badRequest('Paste the address of a template file.');
 
   try {

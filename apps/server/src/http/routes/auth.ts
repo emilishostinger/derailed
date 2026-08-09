@@ -46,6 +46,7 @@ import {
   notFound,
   parseBody,
   parseValue,
+  readBody,
   tooManyRequests,
   unauthorized,
 } from '../errors.ts';
@@ -58,7 +59,10 @@ import {
 } from '../totp.ts';
 
 export const loginLimiter = new RateLimiter(5, 60_000);
-const setupLimiter = new RateLimiter(10, 60_000);
+// Exported for the same reason `loginLimiter` is: a test that exercises the sign-up
+// surface trips this module-level counter, and the next test file to call setup would
+// meet a 429 that has nothing to do with what it is checking. A test resets it.
+export const setupLimiter = new RateLimiter(10, 60_000);
 
 /**
  * A second, looser ceiling held against the socket address itself, whatever any
@@ -126,7 +130,7 @@ authRoutes.post('/login', async (c) => {
   if (peer && !peerLimiter.check(peer)) throw tooMany;
   // Read once: the schema validates the two required fields, and the code is an
   // optional extra the schema deliberately does not know about.
-  const raw = (await c.req.json().catch(() => ({}))) as { code?: string };
+  const raw = (await readBody(c)) as { code?: string };
   // `parseValue` rather than the schema's own `parse`: that one throws a `ZodError`,
   // which nothing upstream recognises, so it came out as a 500. On the sign-in route.
   const { email, password } = parseValue(schemas.loginRequest, raw);
@@ -194,7 +198,7 @@ authRoutes.post('/totp/start', requireAuth, (c) => {
 
 authRoutes.post('/totp/confirm', requireAuth, async (c) => {
   const user = c.get('user');
-  const body = (await c.req.json().catch(() => ({}))) as { code?: string };
+  const body = (await readBody(c)) as { code?: string };
   const secret = totpSecret(user.id);
 
   if (!secret) throw badRequest('Start setting it up first.');
@@ -215,7 +219,7 @@ authRoutes.post('/totp/confirm', requireAuth, async (c) => {
 
 authRoutes.delete('/totp', requireAuth, async (c) => {
   const user = c.get('user');
-  const body = (await c.req.json().catch(() => ({}))) as { password?: string };
+  const body = (await readBody(c)) as { password?: string };
   const record = findUserByEmail(user.email);
 
   // The password again, because turning off a second factor with a stolen session is
@@ -272,7 +276,7 @@ authRoutes.patch('/me/email', requireAuth, async (c) => {
   const user = currentUser(c);
   if (!user) throw unauthorized();
 
-  const body = (await c.req.json().catch(() => ({}))) as { email?: string; password?: string };
+  const body = (await readBody(c)) as { email?: string; password?: string };
   const email = body.email?.trim().toLowerCase() ?? '';
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     throw badRequest("That doesn't look like an email address.");
@@ -299,7 +303,7 @@ authRoutes.patch('/me/password', requireAuth, async (c) => {
   const user = currentUser(c);
   if (!user) throw unauthorized();
 
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     current?: string;
     password?: string;
   };

@@ -11,7 +11,7 @@ import {
 } from '../../jobs/run.ts';
 import { describeCron, isValidCron, nextRun } from '../../jobs/schedule.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 import { requireOwnerFor } from '../permissions.ts';
 
 export const jobRoutes = new Hono<AppEnv>();
@@ -61,7 +61,7 @@ serviceJobRoutes.get('/:id/jobs', (c) => {
 });
 
 jobRoutes.post('/', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     serviceId?: string | null;
     name?: string;
     command?: string;
@@ -97,7 +97,7 @@ jobRoutes.patch('/:id', async (c) => {
   // server job at a different command is the same power as writing one.
   guardServerJob(c, job.serviceId);
 
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     name?: string;
     command?: string;
     schedule?: string;
@@ -137,7 +137,7 @@ jobRoutes.get('/:id/runs', (c) => {
 
 /** What a schedule means, and when it would next fire. For the form's live preview. */
 jobRoutes.post('/preview', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { schedule?: string };
+  const body = (await readBody(c)) as { schedule?: string };
   if (!body.schedule || !isValidCron(body.schedule)) {
     throw badRequest('That schedule is not one Derailed understands.');
   }

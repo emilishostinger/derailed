@@ -23,7 +23,7 @@ import { publish } from '../../events/bus.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { emitProject, presentProject, presentProjects } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound, parseBody } from '../errors.ts';
+import { badRequest, notFound, parseBody, readBody } from '../errors.ts';
 
 export const projectRoutes = new Hono<AppEnv>();
 
@@ -123,7 +123,7 @@ projectRoutes.put('/:id/limits', async (c) => {
   const project = findProject(c.req.param('id'));
   if (!project) throw notFound('That project');
 
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     memoryLimitMb?: number | null;
     cpuLimitMillis?: number | null;
   };

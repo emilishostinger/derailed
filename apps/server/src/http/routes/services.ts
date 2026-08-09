@@ -88,7 +88,7 @@ import {
   wakeNow,
 } from '../../runtime/sleep.ts';
 import { type AppEnv, clientIp } from '../auth.ts';
-import { badRequest, notFound, parseBody } from '../errors.ts';
+import { badRequest, notFound, parseBody, readBody } from '../errors.ts';
 import { requireOwnerFor } from '../permissions.ts';
 
 /**
@@ -371,7 +371,7 @@ serviceRoutes.put('/:id/access', async (c) => {
   if (!service) throw notFound('That service');
   if (service.kind !== 'app') throw badRequest('Only apps are served to visitors.');
 
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     username?: string | null;
     password?: string | null;
     allowFrom?: string[] | null;
@@ -480,7 +480,7 @@ serviceRoutes.put('/:id/repo-token', async (c) => {
     throw badRequest('Only apps deployed from a repository need a token.');
   }
 
-  const body = (await c.req.json().catch(() => ({}))) as { token?: string | null };
+  const body = (await readBody(c)) as { token?: string | null };
   const token = body.token?.trim() || null;
   if (token && token.length < 20) {
     throw badRequest(
@@ -575,7 +575,7 @@ serviceRoutes.put('/:id/mail', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
 
-  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  const body = (await readBody(c)) as { enabled?: boolean };
   try {
     setAppMail(service.id, body.enabled === true);
   } catch (err) {
@@ -655,7 +655,7 @@ serviceRoutes.put('/:id/files', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
 
-  const body = (await c.req.json().catch(() => ({}))) as { path?: string; contents?: string };
+  const body = (await readBody(c)) as { path?: string; contents?: string };
   if (!body.path) throw badRequest('Which file?');
   if (typeof body.contents !== 'string') throw badRequest('There is nothing to save.');
 
@@ -678,7 +678,7 @@ serviceRoutes.post('/:id/files/folder', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
 
-  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  const body = (await readBody(c)) as { path?: string; name?: string };
   if (!body.path) throw badRequest('Which folder should this go in?');
   if (!body.name) throw badRequest('What should the folder be called?');
 
@@ -694,7 +694,7 @@ serviceRoutes.post('/:id/files/rename', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
 
-  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  const body = (await readBody(c)) as { path?: string; name?: string };
   if (!body.path) throw badRequest('Which one?');
   if (!body.name) throw badRequest('What should it be called?');
 
@@ -866,7 +866,7 @@ serviceRoutes.get('/:id/source/read', async (c) => {
 
 serviceRoutes.put('/:id/source', async (c) => {
   const service = findService(c.req.param('id'))!;
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     path?: string;
     contents?: string;
     /** False keeps the save on disk only; the default publishes, as the tab says. */
@@ -887,7 +887,7 @@ serviceRoutes.put('/:id/source', async (c) => {
 });
 
 serviceRoutes.post('/:id/source/folder', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  const body = (await readBody(c)) as { path?: string; name?: string };
   if (!body.path) throw badRequest('Which folder should this go in?');
   if (!body.name) throw badRequest('What should the folder be called?');
   try {
@@ -899,7 +899,7 @@ serviceRoutes.post('/:id/source/folder', async (c) => {
 });
 
 serviceRoutes.post('/:id/source/rename', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  const body = (await readBody(c)) as { path?: string; name?: string };
   if (!body.path) throw badRequest('Which one?');
   if (!body.name) throw badRequest('What should it be called?');
   try {
@@ -966,7 +966,7 @@ serviceRoutes.put('/:id/images', async (c) => {
   if (!service) throw notFound('That service');
   if (service.kind !== 'app') throw badRequest('Only apps serve pictures.');
 
-  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  const body = (await readBody(c)) as { enabled?: boolean };
   if (typeof body.enabled !== 'boolean') throw badRequest('On or off?');
 
   updateService(service.id, { imgResize: body.enabled });
@@ -1024,7 +1024,7 @@ serviceRoutes.put('/:id/previews', async (c) => {
     );
   }
 
-  const body = (await c.req.json().catch(() => ({}))) as {
+  const body = (await readBody(c)) as {
     enabled?: boolean;
     data?: 'shared' | 'clone';
     scrub?: string | null;
@@ -1079,7 +1079,7 @@ serviceRoutes.put('/:id/sleep', async (c) => {
   if (!service) throw notFound('That service');
   if (service.kind !== 'app') throw badRequest('Only apps can be paused this way.');
 
-  const body = (await c.req.json().catch(() => ({}))) as { minutes?: number | null };
+  const body = (await readBody(c)) as { minutes?: number | null };
   const minutes = body.minutes ?? null;
   if (minutes !== null && (!Number.isFinite(minutes) || minutes < MIN_MINUTES)) {
     throw badRequest(

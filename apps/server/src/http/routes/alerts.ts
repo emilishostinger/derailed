@@ -9,14 +9,14 @@ import {
   testChannel,
 } from '../../alerts/notify.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 
 export const alertRoutes = new Hono<AppEnv>();
 
 alertRoutes.get('/', (c) => c.json({ settings: alertSettings(), kinds: ALL_EVENTS }));
 
 alertRoutes.put('/channels', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { channels?: AlertChannel[] };
+  const body = (await readBody(c)) as { channels?: AlertChannel[] };
   if (!Array.isArray(body.channels)) throw badRequest('Send a list of channels.');
 
   for (const channel of body.channels) {
@@ -38,7 +38,7 @@ alertRoutes.put('/channels', async (c) => {
 });
 
 alertRoutes.put('/events', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { events?: AlertEventKind[] };
+  const body = (await readBody(c)) as { events?: AlertEventKind[] };
   if (!Array.isArray(body.events)) throw badRequest('Send a list of events.');
 
   const known = new Set(ALL_EVENTS.map((event) => event.kind));

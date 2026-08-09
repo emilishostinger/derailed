@@ -16,7 +16,7 @@ import { findService } from '../../db/repo/services.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { emitProject, emitService } from '../../runtime/present.ts';
 import type { AppEnv } from '../auth.ts';
-import { badRequest, notFound } from '../errors.ts';
+import { badRequest, notFound, readBody } from '../errors.ts';
 import { assertHostnamesUsable, attachHostnames } from './domains.ts';
 import { applyServicePatch } from './services.ts';
 
@@ -47,7 +47,7 @@ pendingRoutes.get('/:id/pending', (c) => {
 pendingRoutes.put('/:id/review', async (c) => {
   const project = findProject(c.req.param('id'));
   if (!project) throw notFound('That project');
-  const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+  const body = (await readBody(c)) as { enabled?: boolean };
   if (typeof body.enabled !== 'boolean') throw badRequest('On or off?');
 
   // Turning review off with edits still waiting must not quietly apply them, and
