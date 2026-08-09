@@ -7,3 +7,6 @@ derailed-*
 *.tsbuildinfo
 .DS_Store
 coverage/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/.playwright/

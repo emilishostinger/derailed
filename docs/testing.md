@@ -55,6 +55,25 @@ suite with its coverage floor.
 | Integration | `.integration.test.ts` | a Docker socket; pulls its own images |
 | Property-based fuzz | `fuzz.test.ts` | nothing; uses `fast-check` |
 | Permission matrix | `permission-matrix.test.ts` | nothing; walks the real router |
+| Browser e2e | `apps/web/e2e/*.spec.ts` | Playwright + the compiled binary + Chrome |
+
+## The browser end-to-end tests
+
+`apps/web/e2e` drives a real browser (Playwright) against the **compiled binary**, not
+the dev server, so there is no Vite and no HMR to tear the page down mid-assertion: the
+binary embeds the SPA and serves the real dashboard and API together, which is what a
+user gets. They cover the flows that must never break and need no Docker (onboarding,
+sign-in, the viewer role boundary); deploy and database flows are proven by the
+integration suite and the VPS smoke walk instead.
+
+```sh
+bun run scripts/build.ts --target=darwin-arm64 --out=dist-bin/derailed-e2e  # build first
+cd apps/web && bun run test:e2e                                             # then run
+```
+
+They use the system Google Chrome (`channel: 'chrome'`) rather than a downloaded
+Playwright browser, and Playwright launches the binary itself on a scratch data dir. Not
+part of `bun test`; run them on demand, or after a change to the login/onboarding flow.
 
 ## The permission matrix
 
