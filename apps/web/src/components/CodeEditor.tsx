@@ -63,9 +63,44 @@ export function CodeEditor({
         EditorView.updateListener.of((update) => {
           if (update.docChanged) latest.current.onChange(update.state.doc.toString());
         }),
+        // Themed with the app's own CSS variables, so the editor follows dark and
+        // light automatically. Without this CodeMirror keeps its light defaults: on
+        // the dark dashboard the gutter was a bright stripe and the caret was black
+        // on near-black, invisible while typing.
         EditorView.theme({
-          '&': { fontSize: '13px', height: '100%' },
+          '&': {
+            fontSize: '13px',
+            height: '100%',
+            color: 'var(--color-ink)',
+            backgroundColor: 'var(--color-sunken)',
+          },
           '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
+          '.cm-content': { caretColor: 'var(--color-ink)' },
+          // The caret itself is a bordered element, not the text caret-color, so it
+          // needs its own visible colour or it disappears against a dark background.
+          '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--color-accent)' },
+          '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--color-accent)' },
+          // The line-number sidebar: a recessed panel colour, faint numbers, a hair
+          // line down its right edge, matching every other sidebar in the app.
+          '.cm-gutters': {
+            backgroundColor: 'var(--color-surface-2)',
+            color: 'var(--color-ink-faint)',
+            borderRight: '1px solid var(--color-line)',
+          },
+          '.cm-activeLineGutter': {
+            backgroundColor: 'var(--color-elevated)',
+            color: 'var(--color-ink-muted)',
+          },
+          '.cm-activeLine': {
+            backgroundColor: 'color-mix(in srgb, var(--color-ink) 5%, transparent)',
+          },
+          '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
+            backgroundColor: 'var(--color-accent-soft)',
+          },
+          '.cm-matchingBracket, &.cm-focused .cm-matchingBracket': {
+            backgroundColor: 'var(--color-accent-soft)',
+            outline: '1px solid var(--color-accent)',
+          },
         }),
       ],
     });
