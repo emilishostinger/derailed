@@ -3,7 +3,7 @@
  *
  * `diffDeploys` is attached to a failure automatically, so it runs at the worst possible
  * moment and gets read by someone already frustrated. It has to be right about three
- * things — which commits landed, which variables moved, whether the image changed — and
+ * things (which commits landed, which variables moved, whether the image changed), and
  * it has one rule it must never break: it compares variable *values* but never returns
  * one. A password that leaked into a diff would ride along into every screenshot pasted
  * into a chat asking for help.

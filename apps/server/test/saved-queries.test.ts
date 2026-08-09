@@ -12,13 +12,13 @@ import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { closeDb, initDb } from '../src/db/index.ts';
+import { createProject } from '../src/db/repo/projects.ts';
 import {
   deleteSavedQuery,
   findSavedQuery,
   listSavedQueries,
   saveQuery,
 } from '../src/db/repo/queries.ts';
-import { createProject } from '../src/db/repo/projects.ts';
 import { createDatabaseService } from '../src/db/repo/services.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'derailed-savedq-'));
@@ -43,7 +43,7 @@ beforeEach(() => {
     dbName: 'db',
     dbUser: 'db',
     dbPassword: 'secret',
-    port: null,
+    port: 5432,
   }).id;
 });
 
@@ -82,7 +82,7 @@ describe('saving a query', () => {
       dbName: 'db2',
       dbUser: 'db2',
       dbPassword: 'secret',
-      port: null,
+      port: 5432,
     }).id;
 
     saveQuery(serviceId, 'shared name', 'mine');

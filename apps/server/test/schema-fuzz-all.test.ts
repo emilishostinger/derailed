@@ -62,7 +62,7 @@ beforeAll(async () => {
     dbName: 'db',
     dbUser: 'db',
     dbPassword: 'secret',
-    port: null,
+    port: 5432,
   }).id;
 });
 
