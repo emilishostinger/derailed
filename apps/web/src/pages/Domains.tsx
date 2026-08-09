@@ -18,7 +18,15 @@ import { ApiError } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { CloudflareDns } from '../components/CloudflareDns.tsx';
 import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
-import { CopyButton, cx, EmptyState, ErrorNote, Modal, Spinner } from '../components/ui.tsx';
+import {
+  CopyButton,
+  cx,
+  EmptyState,
+  ErrorNote,
+  Modal,
+  Select,
+  Spinner,
+} from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
@@ -439,25 +447,24 @@ function Row({
           title={`What should answer on ${domain.hostname}?`}
           onClose={() => setChoosing(false)}
         >
-          <div className="space-y-2">
-            {apps.length === 0 && (
+          <div className="space-y-3">
+            {apps.length === 0 ? (
               <p className="hint">There are no apps yet. Create one, then come back.</p>
-            )}
-            {apps.map((app) => (
-              <button
-                key={app.id}
-                type="button"
-                className="flex w-full items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2 text-left text-[13px] text-ink transition-colors hover:border-line-strong"
-                onClick={async () => {
-                  await endpoints.setDomainService(domain.id, app.id).catch(() => undefined);
+            ) : (
+              // A dropdown rather than a button per app, so this reads the same with
+              // three apps or thirty. Picking one points the domain at it.
+              <Select
+                ariaLabel={`Which app answers on ${domain.hostname}`}
+                value=""
+                placeholder="Pick an app…"
+                options={apps.map((app) => ({ value: app.id, label: app.label }))}
+                onChange={async (appId) => {
+                  await endpoints.setDomainService(domain.id, appId).catch(() => undefined);
                   setChoosing(false);
                   onChange();
                 }}
-              >
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
-                {app.label}
-              </button>
-            ))}
+              />
+            )}
             {domain.serviceId && (
               <button
                 type="button"

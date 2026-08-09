@@ -1,10 +1,10 @@
-import { CloudUpload, FolderPlus } from 'lucide-react';
+import { CloudUpload, Rocket } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
 import { type DroppedFile, readDroppedFolder } from '../lib/dropfiles.ts';
 import { useProjects } from '../stores/projects.ts';
-import { cx, ErrorNote, Modal, Spinner } from './ui.tsx';
+import { ErrorNote, Modal, Select, Spinner } from './ui.tsx';
 
 /**
  * Drag a zip anywhere and it becomes a website.
@@ -187,6 +187,10 @@ function PlaceIt({
   const [name, setName] = useState(suggested);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  // The destination, chosen from a dropdown so a long list of projects stays one
+  // control rather than a wall of buttons. A sentinel value means "a new project".
+  const NEW_PROJECT = '__new__';
+  const [dest, setDest] = useState<string>(NEW_PROJECT);
 
   async function go(projectId: string | null) {
     setBusy(true);
@@ -266,40 +270,38 @@ function PlaceIt({
             />
           </label>
 
-          <div className="space-y-1.5">
-            <p className="eyebrow">Add it to</p>
-            {projects.map((project) => (
-              <button
-                key={project.id}
-                type="button"
-                disabled={busy}
-                onClick={() => void go(project.id)}
-                className={cx(
-                  'flex w-full items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2',
-                  'text-left text-[13px] text-ink transition-colors hover:border-line-strong disabled:opacity-50',
-                )}
-              >
-                {project.name}
-              </button>
-            ))}
+          <label className="block">
+            <span className="label">Add it to</span>
+            {/* A dropdown, not a stack of buttons: one project or a hundred, this
+                stays one control that scrolls and takes typeahead. */}
+            <Select
+              ariaLabel="Which project to add it to"
+              value={dest}
+              disabled={busy}
+              onChange={setDest}
+              options={[
+                { value: NEW_PROJECT, label: 'A new project of its own' },
+                ...projects.map((project) => ({ value: project.id, label: project.name })),
+              ]}
+            />
+          </label>
+
+          <div className="flex items-center justify-end gap-3">
+            {busy && (
+              <p className="flex items-center gap-2 text-[13px] text-ink-muted">
+                <Spinner /> Unpacking and starting it.
+              </p>
+            )}
             <button
               type="button"
+              className="btn-primary"
               disabled={busy}
-              onClick={() => void go(null)}
-              className={cx(
-                'flex w-full items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-line px-3 py-2',
-                'text-left text-[13px] text-ink-muted transition-colors hover:border-accent hover:text-ink disabled:opacity-50',
-              )}
+              onClick={() => void go(dest === NEW_PROJECT ? null : dest)}
             >
-              <FolderPlus className="h-3.5 w-3.5" />A new project of its own
+              <Rocket className="h-3.5 w-3.5" />
+              Put it online
             </button>
           </div>
-
-          {busy && (
-            <p className="flex items-center gap-2 text-[13px] text-ink-muted">
-              <Spinner /> Unpacking and starting it.
-            </p>
-          )}
           <ErrorNote error={error} />
         </div>
       )}

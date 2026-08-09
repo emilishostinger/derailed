@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useSession } from '../stores/session.ts';
 import { QrCode } from './QrCode.tsx';
-import { cx, ErrorNote, Spinner, StatusDot } from './ui.tsx';
+import { cx, ErrorNote, Select, Spinner, StatusDot } from './ui.tsx';
 
 export function DomainsTab({ service }: { service: Service }) {
   const serverIp = useSession((s) => s.system?.serverIp);
@@ -74,25 +74,22 @@ export function DomainsTab({ service }: { service: Service }) {
 
           {spare.length > 0 && (
             <div className="rounded-[var(--radius-card)] border border-line bg-surface-2 p-3">
-              <p className="text-[12px] text-ink-muted">Already added and not in use yet:</p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {spare.map((domain) => (
-                  <button
-                    key={domain.id}
-                    type="button"
-                    className="btn-secondary text-[12px]"
-                    onClick={async () => {
-                      await endpoints
-                        .setDomainService(domain.id, service.id)
-                        .catch(() => undefined);
-                      await refresh();
-                      await loadSpare();
-                    }}
-                  >
-                    Use {domain.hostname}
-                  </button>
-                ))}
-              </div>
+              <p className="mb-2 text-[12px] text-ink-muted">
+                Point one you already added at this app:
+              </p>
+              {/* A dropdown, so a pile of parked domains stays one control. Picking
+                  one attaches it. */}
+              <Select
+                ariaLabel="Point an existing domain at this app"
+                value=""
+                placeholder="An unused domain…"
+                options={spare.map((domain) => ({ value: domain.id, label: domain.hostname }))}
+                onChange={async (domainId) => {
+                  await endpoints.setDomainService(domainId, service.id).catch(() => undefined);
+                  await refresh();
+                  await loadSpare();
+                }}
+              />
             </div>
           )}
 

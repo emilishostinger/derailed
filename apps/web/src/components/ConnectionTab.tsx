@@ -3,7 +3,7 @@ import { AlertTriangle, Database, Eye, EyeOff, Link2, Unlink } from 'lucide-reac
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/endpoints.ts';
 import { useProjects } from '../stores/projects.ts';
-import { CopyButton, cx, ErrorNote, Spinner } from './ui.tsx';
+import { CopyButton, cx, ErrorNote, Select, Spinner } from './ui.tsx';
 
 interface Connection {
   host: string;
@@ -274,32 +274,26 @@ function AppConnections({ service }: { service: Service }) {
               </span>
             </span>
           </label>
-          <div className="space-y-1.5">
-            {available.map((database) => (
-              <button
-                key={database.id}
-                type="button"
-                disabled={busy !== null}
-                onClick={() => void connect(database.id)}
-                className={cx(
-                  'flex w-full items-center gap-2 rounded-[var(--radius-control)] border border-line',
-                  'bg-surface px-3 py-2 text-left text-[13px] transition-colors',
-                  'hover:border-line-strong hover:bg-surface-2 disabled:opacity-50',
-                )}
-              >
-                <Database className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
-                <span className="min-w-0 flex-1 truncate text-ink">{database.name}</span>
-                <span className="shrink-0 text-[12px] text-ink-faint">
-                  {database.dbEngine} {database.dbVersion}
-                </span>
-                {busy === database.id ? (
-                  <Spinner />
-                ) : (
-                  <Link2 className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
-                )}
-              </button>
-            ))}
-          </div>
+          {/* A dropdown rather than a stack of database cards: one control whether a
+              project has one database or a dozen. Picking one connects it. The engine
+              and version ride along as the hint under each name. */}
+          <Select
+            ariaLabel="Which database to connect"
+            value=""
+            disabled={busy !== null}
+            placeholder="Pick a database…"
+            options={available.map((database) => ({
+              value: database.id,
+              label: database.name,
+              hint: `${database.dbEngine} ${database.dbVersion}`,
+            }))}
+            onChange={(databaseId) => void connect(databaseId)}
+          />
+          {busy !== null && (
+            <p className="mt-2 flex items-center gap-2 text-[12px] text-ink-muted">
+              <Spinner /> Connecting…
+            </p>
+          )}
         </section>
       )}
 
