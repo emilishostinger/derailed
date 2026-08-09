@@ -211,7 +211,7 @@ const WRITING_METHODS =
  * query object.
  *
  * `aggregate` is a reading method, but an `$out` or `$merge` stage at the end of its
- * pipeline lands the result in a collection — a write wearing a read's name. `mapReduce`
+ * pipeline lands the result in a collection, a write wearing a read's name. `mapReduce`
  * can do the same through its `out` option. And `$where`, `$function` and `$accumulator`
  * are server-side JavaScript: an expression that runs whatever it likes on the database
  * host, which is not something a box that promises it only reads should hand through.
@@ -224,7 +224,7 @@ const DANGEROUS_MONGO = /\$out\b|\$merge\b|\$where\b|\$function\b|\$accumulator\
  * `db.orders["drop"]()` runs the same drop as `db.orders.drop()`, but the writing-method
  * list only knows the `.drop(` shape and never sees it. A reading query names things with
  * dots and uses brackets only for array literals and numeric indexes, so a bracket with a
- * quoted key right after a value — `x["drop"]`, `find()['forEach']`, `db['users']` — is
+ * quoted key right after a value (`x["drop"]`, `find()['forEach']`, `db['users']`) is
  * the computed-access dodge, not an honest query. Refuse it.
  */
 const COMPUTED_ACCESS = /[\w)\]]\s*\[\s*['"`]/;

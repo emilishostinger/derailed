@@ -84,8 +84,8 @@ export function parseKeyLine(line: string): SshKey | null {
   if (!trimmed || trimmed.startsWith('#')) return null;
   // One line means one line. `trim` only takes the ends, so a newline that survives
   // is one buried in the middle of a paste, and `split(/\s+/)` would read across it and
-  // validate the first key while a second line — with its own `command=`/`environment=`
-  // options — rode along into root's authorized_keys verbatim. Refuse the whole paste.
+  // validate the first key while a second line, with its own `command=`/`environment=`
+  // options, rode along into root's authorized_keys verbatim. Refuse the whole paste.
   if (/[\r\n]/.test(trimmed)) return null;
 
   const tokens = trimmed.split(/\s+/);

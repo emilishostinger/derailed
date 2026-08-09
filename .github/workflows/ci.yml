@@ -1,0 +1,61 @@
+# Continuous integration: every push and pull request gets the same verdict a
+# careful contributor would reach locally, plus the parts a laptop usually cannot
+# give (a real Docker daemon on Linux, so the integration suite actually runs
+# instead of skipping itself).
+#
+# Two jobs on purpose. The checks job fails fast on style and types in a couple
+# of minutes; the test job is the long one, with service containers pulled by the
+# suite itself. Keeping them apart means a typo does not cost a 30-minute wait to
+# find out.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    name: typecheck and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+
+  test:
+    name: full suite with coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      # The build detector downloads the Nixpacks binary (about 20 MB) into a
+      # per-machine cache the test preload points at. Restoring it saves a
+      # download per run and keeps the test that uses it from timing out on a
+      # slow mirror.
+      - name: restore the nixpacks binary cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/derailed-nixpacks-cache
+          key: nixpacks-${{ runner.os }}
+      # Coverage is enforced by the threshold in bunfig.toml: the run fails if
+      # it ever dips below the recorded floor. The floor only moves up; see
+      # docs/testing.md for the ratchet rule.
+      - name: run the suite
+        run: bun test --coverage
+      - name: publish the coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore

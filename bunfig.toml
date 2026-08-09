@@ -1,2 +1,12 @@
 [test]
 preload = ["./apps/server/test/setup.ts"]
+
+# Coverage is off by default so a quick local `bun test foo` stays quick; CI runs
+# `bun test --coverage` and gets everything below. The threshold is a ratchet: it
+# records the floor the suite has already proven, the run fails if coverage ever
+# dips under it, and the only allowed edit is upward. See docs/testing.md.
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+coverageSkipTestFiles = true
+# Generated code and the dashboard bundle are not what the server suite measures.
+coveragePathIgnorePatterns = ["**/generated/**", "apps/web/**", "scripts/**"]
