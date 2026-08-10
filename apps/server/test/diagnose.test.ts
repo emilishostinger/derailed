@@ -37,6 +37,25 @@ describe('memory', () => {
   });
 });
 
+describe('the app in a subfolder', () => {
+  test("recognises the detect step's own folder advice sitting in the log", () => {
+    const result = diagnose(
+      lines(`
+        The top of this repository doesn't look like a runnable app, but the phpBB folder does. Set the app folder to phpBB and I'll look again.
+        Working out how to build this project…
+        Nixpacks was unable to generate a build plan for this app.
+      `),
+    );
+    expect(result?.id).toBe('app-in-subfolder');
+    expect(result?.action).toContain('Folder box');
+  });
+
+  test('does not fire when the folder advice never appeared', () => {
+    const result = diagnose(lines('Nixpacks was unable to generate a build plan for this app.'));
+    expect(result?.id).not.toBe('app-in-subfolder');
+  });
+});
+
 describe('ports', () => {
   test('recognises a port already taken', () => {
     const result = diagnose(lines('Error: listen EADDRINUSE: address already in use 0.0.0.0:3000'));

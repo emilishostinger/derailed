@@ -147,6 +147,25 @@ async function runNixpacks(
   return { code, stdout, stderr };
 }
 
+/** What to call a Nixpacks provider in a sentence a person reads. */
+const PROVIDER_LABELS: Record<string, string> = {
+  node: 'Node.js',
+  php: 'PHP',
+  python: 'Python',
+  go: 'Go',
+  rust: 'Rust',
+  ruby: 'Ruby',
+  java: 'Java',
+  deno: 'Deno',
+  elixir: 'Elixir',
+  csharp: '.NET',
+  staticfile: 'static site',
+};
+
+export function providerLabel(provider: string): string {
+  return PROVIDER_LABELS[provider] ?? provider;
+}
+
 /** Inspects a repo without building it, used to enrich the wizard's detect step. */
 export async function nixpacksPlan(dir: string): Promise<NixpacksPlan | null> {
   const result = await runNixpacks(['plan', dir, '--format', 'json'], undefined, 120_000);

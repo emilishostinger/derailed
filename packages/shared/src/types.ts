@@ -968,4 +968,10 @@ export interface DetectResult {
   /** One or two sentences the wizard shows verbatim. */
   summary: string;
   warnings: string[];
+  /**
+   * Set when the repository's root is not the app but exactly one subfolder
+   * plausibly is (phpbb keeps the forum in phpBB/ under a tooling-only root).
+   * The wizard offers it as the app folder.
+   */
+  suggestedRootDir?: string | null;
 }

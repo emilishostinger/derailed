@@ -49,6 +49,20 @@ In order, first match wins:
 The check for step 3 runs only after 1 and 2 have declined, because half the frameworks
 in the world also keep an `index.html` at their root.
 
+Two situations get special handling rather than a wrong guess:
+
+- **A `package.json` that is only tooling** (linters, an asset pipeline: no `start`
+  script, no runtime dependencies) does not make the project a Node app. The language
+  markers beside it win, which is how a Laravel or Django repository with Vite in its
+  devDependencies is still detected as PHP or Python.
+- **A repository whose root is not the app.** When exactly one subfolder looks like the
+  real thing (phpbb keeps its forum in `phpBB/` under a tooling-only root), the wizard
+  says so and offers to look there instead.
+
+And when the guess is still wrong, both the wizard and the app's **Settings** tab have
+a **Build it with** control: automatic, its own Dockerfile (with a path), build from
+source, or plain website. What you pick there wins over everything above.
+
 ### The panel
 
 Clicking an app opens a panel on the right with its logs, deploys, variables, storage,

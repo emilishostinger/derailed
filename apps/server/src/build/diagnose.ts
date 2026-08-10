@@ -39,11 +39,20 @@ export const RULES: Rule[] = [
       'Almost always the app hard-codes a port that another app here already has. Set a PORT variable on its Variables tab and make the app read it.',
   },
   {
+    // The detect step wrote its subfolder advice into this same log; a failure
+    // after that sentence nearly always means the advice was the answer.
+    id: 'app-in-subfolder',
+    match: [/set the app folder to .* and i'll look again/],
+    summary: "The app doesn't live at the top of this repository.",
+    action:
+      'The build log names the folder that looks like the real app. Put it in the Folder box on the Settings tab and deploy again.',
+  },
+  {
     id: 'wrong-port',
     match: [/didn't answer|never answered|health check failed|not responding on port/],
     summary: 'The app started but never answered on the port Derailed was watching.',
     action:
-      'Check the port on its Settings tab matches the one the app actually listens on. If the app picks its own, make it read the PORT variable Derailed sets.',
+      'Check the port on its Settings tab matches the one the app actually listens on. If the app picks its own, make it read the PORT variable Derailed sets. And if the whole stack looks wrong (a PHP forum built as a Node app), the Settings tab has a "Build it with" control to say what it really is.',
   },
   {
     id: 'listening-on-localhost',
