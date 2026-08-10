@@ -602,7 +602,7 @@ function AppDomain() {
           onClick={() => void save(domain.trim())}
         >
           {busy && <Spinner />}
-          Use this domain
+          {busy ? 'Checking the DNS record…' : 'Use this domain'}
         </button>
         {current && (
           <button
@@ -615,6 +615,17 @@ function AppDomain() {
           </button>
         )}
       </div>
+      {/* A disabled button swallows its clicks silently, so say why it is disabled. */}
+      {!busy && current !== null && domain.trim() === current && (
+        <p className="mt-2 text-[12px] text-ink-faint">
+          That's the domain in use now. Type a different one to switch.
+        </p>
+      )}
+      {busy && (
+        <p className="mt-2 text-[12px] text-ink-faint">
+          This asks two DNS resolvers and can take up to half a minute.
+        </p>
+      )}
     </div>
   );
 }
@@ -632,6 +643,7 @@ function PanelDomain() {
   const [loaded, setLoaded] = useState(false);
   const [hostname, setHostname] = useState('');
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
@@ -648,10 +660,16 @@ function PanelDomain() {
   async function save(value: string | null) {
     setBusy(true);
     setError(null);
+    setNote(null);
     try {
       const saved = await endpoints.setPanelDomain(value);
       setCurrent(saved);
       setHostname(saved ?? '');
+      setNote(
+        saved
+          ? `Done. The dashboard now answers at https://${saved}. The padlock appears once the certificate arrives, usually within a minute.`
+          : 'Done. The dashboard is back on its port.',
+      );
     } catch (err) {
       setError(err);
     } finally {
@@ -706,6 +724,8 @@ function PanelDomain() {
           />
         </Field>
       </div>
+      {note && <p className="mt-3 text-[12px] text-ok">{note}</p>}
+      <ErrorNote error={error} />
       <div className="mt-3 flex items-center gap-2">
         <button
           type="button"
@@ -714,7 +734,7 @@ function PanelDomain() {
           onClick={() => void save(hostname.trim())}
         >
           {busy && <Spinner />}
-          Use this domain
+          {busy ? 'Checking the DNS record…' : 'Use this domain'}
         </button>
         {current && (
           <button
@@ -727,9 +747,11 @@ function PanelDomain() {
           </button>
         )}
       </div>
-      <div className="mt-3">
-        <ErrorNote error={error} />
-      </div>
+      {busy && (
+        <p className="mt-2 text-[12px] text-ink-faint">
+          This asks two DNS resolvers and can take up to half a minute.
+        </p>
+      )}
       {current && (
         <p className="mt-3 text-[12px] text-ink-faint">
           Port {system?.port ?? 1337} is still open. Once you've confirmed the domain works, close
