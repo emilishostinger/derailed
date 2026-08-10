@@ -1,6 +1,7 @@
 import type { FreeDomain } from '@derailed/shared';
 import { Check, Circle, ExternalLink, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { endpoints } from '../api/endpoints.ts';
 import { useProjects } from '../stores/projects.ts';
 import { cx, ErrorNote, Field, Spinner } from './ui.tsx';
@@ -30,17 +31,26 @@ export function GettingStarted() {
     }
   });
 
+  const [ownDomain, setOwnDomain] = useState<string | null>(null);
+
   useEffect(() => {
     endpoints
       .freeDomain()
       .then(setFree)
+      .catch(() => undefined);
+    endpoints
+      .appDomain()
+      .then(setOwnDomain)
       .catch(() => undefined);
   }, []);
 
   const hasApp = projects.some((project) =>
     (project.services ?? []).some((service) => service.kind === 'app'),
   );
-  const secured = !!free?.hostname;
+  // Either road leads to the padlock: the free DuckDNS name, or a domain of
+  // your own with a wildcard record. Nagging someone who took the second road
+  // about the first was this component's most embarrassing habit.
+  const secured = !!free?.hostname || !!ownDomain;
 
   // Gone once both are true, and gone for good if it is waved away. Nobody wants a
   // checklist following them around a server they have been running for a year.
@@ -87,7 +97,8 @@ export function GettingStarted() {
         <Step done={secured} title={secured ? 'Your apps have a padlock' : 'Get a padlock, free'}>
           {secured ? (
             <p className="text-[12px] text-ink-faint">
-              Everything is at <span className="text-ink-muted">something.{free.hostname}</span>,
+              Everything is at{' '}
+              <span className="text-ink-muted">something.{free?.hostname ?? ownDomain}</span>,
               secured.
             </p>
           ) : expanded ? (
@@ -100,17 +111,19 @@ export function GettingStarted() {
           ) : (
             <div>
               <p className="text-[12px] text-ink-faint">
-                Right now your apps are on plain HTTP, and those addresses can never be secured. A
-                free name from DuckDNS fixes that for every app at once, in about a minute.
+                Right now your apps are on plain HTTP, and those addresses can never be secured.
+                Fixable once, for every app at once: with a domain of your own (each app becomes{' '}
+                <span className="text-ink-muted">something.apps.yourdomain.com</span>), or with a
+                free name from DuckDNS.
               </p>
-              <button
-                type="button"
-                className="btn-secondary mt-2"
-                onClick={() => setExpanded(true)}
-              >
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Set it up
-              </button>
+              <div className="mt-2 flex items-center gap-2">
+                <Link to="/settings" className="btn-secondary">
+                  <ShieldCheck className="h-3.5 w-3.5" />I have a domain
+                </Link>
+                <button type="button" className="btn-ghost" onClick={() => setExpanded(true)}>
+                  Get a free one
+                </button>
+              </div>
             </div>
           )}
         </Step>
