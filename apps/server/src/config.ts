@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const VERSION = '0.19.0';
+export const VERSION = '0.20.0';
 
 /** Ports 80/443 need root; in dev we let Caddy use high ports instead. */
 export const isDev = process.env.DERAILED_DEV === '1' || process.env.NODE_ENV === 'development';
