@@ -68,7 +68,72 @@ say()  { printf '%s\n' "$*"; }
 step() { printf '  %s→%s %s\n' "$DIM" "$RESET" "$*"; }
 ok()   { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$*"; }
 warn() { printf '  %s!%s %s\n' "$YELLOW" "$RESET" "$*"; }
-die()  { printf '\n  %s✗%s %s\n\n' "$RED" "$RESET" "$*" >&2; exit 1; }
+die()  { spinner_stop; printf '\n  %s✗%s %s\n\n' "$RED" "$RESET" "$*" >&2; exit 1; }
+
+# --------------------------------------------------------------------- spinner
+#
+# The slow steps (Docker, the download, waiting for the service) get a spinner
+# instead of a silent pause, in the same lavender the top of the wordmark uses.
+# On anything that isn't a terminal it degrades to the plain "→" line, so CI
+# logs and `sh -x` transcripts stay readable.
+#
+# The frames spin in a background subshell; the foreground command runs as
+# usual. `die` stops the spinner itself, so failure paths don't have to
+# remember to, and the EXIT trap below catches everything else, including the
+# cursor, which is hidden while the spinner runs and must come back whatever
+# happens.
+
+case "$COLOR_DEPTH" in
+  full)  SPIN_TINT=$(printf '\033[38;2;167;139;250m') ;;
+  256)   SPIN_TINT=$(printf '\033[38;5;141m') ;;
+  basic) SPIN_TINT="$BOLD" ;;
+  *)     SPIN_TINT='' ;;
+esac
+
+SPINNER_PID=''
+
+spinner_start() {
+  # $1 = message shown next to the spinner
+  if [ ! -t 1 ]; then
+    step "$1"
+    return 0
+  fi
+  printf '\033[?25l'
+  (
+    while :; do
+      for frame in ⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏; do
+        printf '\r  %s%s%s %s' "$SPIN_TINT" "$frame" "$RESET" "$1"
+        # POSIX sleep is whole seconds only, but every Linux this script
+        # accepts (coreutils and busybox alike) takes fractions. If one
+        # somehow doesn't, a one-second spinner still spins.
+        sleep 0.1 2>/dev/null || sleep 1
+      done
+    done
+  ) &
+  SPINNER_PID=$!
+}
+
+spinner_stop() {
+  [ -n "$SPINNER_PID" ] || return 0
+  kill "$SPINNER_PID" 2>/dev/null || true
+  wait "$SPINNER_PID" 2>/dev/null || true
+  SPINNER_PID=''
+  printf '\r\033[K\033[?25h'
+}
+
+# One trap for everything that must be undone on the way out: the spinner and
+# its hidden cursor, and the download scratch directory once it exists. Set
+# here rather than next to mktemp because a trap on EXIT replaces the previous
+# one, and the spinner needs cleaning up on every exit path, not just the
+# download's.
+TMP=''
+cleanup() {
+  spinner_stop
+  if [ -n "$TMP" ]; then rm -rf "$TMP"; fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # -------------------------------------------------------------------- the splash
 #
@@ -154,7 +219,13 @@ terminal_width() {
 }
 
 splash() {
+  # On a real terminal the splash owns the screen: clear it first, so the
+  # wordmark is the first thing seen rather than appearing under the curl
+  # command that fetched us. \033[2J leaves scrollback alone, so nothing the
+  # person had on screen is actually lost. Piped output never gets cleared:
+  # an escape code in a CI log helps nobody.
   if [ ! -t 1 ] || [ "$(terminal_width)" -lt "$WORDMARK_WIDTH" ]; then
+    [ -t 1 ] && printf '\033[2J\033[H'
     say ""
     say "  ${BOLD}Derailed${RESET}"
     say "  ${DIM}Self-hosted deploys on your own server.${RESET}"
@@ -162,6 +233,7 @@ splash() {
     return
   fi
 
+  printf '\033[2J\033[H'
   say ""
   row=1
   printf '%s\n' "$WORDMARK" | while IFS= read -r line; do
@@ -349,9 +421,10 @@ if [ "$LIBC" = "musl" ] && [ "$PM" = "apk" ] && [ ! -e /usr/lib/libstdc++.so.6 ]
 fi
 
 if [ -n "$MISSING" ]; then
-  step "Installing:$MISSING"
+  spinner_start "Installing:$MISSING"
   # shellcheck disable=SC2086
   if install_packages $MISSING; then
+    spinner_stop
     ok "Installed:$MISSING"
   else
     die "Please install:$MISSING, then run this again."
@@ -391,18 +464,20 @@ install_docker() {
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   ok "Docker is already running"
 elif command -v docker >/dev/null 2>&1; then
-  step "Docker is installed but not running, starting it"
+  spinner_start "Docker is installed but not running, starting it"
   start_docker
   docker info >/dev/null 2>&1 || die "Docker is installed but won't start. $(docker_hint)"
+  spinner_stop
   ok "Docker started"
 else
   say ""
   say "  Derailed runs your apps in Docker containers, so it needs Docker."
   confirm "Install Docker now?" || die "Nothing was changed. Install Docker, then run this again."
-  step "Installing Docker. This takes a minute"
+  spinner_start "Installing Docker. This takes a minute"
   install_docker || die "Docker install failed. Install it the way your distribution recommends, then run this again."
   start_docker
   docker info >/dev/null 2>&1 || die "Docker installed but isn't responding. $(docker_hint)"
+  spinner_stop
   ok "Docker installed"
 fi
 
@@ -441,9 +516,8 @@ else
   fi
 
   TMP=$(mktemp -d)
-  trap 'rm -rf "$TMP"' EXIT
 
-  step "Downloading Derailed ($ARCH)"
+  spinner_start "Downloading Derailed ($ARCH)"
   curl -fsSL "$BASE/derailed-$ARCH" -o "$TMP/derailed" \
     || die "Couldn't download the release. Check your connection, or grab it from https://github.com/$REPO/releases"
 
@@ -453,6 +527,7 @@ else
   # too minimal to have coreutils; that is said out loud rather than passed over.
   curl -fsSL "$BASE/checksums.txt" -o "$TMP/checksums.txt" 2>/dev/null \
     || die "Couldn't fetch the checksums for this release, so nothing was installed."
+  spinner_stop
 
   EXPECTED=$(grep " derailed-$ARCH\$" "$TMP/checksums.txt" | awk '{print $1}' | head -1)
   [ -n "$EXPECTED" ] || die "This release publishes no checksum for derailed-$ARCH. Nothing was installed."
@@ -576,7 +651,9 @@ UNIT
 
   if [ "$START_SERVICE" = "1" ]; then
     systemctl restart derailed
+    spinner_start "Waiting for Derailed to come up"
     wait_for_health || die "Derailed didn't come up. See what it said with: journalctl -u derailed -n 50 --no-pager"
+    spinner_stop
     ok "Service started"
   fi
 elif [ "$INIT" = "openrc" ]; then
@@ -605,7 +682,9 @@ RC
 
   if [ "$START_SERVICE" = "1" ]; then
     rc-service derailed restart >/dev/null 2>&1
+    spinner_start "Waiting for Derailed to come up"
     wait_for_health || die "Derailed didn't come up. See what it said in: /var/log/derailed.log"
+    spinner_stop
     ok "Service started"
   fi
 else
