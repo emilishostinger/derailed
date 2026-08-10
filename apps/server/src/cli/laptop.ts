@@ -52,7 +52,7 @@ export async function login(url?: string): Promise<void> {
   const clean = url.replace(/\/$/, '');
   const token =
     process.env.DERAILED_TOKEN || prompt('Paste an API token (Settings on the server):');
-  if (!token || !token.startsWith('drl_')) {
+  if (!token?.startsWith('drl_')) {
     console.error('That does not look like a Derailed API token. Nothing was saved.');
     process.exit(1);
   }

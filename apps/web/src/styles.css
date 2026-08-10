@@ -403,12 +403,15 @@ h3 {
 }
 
 @layer components {
+  /* biome-ignore lint/style/noDescendingSpecificity: `.deep-surface .card` above is
+     unlayered and so always beats this rule; ordering inside the layer changes nothing. */
   .card {
     border-radius: var(--radius-card);
     box-shadow: var(--d-shadow-card);
     @apply border border-line bg-surface;
   }
 
+  /* biome-ignore lint/style/noDescendingSpecificity: same story as .card above. */
   .panel {
     border-radius: var(--radius-panel);
     box-shadow: var(--d-shadow-pop);

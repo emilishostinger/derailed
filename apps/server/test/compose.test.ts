@@ -1,3 +1,5 @@
+/* biome-ignore-all lint/suspicious/noTemplateCurlyInString: the ${VAR} strings here
+   are Docker Compose interpolation syntax under test, not mistaken JS templates. */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { rm } from 'node:fs/promises';

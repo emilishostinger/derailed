@@ -128,6 +128,8 @@ suite('wordpress superpowers against real containers', () => {
       '--admin_email=keeper@example.com',
       '--skip-email',
     ]);
+    // When the install fails, its own words beat "expected 0, received 1".
+    if (install.code !== 0) console.error('[wp core install]', install.out);
     expect(install.code).toBe(0);
 
     // 1. The sign-in link: one-time token, admin user, mu-plugin in place.

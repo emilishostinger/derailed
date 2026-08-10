@@ -80,14 +80,16 @@ aside was actually for.
 If you hit it, `bun run check:style` prints every line and what to use instead.
 
 Commit messages describe the change and, where it matters, the reasoning. The history
-is the changelog until the first release.
+is the changelog: release notes are drawn from it, so write for the person reading it
+in a year.
 
 ## Things worth doing
 
-The code is honest about its gaps. Searching for what is missing:
-
-- Deploying on push (a GitHub webhook exists in outline, not in practice).
-- `docker-compose` repositories: detected and warned about, not run.
 - More than one machine. This is deliberately a single-server tool for now.
 - More ready-made apps. Each is a small, well-defined addition to
   `apps/server/src/catalog/templates.ts`; only add ones you have actually run.
+- Compose files: the importer honours the fields Derailed has a place for and says
+  which ones it had to skip. Every skipped field that gains a home is a real
+  improvement, and the warnings in `apps/server/src/import/compose.ts` are the list.
+- Anything a real deploy taught you. The tests that earn their keep here describe
+  incidents, and so do the best pull requests.

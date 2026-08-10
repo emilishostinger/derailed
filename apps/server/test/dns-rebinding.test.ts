@@ -23,7 +23,6 @@ let armed = false;
 let answers: { address: string; family: number }[] = [];
 let calls = 0;
 mock.module('node:dns/promises', () => ({
-  // biome-ignore lint/suspicious/noExplicitAny: the real lookup's overloads are wide.
   lookup: async (host: string, opts?: unknown): Promise<any> => {
     if (!armed) return realLookup(host, opts as never);
     calls += 1;
