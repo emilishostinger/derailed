@@ -475,6 +475,33 @@ export function storageAdviceFor(
   return null;
 }
 
+/**
+ * "This app expects a database" advice, from the same recognition the storage
+ * advice uses. Only for apps whose template declares one, so the drawer can say
+ * which engine in a sentence before the crash loop says it in stack traces.
+ */
+export function databaseAdviceFor(
+  image: string | null,
+  framework: string | null,
+  name?: string | null,
+): { engine: string; message: string } | null {
+  const haystack = `${image ?? ''} ${framework ?? ''} ${name ?? ''}`.toLowerCase();
+  if (!haystack.trim()) return null;
+
+  const match = APP_TEMPLATES.find(
+    (template) =>
+      template.database &&
+      (haystack.includes(template.slug) || haystack.includes(template.image.split(':')[0]!)),
+  );
+  if (!match?.database) return null;
+
+  const engine = DATABASE_ENGINES.find((entry) => entry.engine === match.database?.engine);
+  return {
+    engine: match.database.engine,
+    message: `${match.name} expects a ${engine?.label ?? match.database.engine} database, and this project doesn't have one. Add one, connect it to this app on the Connections tab, and deploy again.`,
+  };
+}
+
 const KNOWN_STATEFUL: [string, { paths: string[]; what: string }][] = [
   ['nextcloud', { paths: ['/var/www/html/data'], what: 'Nextcloud keeps your files there' }],
   ['gitea', { paths: ['/data'], what: 'Gitea keeps your repositories there' }],

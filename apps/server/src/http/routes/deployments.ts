@@ -4,8 +4,9 @@ import { diagnose, interestingLines } from '../../build/diagnose.ts';
 import { diffDeploys } from '../../build/diff.ts';
 import { cancelDeployment, queueDeployment, queueRollback } from '../../build/pipeline.ts';
 import { hasUpload } from '../../build/upload.ts';
+import { databaseAdviceFor } from '../../catalog/templates.ts';
 import { findDeployment, listDeployments } from '../../db/repo/deployments.ts';
-import { findService } from '../../db/repo/services.ts';
+import { findService, listServices } from '../../db/repo/services.ts';
 import type { AppEnv } from '../auth.ts';
 import { badRequest, notFound } from '../errors.ts';
 
@@ -23,8 +24,25 @@ async function explainFailure(deploymentId: string) {
 
   const lines = await readDeploymentLog(deploymentId).catch(() => []);
   const text = lines.map((line) => line.line);
+  const diagnosis = diagnose(text, deployment.errorSummary);
+
+  // The generic database rules say "check the database is running", which is
+  // cruel advice to somebody whose project has no database at all. When that is
+  // the situation, say the actual situation.
+  if (diagnosis?.id.startsWith('db-')) {
+    const service = findService(deployment.serviceId);
+    const hasDatabase =
+      service && listServices(service.projectId).some((sibling) => sibling.kind === 'database');
+    if (service && !hasDatabase) {
+      const advice = databaseAdviceFor(service.image, service.framework, service.name);
+      diagnosis.action =
+        advice?.message ??
+        'This project has no database yet, and the app is looking for one. Add one from the Add button, connect it to this app on the Connections tab, and deploy again.';
+    }
+  }
+
   return {
-    diagnosis: diagnose(text, deployment.errorSummary),
+    diagnosis,
     lines: interestingLines(text, 12),
   };
 }

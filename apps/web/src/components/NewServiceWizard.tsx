@@ -1076,6 +1076,11 @@ function FromImage({
         {busy && <Spinner />}
         {recognised || engineName ? 'Run just the image' : 'Run it'}
       </button>
+      {recognised?.needsDatabase && (
+        <p className="text-[12px] text-warn">
+          On its own, this image will look for a database that doesn't exist yet.
+        </p>
+      )}
     </div>
   );
 }

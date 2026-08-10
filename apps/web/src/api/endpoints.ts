@@ -603,9 +603,6 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
-  /** Retakes the site's screenshot, title and icon now instead of on the next sweep. */
-  refreshSitePicture: (serviceId: string) =>
-    api.post<{ preview: unknown }>(`/services/${serviceId}/preview`, {}),
   previews: (serviceId: string) =>
     api.get<{
       enabled: boolean;

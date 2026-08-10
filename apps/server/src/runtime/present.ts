@@ -1,6 +1,6 @@
 import type { Deployment, Project, Service, ServiceStatus } from '@derailed/shared';
 import { ACTIVE_DEPLOYMENT_STATUSES, topics } from '@derailed/shared';
-import { storageAdviceFor } from '../catalog/templates.ts';
+import { databaseAdviceFor, storageAdviceFor } from '../catalog/templates.ts';
 import { latestDeployment, runningDeployment } from '../db/repo/deployments.ts';
 import { listDomains } from '../db/repo/domains.ts';
 import { listLinks } from '../db/repo/links.ts';
@@ -44,6 +44,15 @@ export function serviceStatus(service: Service): ServiceStatus {
   }
 }
 
+function missingDatabaseFor(service: Service): { engine: string; message: string } | null {
+  const advice = databaseAdviceFor(service.image, service.framework, service.name);
+  if (!advice) return null;
+  const covered = listServices(service.projectId).some(
+    (sibling) => sibling.kind === 'database' && sibling.dbEngine === advice.engine,
+  );
+  return covered ? null : advice;
+}
+
 export function presentService(service: Service): Service {
   return {
     ...service,
@@ -55,6 +64,10 @@ export function presentService(service: Service): Service {
       service.kind === 'app' && listVolumesFor(service.id).length === 0
         ? storageAdviceFor(service.image, service.framework, service.name)
         : null,
+    // A recognised app whose database engine is nowhere in the project. Cleared
+    // the moment a database of that engine exists, connected or not: the advice
+    // is about spinning one up, and the Connections tab handles the rest.
+    databaseWarning: service.kind === 'app' ? missingDatabaseFor(service) : null,
     hasRepoToken: !!repoToken(service.id),
     // What the site actually looks like: its own title, icon and, if screenshots are
     // switched on, a picture. Absent until the first sweep has been past.

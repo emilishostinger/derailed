@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { parseTemplate, TemplateError } from '../src/catalog/templates.ts';
+import { databaseAdviceFor, parseTemplate, TemplateError } from '../src/catalog/templates.ts';
 
 /**
  * Templates from somewhere else.
@@ -100,5 +100,27 @@ describe('what is quietly dropped', () => {
   test('a category of its own choosing', () => {
     // A template does not get to invent a category and rearrange the catalogue.
     expect(parseTemplate({ ...valid, category: 'Featured' }).category).toBe('Tools');
+  });
+});
+
+describe('knowing an app expects a database', () => {
+  test('a WordPress image is told about MySQL, in words', () => {
+    const advice = databaseAdviceFor('wordpress:6.5', null, null);
+    expect(advice?.engine).toBe('mysql');
+    expect(advice?.message).toContain('MySQL');
+    expect(advice?.message).toContain('Connections tab');
+  });
+
+  test('recognition works from the framework name when there is no image', () => {
+    const advice = databaseAdviceFor(null, 'Ghost', 'my blog');
+    expect(advice?.engine).toBe('mysql');
+  });
+
+  test('an app whose template needs no database gets no advice', () => {
+    expect(databaseAdviceFor('louislam/uptime-kuma:1', null, null)).toBeNull();
+  });
+
+  test('an unrecognised image gets no advice rather than a guess', () => {
+    expect(databaseAdviceFor('nginx:1.27', null, null)).toBeNull();
   });
 });

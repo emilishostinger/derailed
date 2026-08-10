@@ -265,6 +265,8 @@ export interface Service {
    * and no storage is attached yet.
    */
   storageWarning?: { paths: string[]; what: string } | null;
+  /** A recognised app that expects a database engine this project lacks. */
+  databaseWarning?: { engine: string; message: string } | null;
   /**
    * What the running site looks like: its own title and icon, and a screenshot when
    * those are switched on. Decoration, and always optional.

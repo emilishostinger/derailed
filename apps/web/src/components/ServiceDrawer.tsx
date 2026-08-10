@@ -2,6 +2,7 @@ import type { Deployment, LogLine, Service } from '@derailed/shared';
 import { ACTIVE_DEPLOYMENT_STATUSES, topics } from '@derailed/shared';
 import {
   Activity,
+  BookOpen,
   Braces,
   ChevronDown,
   Clock,
@@ -44,6 +45,7 @@ import { BrowseTab } from './BrowseTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DbUpgradeCard } from './DbUpgrade.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
+import { docsUrlFor } from './docsUrl.ts';
 import { EnvEditor } from './EnvEditor.tsx';
 import { FilesWorkspace } from './FilesTab.workspace.tsx';
 import { JobsTab } from './JobsTab.tsx';
@@ -52,7 +54,6 @@ import { LogViewer } from './LogViewer.tsx';
 import { MessagesTab } from './MessagesTab.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
-import { SiteShot } from './SitePreview.tsx';
 import { Snapshots } from './Snapshots.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
@@ -152,6 +153,7 @@ export function ServiceDrawer({
     domains.find((domain) => domain.tlsStatus === 'active') ??
     domains[0];
   const isWordPress = service.source === 'image' && (service.image ?? '').startsWith('wordpress');
+  const docsUrl = docsUrlFor(service);
   const entries: NavEntry[] = isApp
     ? [
         { kind: 'tab', tab: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -320,6 +322,12 @@ export function ServiceDrawer({
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 Open
+              </a>
+            )}
+            {isApp && docsUrl && (
+              <a href={docsUrl} target="_blank" rel="noreferrer" className="btn-ghost">
+                <BookOpen className="h-3.5 w-3.5" />
+                Readme
               </a>
             )}
             {/* One primary action at a time. Deploy and Start used to sit side by
@@ -591,40 +599,13 @@ function Overview({ service }: { service: Service }) {
   }, [latest?.id]);
 
   const merged = useMemo(() => [...lines, ...(storeLogs ?? [])], [lines, storeLogs]);
-  const load = useProjects((s) => s.load);
-  const [retaking, setRetaking] = useState(false);
-
-  async function retake() {
-    setRetaking(true);
-    try {
-      await endpoints.refreshSitePicture(service.id);
-      await load();
-    } catch {
-      // The next three-hour sweep will get it; this button is only impatience.
-    } finally {
-      setRetaking(false);
-    }
-  }
 
   return (
     <div className="space-y-5">
-      {/* The screenshot is the proof the app actually loads: not "the container
-          runs" or "the port answers", but pixels a visitor would see. */}
-      {service.kind === 'app' && service.preview?.shotPath && (
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="eyebrow">What visitors see</p>
-            <button
-              type="button"
-              className="btn-ghost text-[12px]"
-              disabled={retaking}
-              onClick={() => void retake()}
-            >
-              {retaking ? <Spinner /> : <RotateCw className="h-3 w-3" />}
-              Retake
-            </button>
-          </div>
-          <SiteShot service={service} />
+      {/* Said here, plainly, before the crash loop says it in stack traces. */}
+      {service.databaseWarning && (
+        <div className="rounded-[var(--radius-card)] border border-warn/30 bg-warn-soft p-4">
+          <p className="text-sm text-ink">{service.databaseWarning.message}</p>
         </div>
       )}
 
