@@ -191,9 +191,8 @@ export function Settings() {
 /**
  * Whether to photograph the running sites.
  *
- * Off by default, and it says why: turning it on downloads a browser image of a few
- * hundred megabytes, which is a real cost on the servers this is aimed at and not
- * something to spend on somebody's behalf.
+ * On by default, off in one press, and the hint says what the first capture
+ * costs: a browser image of a few hundred megabytes, downloaded once.
  */
 function Screenshots() {
   const [on, setOn] = useState<boolean | null>(null);
@@ -769,6 +768,9 @@ function PanelDomain() {
 function UpdateCheck() {
   const [state, setState] = useState<'idle' | 'checking' | 'done' | 'failed'>('idle');
   const [result, setResult] = useState<Awaited<ReturnType<typeof endpoints.checkUpdate>>>(null);
+  const [flow, setFlow] = useState<'none' | 'updating' | 'restarting' | 'back' | 'stuck'>('none');
+  const [flowLog, setFlowLog] = useState<string[]>([]);
+  const [flowError, setFlowError] = useState<unknown>(null);
 
   async function check() {
     setState('checking');
@@ -779,6 +781,49 @@ function UpdateCheck() {
     } catch {
       setState('failed');
     }
+  }
+
+  /**
+   * The whole rollout from one button: install the new binary, ask Derailed to
+   * restart itself, then knock every couple of seconds until a different
+   * version answers, and reload the page into it. Apps keep running throughout;
+   * only the dashboard blinks.
+   */
+  async function updateAndRestart() {
+    setFlowError(null);
+    setFlowLog([]);
+    setFlow('updating');
+    try {
+      const applied = await endpoints.applyServerUpdate();
+      setFlowLog(applied.log);
+      if (!applied.updated) {
+        setFlow('stuck');
+        return;
+      }
+      setFlow('restarting');
+      await endpoints.restartServer();
+    } catch (err) {
+      setFlowError(err);
+      setFlow('none');
+      return;
+    }
+
+    const wasVersion = result?.current;
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      try {
+        const { system } = await api.system();
+        if (system.version && system.version !== wasVersion) {
+          setFlow('back');
+          setTimeout(() => window.location.reload(), 1200);
+          return;
+        }
+      } catch {
+        // Still restarting. The silence is the process swapping over.
+      }
+    }
+    setFlow('stuck');
   }
 
   return (
@@ -810,19 +855,65 @@ function UpdateCheck() {
             Version {result.version} is available. You're on {result.current}.
           </p>
           <p className="mt-1.5 text-[12px] text-ink-muted">
-            Update from the server with <code className="text-ink">derailed update</code>, then{' '}
-            <code className="text-ink">systemctl restart derailed</code>. Your apps keep running
-            while it swaps over.
+            One press installs it and restarts Derailed. Your apps keep running while it swaps over;
+            this dashboard is gone for a few seconds and comes back on the new version.
           </p>
-          <a
-            href={result.url}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-secondary mt-3 inline-flex"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            What changed
-          </a>
+
+          {flow === 'back' ? (
+            <p className="mt-3 text-[13px] text-ok">
+              Back on {result.version}. Reloading the dashboard…
+            </p>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={flow === 'updating' || flow === 'restarting'}
+                onClick={() => void updateAndRestart()}
+              >
+                {(flow === 'updating' || flow === 'restarting') && <Spinner />}
+                {flow === 'updating'
+                  ? 'Downloading the update…'
+                  : flow === 'restarting'
+                    ? 'Restarting Derailed…'
+                    : `Update to ${result.version} and restart`}
+              </button>
+              <a
+                href={result.url}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary inline-flex"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                What changed
+              </a>
+            </div>
+          )}
+
+          {flow === 'updating' && (
+            <p className="mt-2 text-[12px] text-ink-faint">
+              The new version is about 90 MB; on a small server this takes a minute.
+            </p>
+          )}
+          {flow === 'restarting' && (
+            <p className="mt-2 text-[12px] text-ink-faint">
+              Waiting for it to come back. The page reloads by itself.
+            </p>
+          )}
+          {flow === 'stuck' && (
+            <div className="mt-2 text-[12px] text-ink-muted">
+              {flowLog.length > 0 ? (
+                flowLog.map((line) => <p key={line}>{line}</p>)
+              ) : (
+                <p>
+                  It's taking longer than it should. Refresh this page in a moment; if the version
+                  hasn't changed, restart from the server with{' '}
+                  <code className="text-ink">systemctl restart derailed</code>.
+                </p>
+              )}
+            </div>
+          )}
+          <ErrorNote error={flowError} />
         </div>
       )}
     </div>

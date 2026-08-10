@@ -247,6 +247,8 @@ PUT /api/system/tailscale/funnel member=deny viewer=deny
 POST /api/system/tailscale/install member=deny viewer=deny
 GET /api/system/traffic member=allow viewer=allow
 GET /api/system/update member=allow viewer=allow
+POST /api/system/update/apply member=deny viewer=deny
+POST /api/system/restart member=deny viewer=deny
 GET /api/templates member=allow viewer=allow
 POST /api/templates/from-url member=allow viewer=deny
 GET /api/tokens member=deny viewer=deny

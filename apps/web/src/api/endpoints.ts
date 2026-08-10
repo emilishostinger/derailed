@@ -315,6 +315,11 @@ export const endpoints = {
   checkDomain: (domainId: string) =>
     api.post<{ domain: Domain }>(`/domains/${domainId}/check`).then((r) => r.domain),
 
+  /** Downloads and installs the new binary; the old one runs until the restart. */
+  applyServerUpdate: () =>
+    api.post<{ updated: boolean; log: string[] }>('/system/update/apply', {}),
+  /** Asks Derailed to restart itself. The answer arrives before the silence does. */
+  restartServer: () => api.post<{ ok: true }>('/system/restart', {}),
   checkUpdate: () =>
     api
       .get<{

@@ -102,6 +102,8 @@ Creating a service:
 | `GET /services/:id/sleep` · `PUT` · `POST /services/:id/wake` | Pause when quiet, and wake it |
 | `PUT /services/:id/access` | Password, `allowFrom`, `blockFrom`, maintenance. The password is hashed and never returned. Blocking your own address is refused once; send `force: true` to mean it |
 | `GET /system/my-address` | The address this request arrived from, for the "add mine" button |
+| `POST /system/update/apply` | Install the newest release in place; the old binary runs until the restart |
+| `POST /system/restart` | Restart Derailed itself (a clean exit; systemd brings it back on the new binary) |
 | `POST /services/:id/upload` | `multipart/form-data` with `file`, a zip, up to 200 MB |
 | `PUT /services/:id/repo-token` | `{ token }` for a private repository, or `null` to clear |
 | `GET /services/:id/env` · `PUT` | Environment variables. The values are secrets, so a viewer cannot read them; a member or owner can |

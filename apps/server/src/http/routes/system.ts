@@ -1,8 +1,9 @@
+import { existsSync } from 'node:fs';
 import { type FreeDomainStep, schemas, topics } from '@derailed/shared';
 import { Hono } from 'hono';
 import { trafficAcrossServer } from '../../analytics/store.ts';
 import { AdoptError, adopt, adoptable } from '../../catalog/adopt.ts';
-import { paths } from '../../config.ts';
+import { isDev, paths } from '../../config.ts';
 import { createDomain, findDomainByHostname, listDomains } from '../../db/repo/domains.ts';
 import { listServices } from '../../db/repo/services.ts';
 import {
@@ -52,7 +53,7 @@ import {
 import { serverStats } from '../../system/stats.ts';
 import { detectServerIp, systemInfo } from '../../system/status.ts';
 import { addSwap, SwapError, swapState } from '../../system/swap.ts';
-import { checkForUpdate } from '../../update.ts';
+import { checkForUpdate, selfUpdate } from '../../update.ts';
 import { type AppEnv, clientIp } from '../auth.ts';
 import { badRequest, conflict, parseBody, readBody } from '../errors.ts';
 
@@ -62,6 +63,54 @@ systemRoutes.get('/', async (c) => c.json({ system: await systemInfo() }));
 
 /** Asked for explicitly by the Settings page, never checked in the background. */
 systemRoutes.get('/update', async (c) => c.json({ update: await checkForUpdate() }));
+
+/**
+ * Updates the binary in place, from the dashboard. selfUpdate stages the
+ * download beside the binary and renames it into place only after the
+ * published checksum matched, so a failure changes nothing; the running
+ * process keeps executing the old version until the restart below. Slow by
+ * nature: this is a ninety-megabyte download.
+ */
+systemRoutes.post('/update/apply', async (c) => {
+  const log: string[] = [];
+  const updated = await selfUpdate((line) => log.push(line));
+  return c.json({ updated, log });
+});
+
+/**
+ * Restarts Derailed itself, for the moment after an update.
+ *
+ * Under systemd the honest mechanism is to exit cleanly: the unit says
+ * Restart=always, and three seconds later the process is back, running
+ * whatever binary is on disk now. Trying to run systemctl from inside the
+ * unit's own cgroup is the version of this that sometimes kills its own
+ * messenger. Under OpenRC there is no supervisor, so a detached shell
+ * outlives us and starts the service again. A development run is refused:
+ * the terminal that started it is the right place to restart it.
+ */
+systemRoutes.post('/restart', (c) => {
+  // The same test selfUpdate uses: a process whose binary is bun is a dev or
+  // test run, and exiting it would take the terminal session or the test
+  // worker with it, not bring back a service.
+  if (isDev || process.execPath.includes('/bun')) {
+    throw badRequest(
+      'This is a development run, so Derailed cannot restart itself.',
+      'Restart it from the terminal that started it.',
+    );
+  }
+  setTimeout(() => {
+    const openrc = existsSync('/etc/init.d/derailed') && !existsSync('/run/systemd/system');
+    if (openrc) {
+      Bun.spawn(['sh', '-c', 'sleep 1; rc-service derailed restart'], {
+        stdout: 'ignore',
+        stderr: 'ignore',
+      }).unref();
+      return;
+    }
+    process.exit(0);
+  }, 400);
+  return c.json({ ok: true, backInAbout: '5 seconds' });
+});
 
 systemRoutes.get('/stats', async (c) => c.json({ stats: await serverStats() }));
 

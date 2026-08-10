@@ -128,6 +128,10 @@ derailed update && systemctl restart derailed
 Your apps keep running throughout: they are containers, and Derailed is not in the
 request path once traffic is flowing.
 
+The same rollout is one button in **Settings**: check for updates, press "Update and
+restart", and the dashboard installs the new binary, restarts itself, and reloads
+when the new version answers.
+
 ## uninstall
 
 Puts the machine back the way the installer found it. The apps and databases
