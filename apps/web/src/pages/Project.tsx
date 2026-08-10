@@ -21,6 +21,7 @@ export function ProjectPage() {
   const loaded = useProjects((s) => s.loaded);
   const load = useProjects((s) => s.load);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardMode, setWizardMode] = useState<string | undefined>(undefined);
   const [reviewOpen, setReviewOpen] = useState(false);
 
   const project = projects.find((entry) => entry.slug === slug);
@@ -134,7 +135,15 @@ export function ProjectPage() {
             }
           />
         ) : (
-          <TopologyCanvas project={project} selectedId={selectedId} onSelect={select} />
+          <TopologyCanvas
+            project={project}
+            selectedId={selectedId}
+            onSelect={select}
+            onAdd={(mode) => {
+              setWizardMode(mode);
+              setWizardOpen(true);
+            }}
+          />
         )}
         {/* Refetched whenever the drawer changes or the dialog closes: those are the
             moments an edit can have been staged or applied. */}
@@ -148,7 +157,11 @@ export function ProjectPage() {
       {wizardOpen && (
         <NewServiceWizard
           projectId={project.id}
-          onClose={() => setWizardOpen(false)}
+          initialMode={wizardMode}
+          onClose={() => {
+            setWizardOpen(false);
+            setWizardMode(undefined);
+          }}
           onCreated={(id) => select(id)}
         />
       )}

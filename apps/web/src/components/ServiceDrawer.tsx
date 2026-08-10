@@ -53,7 +53,7 @@ import { LogViewer } from './LogViewer.tsx';
 import { MessagesTab } from './MessagesTab.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
-import { ReadmeModal } from './ReadmeModal.tsx';
+import { ReadmeTab } from './ReadmeTab.tsx';
 import { Snapshots } from './Snapshots.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
@@ -77,6 +77,7 @@ type Tab =
   | 'browse'
   | 'files'
   | 'wordpress'
+  | 'readme'
   | 'deployments'
   | 'variables'
   | 'connection'
@@ -117,7 +118,6 @@ export function ServiceDrawer({
 }) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? 'overview');
   const [confirmDeploy, setConfirmDeploy] = useState(false);
-  const [readmeOpen, setReadmeOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const load = useProjects((s) => s.load);
@@ -212,6 +212,7 @@ export function ServiceDrawer({
               // and publish), or an app's storage volumes, decided per app inside.
               { tab: 'files', label: 'Files', icon: FolderOpen },
             ],
+            [{ tab: 'readme', label: 'Readme', icon: BookOpen }],
           ],
         },
         { kind: 'tab', tab: 'settings', label: 'Settings', icon: SettingsIcon },
@@ -324,12 +325,6 @@ export function ServiceDrawer({
                 Open
               </a>
             )}
-            {isApp && (
-              <button type="button" className="btn-ghost" onClick={() => setReadmeOpen(true)}>
-                <BookOpen className="h-3.5 w-3.5" />
-                Readme
-              </button>
-            )}
             {/* One primary action at a time. Deploy and Start used to sit side by
                 side doing the same thing for a never-deployed app, and different
                 things for a stopped one, with nothing saying which was which.
@@ -418,6 +413,7 @@ export function ServiceDrawer({
           {tab === 'browse' && <BrowseTab service={service} />}
           {tab === 'snapshots' && <Snapshots service={service} />}
           {tab === 'files' && <FilesWorkspace service={service} />}
+          {tab === 'readme' && <ReadmeTab service={service} />}
           {tab === 'wordpress' && <WordPressTab service={service} />}
           {tab === 'access' && <AccessTab service={service} />}
           {tab === 'jobs' && <JobsTab service={service} />}
@@ -435,7 +431,6 @@ export function ServiceDrawer({
           }}
         />
       )}
-      {readmeOpen && <ReadmeModal service={service} onClose={() => setReadmeOpen(false)} />}
     </>
   );
 }

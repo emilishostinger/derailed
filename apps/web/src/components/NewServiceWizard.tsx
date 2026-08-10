@@ -16,12 +16,18 @@ export function NewServiceWizard({
   projectId,
   onClose,
   onCreated,
+  initialMode,
 }: {
   projectId: string;
   onClose: () => void;
   onCreated?: (serviceId: string) => void;
+  /** Opens straight at one path, for entry points that already know the answer. */
+  initialMode?: string;
 }) {
-  const [mode, setMode] = useState<Mode>('choose');
+  const MODES: Mode[] = ['choose', 'apps', 'github', 'image', 'upload', 'database', 'compose'];
+  const [mode, setMode] = useState<Mode>(
+    MODES.includes(initialMode as Mode) ? (initialMode as Mode) : 'choose',
+  );
 
   // Closing after a create carries the new service's id out, so the caller can
   // open its drawer: the person who just added something should be looking at

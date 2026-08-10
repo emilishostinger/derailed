@@ -15,31 +15,41 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
+  Box,
   Copy,
+  Database,
   ExternalLink,
+  GitBranch,
   LayoutGrid,
+  Maximize,
   PanelRight,
   Play,
   Rocket,
   RotateCw,
   SlidersHorizontal,
+  Sparkles,
   Square,
   Terminal as TerminalIcon,
+  Upload,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { endpoints } from '../../api/endpoints.ts';
 import { useProjects } from '../../stores/projects.ts';
 import { ContextMenu, type MenuItem, useContextMenu } from '../ContextMenu.tsx';
 import { cx, ErrorNote, Modal, Spinner } from '../ui.tsx';
+import { FloatingEdge } from './FloatingEdge.tsx';
 import { autoLayout, clearPositions, loadPositions, savePositions } from './layout.ts';
 import { nodeTypes, type ServiceNodeData } from './nodes.tsx';
 
 const INTERNET_ID = '__internet__';
 
+const edgeTypes = { floating: FloatingEdge };
+
 export function TopologyCanvas(props: {
   project: Project;
   selectedId: string | null;
   onSelect: (serviceId: string | null, tab?: string) => void;
+  onAdd?: (mode?: string) => void;
 }) {
   return (
     <ReactFlowProvider>
@@ -52,10 +62,12 @@ function Canvas({
   project,
   selectedId,
   onSelect,
+  onAdd,
 }: {
   project: Project;
   selectedId: string | null;
   onSelect: (serviceId: string | null, tab?: string) => void;
+  onAdd?: (mode?: string) => void;
 }) {
   const services = useMemo(() => project.services ?? [], [project.services]);
   const links = useMemo(() => project.links ?? [], [project.links]);
@@ -159,6 +171,7 @@ function Canvas({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onNodeDragStop={onDragStop}
         onNodeClick={(_, node) => node.id !== INTERNET_ID && onSelect(node.id)}
@@ -169,7 +182,17 @@ function Canvas({
           setMenuFor(service);
           menu.onContextMenu(event as unknown as React.MouseEvent);
         }}
+        // The library's failures are silent in production builds; a dropped
+        // edge with no words was a whole afternoon once.
+        onError={(code, message) => console.warn('[canvas]', code, message)}
         onPaneClick={() => onSelect(null)}
+        onPaneContextMenu={(event) => {
+          // Right-clicking the empty canvas offers what the canvas is for:
+          // putting more things on it. Node menus take precedence above.
+          event.preventDefault();
+          setMenuFor(null);
+          menu.onContextMenu(event as unknown as React.MouseEvent);
+        }}
         onConnect={(connection) => setPendingLink(connection)}
         proOptions={{ hideAttribution: true }}
         minZoom={0.3}
@@ -204,7 +227,11 @@ function Canvas({
       <ContextMenu
         at={menu.at}
         onClose={menu.close}
-        items={menuFor ? serviceMenu(menuFor, onSelect, reload) : []}
+        items={
+          menuFor
+            ? serviceMenu(menuFor, onSelect, reload)
+            : paneMenu(onAdd, tidyUp, () => fitView({ padding: 0.2, duration: 300 }))
+        }
       />
 
       {pendingLink && (
@@ -216,6 +243,58 @@ function Canvas({
       )}
     </div>
   );
+}
+
+/** Right-clicking empty canvas: the ways to put something on it, then the canvas itself. */
+function paneMenu(
+  onAdd: ((mode?: string) => void) | undefined,
+  tidyUp: () => void,
+  frame: () => void,
+): MenuItem[] {
+  const items: MenuItem[] = [];
+  if (onAdd) {
+    items.push(
+      {
+        label: 'Install a ready-made app',
+        icon: <Sparkles className="h-3.5 w-3.5" />,
+        onSelect: () => onAdd('apps'),
+      },
+      {
+        label: 'Deploy from GitHub',
+        icon: <GitBranch className="h-3.5 w-3.5" />,
+        onSelect: () => onAdd('github'),
+      },
+      {
+        label: 'Run a Docker image',
+        icon: <Box className="h-3.5 w-3.5" />,
+        onSelect: () => onAdd('image'),
+      },
+      {
+        label: 'Upload a website',
+        icon: <Upload className="h-3.5 w-3.5" />,
+        onSelect: () => onAdd('upload'),
+      },
+      {
+        label: 'Add a database',
+        icon: <Database className="h-3.5 w-3.5" />,
+        onSelect: () => onAdd('database'),
+      },
+    );
+  }
+  items.push(
+    {
+      label: 'Tidy up the canvas',
+      icon: <LayoutGrid className="h-3.5 w-3.5" />,
+      separated: items.length > 0,
+      onSelect: tidyUp,
+    },
+    {
+      label: 'Frame everything',
+      icon: <Maximize className="h-3.5 w-3.5" />,
+      onSelect: frame,
+    },
+  );
+  return items;
 }
 
 /** The things people actually want from a node without opening it first. */
@@ -322,6 +401,7 @@ function buildEdges(services: Service[], links: Project['links'] = []): Edge[] {
     if ((service.domains ?? []).length === 0) continue;
     built.push({
       id: `internet-${service.id}`,
+      type: 'floating',
       source: INTERNET_ID,
       target: service.id,
       animated: service.status === 'running',
@@ -333,6 +413,7 @@ function buildEdges(services: Service[], links: Project['links'] = []): Edge[] {
     const from = services.find((service) => service.id === link.fromServiceId);
     built.push({
       id: link.id,
+      type: 'floating',
       source: link.fromServiceId,
       target: link.toServiceId,
       animated: from?.status === 'running',
