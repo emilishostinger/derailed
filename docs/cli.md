@@ -128,6 +128,21 @@ derailed update && systemctl restart derailed
 Your apps keep running throughout: they are containers, and Derailed is not in the
 request path once traffic is flowing.
 
+## uninstall
+
+Puts the machine back the way the installer found it. The apps and databases
+Derailed runs, their volumes, its own data under `/var/lib/derailed`, the service,
+and the binary all go. Docker itself stays, since other things may use it by now.
+
+```sh
+derailed uninstall          # asks you to type "uninstall" first
+derailed uninstall --yes    # does not ask
+```
+
+There is no undo. Backups that were written to another machine survive, everything
+on this one does not. Anything that refuses to be removed is named on the way out
+so you can finish the job by hand.
+
 ## mcp
 
 Speaks JSON-RPC 2.0 over stdin and stdout for coding agents. Needs `DERAILED_URL` and

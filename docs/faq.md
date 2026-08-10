@@ -203,6 +203,17 @@ The `derailed` binary needs to be on the machine running the agent, which can be
 It talks to your server over the same HTTP API the dashboard uses, so an agent can never do
 anything you couldn't do yourself. Revoking the token cuts it off immediately.
 
+### How do I get rid of it?
+
+```sh
+derailed uninstall
+```
+
+It asks you to type `uninstall`, then removes everything it ever made: the apps and databases it
+runs, their data, the service, `/var/lib/derailed`, and the binary itself. Docker stays, since
+other things on the machine may use it by now. There is no undo, so take a backup first if
+anything on there still matters.
+
 ### How much does it cost?
 
 Nothing. MIT licensed. You pay for the server.

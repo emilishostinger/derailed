@@ -175,6 +175,7 @@ The loop from your machine to the server and back, and the freedom to run it on 
 | 🤝 **Adopt what's already running** | A machine with containers already on it is not a dead end. Take one over and it keeps running exactly as it is, gaining an address, a certificate, uptime checks and a place in the map. |
 | 😴 **Apps that sleep** | Pause an app after a stretch of quiet, wake it on the next visit. On a $5 box that is the difference between running twelve side projects and four. |
 | 📦 **Move to another server** | One file with everything: projects, apps, databases, domains, and a backup of each. Nothing here traps you, and the file opens with `tar` whether or not you ever move. |
+| 🧹 **Leaves no trace** | `derailed uninstall` puts the machine back the way the installer found it: apps, data, service and the binary itself, gone after one typed confirmation. Docker stays. |
 | 💬 **Plain language everywhere** | Never "ingress", never "SIGTERM". When something breaks, the error says what to do next. |
 
 <br>

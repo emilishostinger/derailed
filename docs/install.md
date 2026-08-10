@@ -186,3 +186,14 @@ install -m 0755 derailed-linux-x64 /usr/local/bin/derailed
 mkdir -p /var/lib/derailed && chmod 700 /var/lib/derailed
 derailed serve
 ```
+
+## Uninstalling
+
+```sh
+derailed uninstall
+```
+
+One typed confirmation, then everything Derailed made goes: the apps and databases it runs,
+their data, the service, `/var/lib/derailed`, and the binary. Docker itself is left in place.
+There is no undo, so if anything on the server still matters, take a backup to another machine
+first.

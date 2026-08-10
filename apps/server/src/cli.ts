@@ -1,6 +1,7 @@
 import { schemas } from '@derailed/shared';
 import { queueDeployment } from './build/pipeline.ts';
 import { dev, login, tunnel } from './cli/laptop.ts';
+import { uninstall } from './cli/uninstall.ts';
 import { ensureDirs, paths, VERSION } from './config.ts';
 import { initDb } from './db/index.ts';
 import { listDomains } from './db/repo/domains.ts';
@@ -228,6 +229,8 @@ const HELP = `
     derailed deploy <app>          Deploy an app now
     derailed logs <app>            What an app last printed
     derailed reset-password [email]  Set a new password for an account
+    derailed uninstall             Remove Derailed and everything it made,
+                                   as if it was never here (asks first)
 
   From your laptop (after: derailed login <https://your-server>)
     derailed login <url>           Save a server address and API token
@@ -291,6 +294,10 @@ export async function runCli(argv: string[]): Promise<void> {
 
     case 'reset-password':
       await resetPassword(argv[1]);
+      return;
+
+    case 'uninstall':
+      await uninstall(argv.slice(1));
       return;
 
     case 'login':
