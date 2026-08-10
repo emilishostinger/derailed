@@ -149,7 +149,7 @@ optional command run against each copy before it serves.
 | `GET /system/adoptable` · `POST /system/adopt` | Things already on this machine, and taking one over |
 | `GET /system/cost` | What everything running would cost on a platform that sends a bill |
 | `GET /system/previews` | Whether screenshots are switched on |
-| `PUT /system/previews` | `{ screenshots }`. Off by default; on means downloading a browser |
+| `PUT /system/previews` | `{ screenshots }`. On by default; the first capture downloads a browser |
 | `POST /services/:id/preview` | Refresh one app's title, icon and picture now |
 | `GET /services/previews/:name` | The image itself. Behind the session, like everything |
 

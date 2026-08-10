@@ -139,10 +139,12 @@ export function DropToHost({ into }: { into?: { id: string; name: string; slug: 
           projects={into ? [into] : projects}
           decided={!!into}
           onClose={() => setDrop(null)}
-          onDone={async (slug) => {
+          onDone={async (slug, serviceId) => {
             setDrop(null);
             await load();
-            navigate(`/p/${slug}`);
+            // Straight into the new app's drawer, where the deploy is visibly
+            // happening and the address appears the moment it exists.
+            navigate(`/p/${slug}?service=${serviceId}`);
           }}
         />
       )}
@@ -181,7 +183,7 @@ function PlaceIt({
   /** The destination is already known, so do not ask. */
   decided?: boolean;
   onClose: () => void;
-  onDone: (slug: string) => void | Promise<void>;
+  onDone: (slug: string, serviceId: string) => void | Promise<void>;
 }) {
   const suggested = nameOf(drop);
   const [name, setName] = useState(suggested);
@@ -215,7 +217,7 @@ function PlaceIt({
       await (drop.kind === 'folder'
         ? endpoints.uploadFolder(service.id, drop.files)
         : endpoints.uploadFiles(service.id, drop.file));
-      await onDone(project.slug);
+      await onDone(project.slug, service.id);
     } catch (err) {
       if (madeService) await endpoints.deleteService(madeService).catch(() => undefined);
       if (madeProject) await endpoints.deleteProject(madeProject).catch(() => undefined);

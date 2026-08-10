@@ -52,6 +52,7 @@ import { LogViewer } from './LogViewer.tsx';
 import { MessagesTab } from './MessagesTab.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
+import { SiteShot } from './SitePreview.tsx';
 import { Snapshots } from './Snapshots.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
@@ -321,10 +322,20 @@ export function ServiceDrawer({
                 Open
               </a>
             )}
-            {isApp && (
+            {/* One primary action at a time. Deploy and Start used to sit side by
+                side doing the same thing for a never-deployed app, and different
+                things for a stopped one, with nothing saying which was which.
+                Now: deploying → nothing extra; running → Redeploy beside Stop and
+                Restart; stopped with a container → Start leads, Redeploy follows;
+                never deployed → Deploy alone. */}
+            {isApp && service.status !== 'deploying' && (
               <button
                 type="button"
-                className="btn-primary"
+                className={
+                  service.status !== 'running' && service.latestDeployment
+                    ? 'btn-secondary'
+                    : 'btn-primary'
+                }
                 disabled={busy !== null}
                 onClick={() => {
                   // A deploy replaces the container, so an app with data and no
@@ -334,10 +345,10 @@ export function ServiceDrawer({
                 }}
               >
                 {busy === 'deploy' ? <Spinner /> : <Rocket className="h-3.5 w-3.5" />}
-                Deploy
+                {service.latestDeployment ? 'Redeploy' : 'Deploy'}
               </button>
             )}
-            {service.status === 'running' ? (
+            {service.status === 'running' && (
               <button
                 type="button"
                 className="btn-secondary"
@@ -347,26 +358,31 @@ export function ServiceDrawer({
                 {busy === 'stop' ? <Spinner /> : <Square className="h-3.5 w-3.5" />}
                 Stop
               </button>
-            ) : (
+            )}
+            {service.status !== 'running' &&
+              service.status !== 'deploying' &&
+              (!isApp || service.latestDeployment) && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={busy !== null}
+                  onClick={() => void act('start', () => endpoints.startService(service.id))}
+                >
+                  {busy === 'start' ? <Spinner /> : <Play className="h-3.5 w-3.5" />}
+                  Start
+                </button>
+              )}
+            {service.status === 'running' && (
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-ghost"
                 disabled={busy !== null}
-                onClick={() => void act('start', () => endpoints.startService(service.id))}
+                onClick={() => void act('restart', () => endpoints.restartService(service.id))}
               >
-                {busy === 'start' ? <Spinner /> : <Play className="h-3.5 w-3.5" />}
-                Start
+                {busy === 'restart' ? <Spinner /> : <RotateCw className="h-3.5 w-3.5" />}
+                Restart
               </button>
             )}
-            <button
-              type="button"
-              className="btn-ghost"
-              disabled={busy !== null || service.status !== 'running'}
-              onClick={() => void act('restart', () => endpoints.restartService(service.id))}
-            >
-              {busy === 'restart' ? <Spinner /> : <RotateCw className="h-3.5 w-3.5" />}
-              Restart
-            </button>
           </div>
 
           <DrawerTabs entries={entries} active={tab} onSelect={setTab} />
@@ -575,9 +591,43 @@ function Overview({ service }: { service: Service }) {
   }, [latest?.id]);
 
   const merged = useMemo(() => [...lines, ...(storeLogs ?? [])], [lines, storeLogs]);
+  const load = useProjects((s) => s.load);
+  const [retaking, setRetaking] = useState(false);
+
+  async function retake() {
+    setRetaking(true);
+    try {
+      await endpoints.refreshSitePicture(service.id);
+      await load();
+    } catch {
+      // The next three-hour sweep will get it; this button is only impatience.
+    } finally {
+      setRetaking(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
+      {/* The screenshot is the proof the app actually loads: not "the container
+          runs" or "the port answers", but pixels a visitor would see. */}
+      {service.kind === 'app' && service.preview?.shotPath && (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="eyebrow">What visitors see</p>
+            <button
+              type="button"
+              className="btn-ghost text-[12px]"
+              disabled={retaking}
+              onClick={() => void retake()}
+            >
+              {retaking ? <Spinner /> : <RotateCw className="h-3 w-3" />}
+              Retake
+            </button>
+          </div>
+          <SiteShot service={service} />
+        </div>
+      )}
+
       {latest?.status === 'failed' && latest.errorSummary && (
         <div className="rounded-[var(--radius-card)] border border-danger/25 bg-danger-soft p-4">
           <p className="text-sm font-medium text-ink">{latest.errorSummary}</p>

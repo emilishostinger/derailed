@@ -39,6 +39,10 @@ templateRoutes.get('/', (c) =>
         category: template.category,
         needsDatabase: !!template.database,
         afterDeploy: template.afterDeploy,
+        // The bare repository of the template's image (wordpress:php8.3-apache
+        // becomes wordpress), so the run-an-image path can recognise a typed
+        // image as one of these and offer the full setup instead.
+        imageRepo: template.image.split('@')[0]?.split(':')[0] ?? template.image,
       })),
   }),
 );
@@ -58,6 +62,7 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
     slug?: string;
     url?: string;
     name?: string;
+    image?: string;
   };
 
   // Either one from the catalogue or one fetched from a link. The fetched sort was
@@ -78,6 +83,23 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
   }
 
   const name = body.name?.trim() || template.slug;
+
+  // A person who typed `wordpress:6.5` into the image box and then took the full
+  // setup expects their tag, not the catalogue's. Only the tag is theirs to choose:
+  // a different repository would make this a different app wearing WordPress's env.
+  let image = template.image;
+  const requested = body.image?.trim();
+  if (requested) {
+    const templateRepo = template.image.split('@')[0]?.split(':')[0];
+    const requestedRepo = requested.split('@')[0]?.split(':')[0];
+    if (requestedRepo !== templateRepo) {
+      throw badRequest(
+        `That image isn't ${template.name}. This setup only knows how to configure ${templateRepo}.`,
+      );
+    }
+    image = requested;
+  }
+
   let databaseId: string | null = null;
   let env: Record<string, string> = { ...(template.env ?? {}) };
 
@@ -120,7 +142,7 @@ projectTemplateRoutes.post('/:id/templates', async (c) => {
     projectId: project.id,
     name,
     source: 'image',
-    image: template.image,
+    image,
     framework: template.name,
     command: template.command ?? null,
     repoUrl: null,

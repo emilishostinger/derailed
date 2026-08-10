@@ -5,7 +5,17 @@ import { topics } from '@derailed/shared';
 import { paths } from '../config.ts';
 import { listDomains } from '../db/repo/domains.ts';
 import { listServices } from '../db/repo/services.ts';
-import { getBoolSetting, SETTINGS } from '../db/repo/settings.ts';
+import { getSetting, SETTINGS } from '../db/repo/settings.ts';
+
+/**
+ * Screenshots are on unless somebody turned them off: an absent setting means yes.
+ * The stored value stays a plain boolean string, so a toggle written by an older
+ * version keeps meaning what it meant.
+ */
+export function previewShotsEnabled(): boolean {
+  return getSetting(SETTINGS.previewShots) !== 'false';
+}
+
 import { imageExists, pullImage } from '../docker/images.ts';
 import { publish } from '../events/bus.ts';
 import { caddyHttpPort } from '../proxy/caddy.ts';
@@ -211,7 +221,7 @@ export async function refreshPreview(serviceId: string): Promise<Preview | null>
     // The site is not answering. Keep whatever was there from last time.
   }
 
-  if (getBoolSetting(SETTINGS.previewShots)) {
+  if (previewShotsEnabled()) {
     const shot = join(previewsDir(), `${serviceId}-shot.png`);
     if (await capture(target, shot).catch(() => false)) {
       preview.shotPath = `${serviceId}-shot.png`;

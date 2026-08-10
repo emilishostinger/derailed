@@ -146,7 +146,11 @@ export function ProjectPage() {
       </div>
 
       {wizardOpen && (
-        <NewServiceWizard projectId={project.id} onClose={() => setWizardOpen(false)} />
+        <NewServiceWizard
+          projectId={project.id}
+          onClose={() => setWizardOpen(false)}
+          onCreated={(id) => select(id)}
+        />
       )}
       {reviewOpen && (
         <PendingChangesDialog

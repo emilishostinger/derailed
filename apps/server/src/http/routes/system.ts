@@ -7,7 +7,6 @@ import { createDomain, findDomainByHostname, listDomains } from '../../db/repo/d
 import { listServices } from '../../db/repo/services.ts';
 import {
   deleteSetting,
-  getBoolSetting,
   getSetting,
   SETTINGS,
   setBoolSetting,
@@ -34,6 +33,7 @@ import {
 import { generatedHostname, isIpBasedHostname } from '../../proxy/routes.ts';
 import { syncRoutes } from '../../proxy/sync.ts';
 import { recentLogs } from '../../runtime/logtail.ts';
+import { previewShotsEnabled } from '../../runtime/preview.ts';
 import { costComparison } from '../../system/cost.ts';
 import { diskReport, freeUpSpace } from '../../system/disk.ts';
 import { runDoctor } from '../../system/doctor.ts';
@@ -140,19 +140,18 @@ systemRoutes.get('/traffic', (c) => {
   });
 });
 
-systemRoutes.get('/previews', (c) =>
-  c.json({ screenshots: getBoolSetting(SETTINGS.previewShots) }),
-);
+systemRoutes.get('/previews', (c) => c.json({ screenshots: previewShotsEnabled() }));
 
 /**
- * Screenshots are off by default. Turning them on means downloading a browser image
- * of a few hundred megabytes, which is not something to do to somebody's disk without
- * being asked first.
+ * Screenshots are on unless turned off. The first capture pulls a browser image of a
+ * few hundred megabytes, which is a real cost, but the screenshot is also the moment
+ * the dashboard proves an app actually loads: worth a one-time download by default,
+ * and the Settings toggle is right there for a small disk.
  */
 systemRoutes.put('/previews', async (c) => {
   const body = (await readBody(c)) as { screenshots?: boolean };
   setBoolSetting(SETTINGS.previewShots, body.screenshots === true);
-  return c.json({ screenshots: getBoolSetting(SETTINGS.previewShots) });
+  return c.json({ screenshots: previewShotsEnabled() });
 });
 
 systemRoutes.get('/doctor', async (c) => c.json({ report: await runDoctor() }));

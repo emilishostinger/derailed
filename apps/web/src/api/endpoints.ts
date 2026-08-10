@@ -336,6 +336,7 @@ export const endpoints = {
           category: string;
           needsDatabase: boolean;
           afterDeploy: string;
+          imageRepo: string;
         }[];
       }>('/templates')
       .then((r) => r.templates),
@@ -348,10 +349,11 @@ export const endpoints = {
   installTemplateFromUrl: (projectId: string, url: string) =>
     api.post<{ ok: true }>(`/projects/${projectId}/templates`, { url }),
 
-  installTemplate: (projectId: string, slug: string, name?: string) =>
+  installTemplate: (projectId: string, slug: string, name?: string, image?: string) =>
     api.post<{ service: Service; afterDeploy: string }>(`/projects/${projectId}/templates`, {
       slug,
       name,
+      image,
     }),
   createFromImage: (projectId: string, name: string, image: string, port?: number) =>
     api
@@ -601,6 +603,9 @@ export const endpoints = {
   drill: () => api.get<{ drill: DrillResult | null }>('/backups/drill').then((r) => r.drill),
   runDrill: () => api.post<{ drill: DrillResult }>('/backups/drill').then((r) => r.drill),
 
+  /** Retakes the site's screenshot, title and icon now instead of on the next sweep. */
+  refreshSitePicture: (serviceId: string) =>
+    api.post<{ preview: unknown }>(`/services/${serviceId}/preview`, {}),
   previews: (serviceId: string) =>
     api.get<{
       enabled: boolean;

@@ -15,11 +15,21 @@ type Mode = 'choose' | 'apps' | 'github' | 'image' | 'upload' | 'database' | 'co
 export function NewServiceWizard({
   projectId,
   onClose,
+  onCreated,
 }: {
   projectId: string;
   onClose: () => void;
+  onCreated?: (serviceId: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>('choose');
+
+  // Closing after a create carries the new service's id out, so the caller can
+  // open its drawer: the person who just added something should be looking at
+  // it going live, not at the canvas wondering which node is theirs.
+  const done = (serviceId?: string) => {
+    if (serviceId) onCreated?.(serviceId);
+    onClose();
+  };
 
   const titles: Record<Mode, string> = {
     choose: 'Add something to this project',
@@ -39,12 +49,14 @@ export function NewServiceWizard({
       wide={mode === 'choose' || mode === 'apps'}
     >
       {mode === 'choose' && <Choose onPick={setMode} />}
-      {mode === 'apps' && <FromTemplates projectId={projectId} onDone={onClose} />}
-      {mode === 'github' && <FromGithub projectId={projectId} onDone={onClose} />}
-      {mode === 'image' && <FromImage projectId={projectId} onDone={onClose} />}
-      {mode === 'upload' && <FromUpload projectId={projectId} onDone={onClose} />}
-      {mode === 'database' && <FromCatalog projectId={projectId} onDone={onClose} />}
-      {mode === 'compose' && <FromCompose projectId={projectId} onDone={onClose} />}
+      {mode === 'apps' && <FromTemplates projectId={projectId} onDone={done} />}
+      {mode === 'github' && <FromGithub projectId={projectId} onDone={done} />}
+      {mode === 'image' && (
+        <FromImage projectId={projectId} onDone={done} onPickDatabase={() => setMode('database')} />
+      )}
+      {mode === 'upload' && <FromUpload projectId={projectId} onDone={done} />}
+      {mode === 'database' && <FromCatalog projectId={projectId} onDone={done} />}
+      {mode === 'compose' && <FromCompose projectId={projectId} onDone={done} />}
     </Modal>
   );
 }
@@ -106,7 +118,13 @@ const SOURCE_LABELS: Record<string, string> = {
  * Importing as two steps: inspect first, so what is about to happen is on the
  * screen before anything exists; then one press builds it all.
  */
-function FromCompose({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+function FromCompose({
+  projectId,
+  onDone,
+}: {
+  projectId: string;
+  onDone: (serviceId?: string) => void;
+}) {
   const load = useProjects((s) => s.load);
   const [repoUrl, setRepoUrl] = useState('');
   const [inspecting, setInspecting] = useState(false);
@@ -307,7 +325,13 @@ function Choice({
   );
 }
 
-function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+function FromGithub({
+  projectId,
+  onDone,
+}: {
+  projectId: string;
+  onDone: (serviceId?: string) => void;
+}) {
   const load = useProjects((s) => s.load);
   const [repoUrl, setRepoUrl] = useState('');
   const [branch, setBranch] = useState('');
@@ -348,7 +372,7 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
     setError(null);
     setBusy(true);
     try {
-      await endpoints.createApp(projectId, {
+      const created = await endpoints.createApp(projectId, {
         name,
         repoUrl,
         branch: resolvedBranch || branch || undefined,
@@ -359,7 +383,7 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
         deployNow: true,
       });
       await load();
-      onDone();
+      onDone(created.id);
     } catch (err) {
       setError(err);
       setBusy(false);
@@ -526,7 +550,13 @@ interface CatalogEngine {
  * and noticing that you had to. Now adding one is a change to `catalog/databases.ts`
  * and nothing else.
  */
-function FromCatalog({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+function FromCatalog({
+  projectId,
+  onDone,
+}: {
+  projectId: string;
+  onDone: (serviceId?: string) => void;
+}) {
   const load = useProjects((s) => s.load);
   const [engines, setEngines] = useState<CatalogEngine[] | null>(null);
   const [engine, setEngine] = useState<CatalogEngine | null>(null);
@@ -555,9 +585,9 @@ function FromCatalog({ projectId, onDone }: { projectId: string; onDone: () => v
     setError(null);
     setBusy(true);
     try {
-      await endpoints.createDatabase(projectId, name, engine.engine, version);
+      const created = await endpoints.createDatabase(projectId, name, engine.engine, version);
       await load();
-      onDone();
+      onDone(created.id);
     } catch (err) {
       setError(err);
       setBusy(false);
@@ -658,7 +688,13 @@ function FromCatalog({ projectId, onDone }: { projectId: string; onDone: () => v
  * The gallery. For someone who wants a website rather than a deployment pipeline,
  * this is the only screen in the product that matters.
  */
-function FromTemplates({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+function FromTemplates({
+  projectId,
+  onDone,
+}: {
+  projectId: string;
+  onDone: (serviceId?: string) => void;
+}) {
   const load = useProjects((s) => s.load);
   const [templates, setTemplates] = useState<
     { slug: string; name: string; blurb: string; category: string; needsDatabase: boolean }[]
@@ -679,9 +715,9 @@ function FromTemplates({ projectId, onDone }: { projectId: string; onDone: () =>
     setInstalling(slug);
     setError(null);
     try {
-      await endpoints.installTemplate(projectId, slug);
+      const installed = await endpoints.installTemplate(projectId, slug);
       await load();
-      onDone();
+      onDone(installed.service.id);
     } catch (err) {
       setError(err);
       setInstalling(null);
@@ -875,29 +911,92 @@ function TemplateGlyph({ slug, name }: { slug: string; name: string }) {
   );
 }
 
-function FromImage({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+/** Engines the image box recognises and steers to the database path instead. */
+const DATABASE_IMAGES: Record<string, string> = {
+  postgres: 'PostgreSQL',
+  mysql: 'MySQL',
+  mariadb: 'MariaDB',
+  mongo: 'MongoDB',
+  redis: 'Redis',
+  valkey: 'Valkey',
+};
+
+function FromImage({
+  projectId,
+  onDone,
+  onPickDatabase,
+}: {
+  projectId: string;
+  onDone: (serviceId?: string) => void;
+  onPickDatabase: () => void;
+}) {
   const load = useProjects((s) => s.load);
   const [image, setImage] = useState('');
   const [name, setName] = useState('');
   const [port, setPort] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [templates, setTemplates] = useState<Awaited<ReturnType<typeof endpoints.templates>>>([]);
+
+  useEffect(() => {
+    endpoints
+      .templates()
+      .then(setTemplates)
+      .catch(() => undefined);
+  }, []);
 
   // `ghcr.io/owner/thing:tag` → `thing`, which is almost always what you'd call it.
   const suggested = image.split('/').pop()?.split(':')[0] ?? '';
+
+  // The typed image, stripped to its bare repository, matched against what the
+  // catalogue knows. Someone typing `wordpress` deserves better than a lone
+  // container with no database and no storage, and someone typing `postgres`
+  // deserves a real database, not an app-shaped one.
+  const repo =
+    image
+      .trim()
+      .split('@')[0]
+      ?.split(':')[0]
+      ?.replace(/^(docker\.io\/)?(library\/)?/, '') ?? '';
+  const recognised = repo
+    ? (templates.find((t) => t.imageRepo === repo || t.imageRepo.endsWith(`/${repo}`)) ?? null)
+    : null;
+  const engineName = DATABASE_IMAGES[repo.split('/').pop() ?? ''];
+
+  async function setUpCompletely() {
+    if (!recognised) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // The tag is the user's choice, the repository is the template's: a bare
+      // `wordpress` means "whatever the catalogue pins", not `:latest`.
+      const override = image.trim().includes(':') ? image.trim() : undefined;
+      const installed = await endpoints.installTemplate(
+        projectId,
+        recognised.slug,
+        name.trim() || suggested,
+        override,
+      );
+      await load();
+      onDone(installed.service.id);
+    } catch (err) {
+      setError(err);
+      setBusy(false);
+    }
+  }
 
   async function create() {
     setBusy(true);
     setError(null);
     try {
-      await endpoints.createFromImage(
+      const created = await endpoints.createFromImage(
         projectId,
         name.trim() || suggested,
         image.trim(),
         port ? Number(port) : undefined,
       );
       await load();
-      onDone();
+      onDone(created.id);
     } catch (err) {
       setError(err);
       setBusy(false);
@@ -935,16 +1034,47 @@ function FromImage({ projectId, onDone }: { projectId: string; onDone: () => voi
         </Field>
       </div>
 
+      {recognised && (
+        <div className="rounded-lg border border-accent/30 bg-accent-soft/60 p-4">
+          <p className="text-sm text-ink">
+            That's {recognised.name}. The one-click setup does more than run the image:{' '}
+            {recognised.needsDatabase ? 'a database is created and connected, ' : ''}storage is set
+            up, and the settings are filled in.
+          </p>
+          <button
+            type="button"
+            className="btn-primary mt-3"
+            disabled={busy}
+            onClick={() => void setUpCompletely()}
+          >
+            {busy && <Spinner />}
+            Set it up completely
+          </button>
+        </div>
+      )}
+
+      {!recognised && engineName && (
+        <div className="rounded-lg border border-accent/30 bg-accent-soft/60 p-4">
+          <p className="text-sm text-ink">
+            That's {engineName}, a database engine. Databases have their own path here, with
+            credentials, backups and app connections handled for you.
+          </p>
+          <button type="button" className="btn-primary mt-3" onClick={onPickDatabase}>
+            Add it as a database
+          </button>
+        </div>
+      )}
+
       <ErrorNote error={error} />
 
       <button
         type="button"
-        className="btn-primary w-full"
+        className={cx('w-full', recognised || engineName ? 'btn-secondary' : 'btn-primary')}
         disabled={busy || !image.trim()}
         onClick={() => void create()}
       >
         {busy && <Spinner />}
-        Run it
+        {recognised || engineName ? 'Run just the image' : 'Run it'}
       </button>
     </div>
   );
@@ -954,7 +1084,13 @@ function FromImage({ projectId, onDone }: { projectId: string; onDone: () => voi
  * Drag a folder in. No git, no repository, no account anywhere, for someone who has
  * a website on their laptop and wants it on the internet.
  */
-function FromUpload({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+function FromUpload({
+  projectId,
+  onDone,
+}: {
+  projectId: string;
+  onDone: (serviceId?: string) => void;
+}) {
   const load = useProjects((s) => s.load);
   const [name, setName] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -981,7 +1117,7 @@ function FromUpload({ projectId, onDone }: { projectId: string; onDone: () => vo
       const service = await endpoints.createUploadApp(projectId, name.trim() || 'app');
       await endpoints.uploadFiles(service.id, file);
       await load();
-      onDone();
+      onDone(service.id);
     } catch (err) {
       setError(err);
       setBusy(false);

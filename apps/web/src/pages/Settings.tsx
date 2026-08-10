@@ -220,7 +220,7 @@ function Screenshots() {
       <Switch
         checked={on}
         label="Take screenshots of my sites"
-        hint="Needs a browser on the server, about 300 MB, downloaded once the first time a picture is taken."
+        hint="On unless you turn it off. Needs a browser on the server, about 300 MB, downloaded once the first time a picture is taken. Turn off on a small disk."
         onChange={async (next) => {
           setBusy(true);
           setError(null);

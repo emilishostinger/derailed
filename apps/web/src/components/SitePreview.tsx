@@ -84,7 +84,7 @@ export function SiteShot({ service }: { service: Service }) {
   return (
     <div className="overflow-hidden rounded-[var(--radius-control)] border border-line bg-surface-2">
       <img
-        src={`${base}/${path}`}
+        src={`${base}/${path}?v=${service.preview?.at ?? 0}`}
         alt={`${service.name} as it looks right now`}
         loading="lazy"
         onError={() => setBroken(true)}
