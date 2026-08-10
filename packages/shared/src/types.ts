@@ -475,6 +475,11 @@ export interface SystemInfo {
   version: string;
   serverIp: string | null;
   serverIpSource: 'detected' | 'manual' | 'unknown';
+  /**
+   * The port the dashboard answers on. The default moved once (8422 to 1337), and
+   * installs pin the port in their service unit, so the UI must never assume it.
+   */
+  port: number;
   dockerOk: boolean;
   dockerVersion: string | null;
   dockerError: string | null;

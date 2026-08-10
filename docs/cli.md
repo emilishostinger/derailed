@@ -153,7 +153,7 @@ Speaks JSON-RPC 2.0 over stdin and stdout for coding agents. Needs `DERAILED_URL
 | Variable | Default | What it is |
 | --- | --- | --- |
 | `DERAILED_DATA` | `/var/lib/derailed` | Where everything is kept |
-| `DERAILED_PORT` | `8422` | Dashboard port |
+| `DERAILED_PORT` | `1337` | Dashboard port |
 | `DERAILED_HOST` | `0.0.0.0` | Address to listen on |
 | `DERAILED_URL` | | Which server `derailed mcp` talks to |
 | `DERAILED_TOKEN` | | An API token, created in Settings |

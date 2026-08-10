@@ -144,22 +144,23 @@ to keep. A backup is an ordinary `.tar.gz` you can download and open anywhere. S
 
 ### Can I put the dashboard on a domain?
 
-Yes, and you should. Out of the box the dashboard is served over plain HTTP on port 8422, which
+Yes, and you should. Out of the box the dashboard is served over plain HTTP on port 1337, which
 means your password crosses the internet unencrypted every time you sign in.
 
 In **Settings → Dashboard address**, point a subdomain (say `dashboard.example.com`) at your server
 with an A record and enter it. Derailed checks the record resolves to this machine before switching,
 then routes the panel through Caddy with a real certificate. `http://` is redirected to `https://`.
 
-Once that works, close port 8422 in your firewall so the panel is only reachable over HTTPS.
-Alternatively, keep 8422 closed from the start and reach it over an SSH tunnel:
-`ssh -L 8422:localhost:8422 root@your-server`.
+Once that works, close port 1337 in your firewall so the panel is only reachable over HTTPS.
+Alternatively, keep 1337 closed from the start and reach it over an SSH tunnel:
+`ssh -L 1337:localhost:1337 root@your-server`.
 
 ### What happens to my apps when Derailed restarts?
 
-Nothing. They're separate containers with `restart=unless-stopped`. Derailed restarting, updating,
-or even being uninstalled doesn't stop them. On boot it reconciles: it compares what's running
-against what it expects and fixes the difference.
+Nothing. They're separate containers with `restart=unless-stopped`. Derailed restarting or
+updating doesn't stop them. On boot it reconciles: it compares what's running against what it
+expects and fixes the difference. (The one thing that does stop them is `derailed uninstall`,
+whose whole job is taking everything with it.)
 
 ### What happens if a deploy fails?
 

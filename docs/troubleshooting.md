@@ -54,14 +54,14 @@ systemctl status derailed
 **Check it's listening.**
 
 ```sh
-curl -H 'x-requested-with: derailed' http://localhost:8422/api/health
+curl -H 'x-requested-with: derailed' http://localhost:1337/api/health
 ```
 
 If that works but you can't reach it from your laptop, it's a firewall. See
 [install.md](install.md#firewall), or tunnel in:
 
 ```sh
-ssh -L 8422:localhost:8422 root@your-server
+ssh -L 1337:localhost:1337 root@your-server
 ```
 
 ## "Derailed can't reach Docker"

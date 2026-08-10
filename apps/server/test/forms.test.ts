@@ -263,7 +263,7 @@ describe('what the proxy is told', () => {
       port: 80,
       https: true,
       access: { basicAuth: { username: 'visitor', hash: '$2a$x' } },
-      forms: { serviceId: 'svc1', panelUpstream: 'host.docker.internal', panelPort: 8422 },
+      forms: { serviceId: 'svc1', panelUpstream: 'host.docker.internal', panelPort: 1337 },
     };
     const config = synthesizeCaddyConfig([route], { httpPort: 80, httpsPort: 443 });
     const text = JSON.stringify(config);

@@ -732,8 +732,8 @@ function PanelDomain() {
       </div>
       {current && (
         <p className="mt-3 text-[12px] text-ink-faint">
-          Port {8422} is still open. Once you've confirmed the domain works, close it in your
-          firewall so the dashboard is only reachable over HTTPS.
+          Port {system?.port ?? 1337} is still open. Once you've confirmed the domain works, close
+          it in your firewall so the dashboard is only reachable over HTTPS.
         </p>
       )}
     </div>

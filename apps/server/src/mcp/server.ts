@@ -56,7 +56,7 @@ function makeApi(baseUrl: string, token: string): Api {
 }
 
 export async function runMcpServer(): Promise<void> {
-  const baseUrl = process.env.DERAILED_URL ?? 'http://127.0.0.1:8422';
+  const baseUrl = process.env.DERAILED_URL ?? 'http://127.0.0.1:1337';
   const token = process.env.DERAILED_TOKEN ?? '';
 
   // Anything written to stdout that isn't JSON-RPC corrupts the stream, so all

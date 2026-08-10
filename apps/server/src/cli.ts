@@ -242,7 +242,7 @@ const HELP = `
 
   Environment
     DERAILED_DATA   Where state lives (default ${paths.dataDir})
-    DERAILED_PORT   Dashboard port (default 8422)
+    DERAILED_PORT   Dashboard port (default 1337)
     DERAILED_URL    Which server derailed mcp talks to
     DERAILED_TOKEN  An API token, created in Settings
 `;

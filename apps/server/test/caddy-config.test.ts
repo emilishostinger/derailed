@@ -110,7 +110,7 @@ describe('caddy config synthesis', () => {
         route({
           hostname: 'sunny-fox-1a2b.apps.example.com',
           panelSecret: 'the-real-secret',
-          dev: { sub: 'sunny-fox-1a2b', panelUpstream: '127.0.0.1', panelPort: 8422 },
+          dev: { sub: 'sunny-fox-1a2b', panelUpstream: '127.0.0.1', panelPort: 1337 },
         }),
       ],
       OPTIONS,

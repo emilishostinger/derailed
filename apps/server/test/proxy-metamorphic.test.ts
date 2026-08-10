@@ -100,7 +100,7 @@ describe('the synthesised config strips trust headers whatever is bolted on', ()
           images: fc.boolean(),
         }),
         (features) => {
-          const panel = { panelUpstream: 'panel', panelPort: 8422 };
+          const panel = { panelUpstream: 'panel', panelPort: 1337 };
           const route = {
             hostname: 'app.example.com',
             upstream: 'd_app_container',
@@ -135,7 +135,7 @@ describe('the synthesised config strips trust headers whatever is bolted on', ()
       port: 80,
       https: true,
       panelSecret: 'sekret',
-      dev: { sub: 'sunny-fox', panelUpstream: 'panel', panelPort: 8422 },
+      dev: { sub: 'sunny-fox', panelUpstream: 'panel', panelPort: 1337 },
     };
     const config = synthesizeCaddyConfig([route] as never, { httpPort: 80, httpsPort: 443 });
     const devProxy = reverseProxies(config).find((p) => p.dial.includes('panel'));

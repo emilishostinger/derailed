@@ -39,7 +39,7 @@ export const paths = {
   bin: process.env.DERAILED_BIN ?? join(dataDir, 'bin'),
 };
 
-export const port = Number(process.env.DERAILED_PORT ?? 8422);
+export const port = Number(process.env.DERAILED_PORT ?? 1337);
 export const host = process.env.DERAILED_HOST ?? '0.0.0.0';
 
 export const dockerSocket = process.env.DOCKER_SOCKET ?? '/var/run/docker.sock';

@@ -8,7 +8,7 @@ Requires [Bun](https://bun.sh) and, for anything that touches containers, Docker
 
 ```sh
 bun install
-bun run dev        # dashboard on :5173, API on :8422
+bun run dev        # dashboard on :5173, API on :1337
 ```
 
 Development mode keeps state in `./.dev-data` and puts Caddy on ports 8080 and 8443, so

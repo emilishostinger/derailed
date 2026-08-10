@@ -28,7 +28,7 @@ BIN_PATH="/usr/local/bin/derailed"
 DATA_DIR="/var/lib/derailed"
 UNIT_PATH="/etc/systemd/system/derailed.service"
 OPENRC_PATH="/etc/init.d/derailed"
-PORT="${DERAILED_PORT:-8422}"
+PORT="${DERAILED_PORT:-1337}"
 
 ASSUME_YES="${DERAILED_YES:-0}"
 VERSION="${DERAILED_VERSION:-latest}"

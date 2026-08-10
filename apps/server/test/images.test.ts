@@ -60,10 +60,10 @@ describe('the /_img route', () => {
         {
           hostname: 'sunny-fox.apps.example.com',
           upstream: 'host.docker.internal',
-          port: 8422,
+          port: 1337,
           https: true,
           panelSecret: 'shh',
-          dev: { sub: 'sunny-fox', panelUpstream: 'host.docker.internal', panelPort: 8422 },
+          dev: { sub: 'sunny-fox', panelUpstream: 'host.docker.internal', panelPort: 1337 },
         },
       ],
       OPTIONS,
@@ -71,7 +71,7 @@ describe('the /_img route', () => {
     const text = flat(config);
     expect(text).toContain('sunny-fox.apps.example.com');
     expect(text).toContain('X-Derailed-Dev');
-    expect(text).toContain('host.docker.internal:8422');
+    expect(text).toContain('host.docker.internal:1337');
     // The secret proves the hop, so the panel can tell a real dev request from a
     // client forging the marker at its open port.
     expect(text).toContain('X-Derailed-Proxy');

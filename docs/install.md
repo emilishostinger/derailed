@@ -42,7 +42,7 @@ Nothing surprising, and you can read it before running it. It's
 | `--email X` | `DERAILED_EMAIL` | Create the admin account during install |
 | `--password X` | `DERAILED_PASSWORD` | Its password |
 | `--no-setup` | `DERAILED_NO_SETUP=1` | Don't ask anything; finish in the browser |
-| | `DERAILED_PORT` | Dashboard port (default `8422`) |
+| | `DERAILED_PORT` | Dashboard port (default `1337`) |
 
 ### The guided questions
 
@@ -89,30 +89,30 @@ Derailed needs three ports reachable:
 | --- | --- |
 | `80` | Visitors, and the HTTP-01 challenge that issues your certificates |
 | `443` | Visitors, over HTTPS |
-| `8422` | The dashboard |
+| `1337` | The dashboard |
 
 With `ufw`:
 
 ```sh
 ufw allow 80/tcp
 ufw allow 443/tcp
-ufw allow 8422/tcp
+ufw allow 1337/tcp
 ufw allow 22/tcp     # don't lock yourself out
 ufw enable
 ```
 
 Better still: give the dashboard its own domain in **Settings → Dashboard address**, so it is
-served over HTTPS through Caddy, and then close `8422` entirely. Until you do, the panel is plain
+served over HTTPS through Caddy, and then close `1337` entirely. Until you do, the panel is plain
 HTTP and your password is sent unencrypted.
 
-If you'd rather not expose the dashboard at all, leave `8422` closed and reach it over an SSH
+If you'd rather not expose the dashboard at all, leave `1337` closed and reach it over an SSH
 tunnel:
 
 ```sh
-ssh -L 8422:localhost:8422 root@your-server
+ssh -L 1337:localhost:1337 root@your-server
 ```
 
-Then open `http://localhost:8422`.
+Then open `http://localhost:1337`.
 
 ## Where things live
 

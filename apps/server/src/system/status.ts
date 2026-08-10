@@ -1,6 +1,6 @@
 import { statfs } from 'node:fs/promises';
 import type { SystemInfo } from '@derailed/shared';
-import { isDev, paths, VERSION } from '../config.ts';
+import { isDev, paths, port, VERSION } from '../config.ts';
 import { getBoolSetting, getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
 import { DockerError, version as dockerVersion } from '../docker/client.ts';
 
@@ -69,6 +69,7 @@ export async function systemInfo(): Promise<SystemInfo> {
     serverIp: getSetting(SETTINGS.serverIp),
     serverIpSource:
       (getSetting(SETTINGS.serverIpSource) as SystemInfo['serverIpSource'] | null) ?? 'unknown',
+    port,
     dockerOk: docker.ok,
     dockerVersion: docker.version,
     dockerError: docker.error,

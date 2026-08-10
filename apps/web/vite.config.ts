@@ -2,7 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-const serverOrigin = process.env.DERAILED_SERVER_ORIGIN ?? 'http://localhost:8422';
+const serverOrigin = process.env.DERAILED_SERVER_ORIGIN ?? 'http://localhost:1337';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

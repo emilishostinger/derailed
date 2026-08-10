@@ -381,7 +381,7 @@ describe('what the proxy is told', () => {
       upstream: 'd_h_photos_abc',
       port: 2342,
       https: true,
-      login: { serviceId: 'svc', panelUpstream: 'host.docker.internal', panelPort: 8422 },
+      login: { serviceId: 'svc', panelUpstream: 'host.docker.internal', panelPort: 1337 },
     };
     const text = JSON.stringify(synthesizeCaddyConfig([route], { httpPort: 80, httpsPort: 443 }));
     expect(text).toContain('/api/public/appauth/check');

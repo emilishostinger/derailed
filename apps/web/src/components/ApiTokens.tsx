@@ -233,8 +233,9 @@ function AgentMarks() {
 /** The address the agent should talk to, which is the one you are reading this on. */
 function usePanelUrl(): string {
   const ip = useSession((s) => s.system?.serverIp);
+  const port = useSession((s) => s.system?.port) ?? 1337;
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
     return window.location.origin;
   }
-  return ip ? `http://${ip}:8422` : 'http://your-server:8422';
+  return ip ? `http://${ip}:${port}` : `http://your-server:${port}`;
 }

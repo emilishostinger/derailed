@@ -10,7 +10,7 @@ export const hasEmbeddedApp = Object.keys(assets).length > 0;
  *
  * Production: files are embedded in the binary (`with { type: 'file' }`), so this is
  * just a map lookup. Development: proxy through to the Vite dev server so HMR works
- * when someone opens :8422 directly.
+ * when someone opens :1337 directly.
  */
 export async function serveApp(request: Request): Promise<Response> {
   const url = new URL(request.url);
