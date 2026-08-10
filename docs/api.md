@@ -151,6 +151,7 @@ optional command run against each copy before it serves.
 | `GET /system/previews` | Whether screenshots are switched on |
 | `PUT /system/previews` | `{ screenshots }`. On by default; the first capture downloads a browser |
 | `POST /services/:id/preview` | Refresh one app's title, icon and picture now |
+| `GET /services/:id/readme` | The app's README: captured at deploy for repo apps, read live for uploads, fetched from Docker Hub for image apps |
 | `GET /services/previews/:name` | The image itself. Behind the session, like everything |
 
 ## Scheduled jobs

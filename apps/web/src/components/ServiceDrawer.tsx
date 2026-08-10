@@ -45,7 +45,6 @@ import { BrowseTab } from './BrowseTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DbUpgradeCard } from './DbUpgrade.tsx';
 import { DomainsTab } from './DomainsTab.tsx';
-import { docsUrlFor } from './docsUrl.ts';
 import { EnvEditor } from './EnvEditor.tsx';
 import { FilesWorkspace } from './FilesTab.workspace.tsx';
 import { JobsTab } from './JobsTab.tsx';
@@ -54,6 +53,7 @@ import { LogViewer } from './LogViewer.tsx';
 import { MessagesTab } from './MessagesTab.tsx';
 import { MetricsTab } from './MetricsTab.tsx';
 import { PreviewBranches } from './PreviewBranches.tsx';
+import { ReadmeModal } from './ReadmeModal.tsx';
 import { Snapshots } from './Snapshots.tsx';
 import { StorageTab } from './StorageTab.tsx';
 import { ConfirmRiskyDeploy, StorageWarningBanner } from './StorageWarning.tsx';
@@ -117,6 +117,7 @@ export function ServiceDrawer({
 }) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? 'overview');
   const [confirmDeploy, setConfirmDeploy] = useState(false);
+  const [readmeOpen, setReadmeOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const load = useProjects((s) => s.load);
@@ -153,7 +154,6 @@ export function ServiceDrawer({
     domains.find((domain) => domain.tlsStatus === 'active') ??
     domains[0];
   const isWordPress = service.source === 'image' && (service.image ?? '').startsWith('wordpress');
-  const docsUrl = docsUrlFor(service);
   const entries: NavEntry[] = isApp
     ? [
         { kind: 'tab', tab: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -324,11 +324,11 @@ export function ServiceDrawer({
                 Open
               </a>
             )}
-            {isApp && docsUrl && (
-              <a href={docsUrl} target="_blank" rel="noreferrer" className="btn-ghost">
+            {isApp && (
+              <button type="button" className="btn-ghost" onClick={() => setReadmeOpen(true)}>
                 <BookOpen className="h-3.5 w-3.5" />
                 Readme
-              </a>
+              </button>
             )}
             {/* One primary action at a time. Deploy and Start used to sit side by
                 side doing the same thing for a never-deployed app, and different
@@ -435,6 +435,7 @@ export function ServiceDrawer({
           }}
         />
       )}
+      {readmeOpen && <ReadmeModal service={service} onClose={() => setReadmeOpen(false)} />}
     </>
   );
 }

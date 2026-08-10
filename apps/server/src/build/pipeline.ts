@@ -41,6 +41,7 @@ import { DeploymentLog, logPathFor } from './deploylog.ts';
 import { detectRepo, resolvePort, safeJoin } from './detect.ts';
 import { cloneRepo, FriendlyError } from './git.ts';
 import { generateDockerfile, NIXPACKS_DOCKERFILE } from './nixpacks.ts';
+import { captureReadme } from './readme.ts';
 import { detectSite, injectFormsInto, writeSiteDockerfile } from './site.ts';
 import { createTarContext } from './tar.ts';
 import { hasUpload, uploadDir } from './upload.ts';
@@ -266,6 +267,10 @@ async function run(job: Job): Promise<void> {
     });
     log.write(detected.summary);
     for (const warning of detected.warnings) log.write(warning);
+
+    // The checkout is thrown away after the build; its README is kept, so the
+    // dashboard can show it later without the repository in hand.
+    await captureReadme(service.id, buildDir, workdir).catch(() => undefined);
 
     // Remember what this turned out to be, so the UI can show a real logo later
     // without the repository in hand.

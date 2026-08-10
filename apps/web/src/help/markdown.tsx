@@ -1,6 +1,14 @@
-import type { ReactNode } from 'react';
+import { createContext, type ReactNode, useContext } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { slugify } from './outline.ts';
+
+/**
+ * How a link's target is decided when this renderer is pointed at a document
+ * from outside the handbook, like an app's README. Returns an absolute http(s)
+ * address to link to, or null to render the words without a link. With no
+ * resolver set, the handbook's own rules below apply.
+ */
+export const LinkResolver = createContext<((href: string) => string | null) | null>(null);
 
 /**
  * A deliberately small markdown renderer.
@@ -69,6 +77,24 @@ export function inline(text: string, keyPrefix = ''): ReactNode[] {
  * handbook links out to registrars and to GitHub.
  */
 function Link({ href, children }: { href: string; children: ReactNode }) {
+  const resolve = useContext(LinkResolver);
+  if (resolve) {
+    const target = resolve(href);
+    // The same vouching rule as below: an address we cannot vouch for renders
+    // as plain words, never as a link.
+    if (!target || !/^https?:\/\//i.test(target)) return <>{children}</>;
+    return (
+      <a
+        href={target}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="text-accent hover:underline"
+      >
+        {children}
+      </a>
+    );
+  }
+
   const doc = /^([a-z0-9-]+)\.md(#.*)?$/.exec(href);
   if (doc) {
     return (

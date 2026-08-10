@@ -16,6 +16,7 @@ import {
   syncPreviews,
 } from '../../build/previews.ts';
 import { adoptCurrentCommit } from '../../build/pushes.ts';
+import { hubDescription, readmeInDir, savedReadme, saveReadme } from '../../build/readme.ts';
 import { adoptCurrentRelease } from '../../build/releases.ts';
 import {
   defaultErrorPage,
@@ -29,7 +30,7 @@ import {
   uploadIntoSource,
   writeSourceFile,
 } from '../../build/source.ts';
-import { MAX_UPLOAD_BYTES, storeFolder, storeUpload } from '../../build/upload.ts';
+import { MAX_UPLOAD_BYTES, storeFolder, storeUpload, uploadDir } from '../../build/upload.ts';
 import { createDatabaseFromCatalog } from '../../catalog/create.ts';
 import { ShareError, shareTemplate } from '../../catalog/share.ts';
 import { listDomains } from '../../db/repo/domains.ts';
@@ -235,6 +236,26 @@ serviceRoutes.post('/:id/preview', async (c) => {
   const service = findService(c.req.param('id'));
   if (!service) throw notFound('That service');
   return c.json({ preview: await refreshPreview(service.id) });
+});
+
+/**
+ * The app's own README, rendered by the dashboard. Captured at deploy time for
+ * repository apps, read live for uploaded ones, fetched once from Docker Hub
+ * for image apps that live there. Null is an honest answer.
+ */
+serviceRoutes.get('/:id/readme', async (c) => {
+  const service = findService(c.req.param('id'));
+  if (!service) throw notFound('That service');
+
+  let markdown = await savedReadme(service.id);
+  if (markdown === null && service.source === 'upload') {
+    markdown = await readmeInDir(uploadDir(service.id));
+  }
+  if (markdown === null && service.source === 'image' && service.image) {
+    markdown = await hubDescription(service.image);
+    if (markdown) await saveReadme(service.id, markdown).catch(() => undefined);
+  }
+  return c.json({ readme: markdown });
 });
 
 serviceRoutes.get('/:id', (c) => {

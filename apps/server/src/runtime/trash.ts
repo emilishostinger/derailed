@@ -1,5 +1,6 @@
 import type { TrashItem } from '@derailed/shared';
 import { deleteDeploymentLog } from '../build/deploylog.ts';
+import { forgetReadme } from '../build/readme.ts';
 import { removeUpload } from '../build/upload.ts';
 import { listDeployments } from '../db/repo/deployments.ts';
 import {
@@ -159,6 +160,7 @@ async function purgeServiceBelongings(serviceId: string): Promise<void> {
 
   await removeUpload(serviceId).catch(() => undefined);
   await forgetPreview(serviceId).catch(() => undefined);
+  await forgetReadme(serviceId).catch(() => undefined);
 }
 
 /** Throws one item away for good. */

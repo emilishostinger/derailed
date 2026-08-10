@@ -123,6 +123,8 @@ export const endpoints = {
       .then((r) => r.service),
 
   service: (id: string) => api.get<{ service: Service }>(`/services/${id}`).then((r) => r.service),
+  readme: (serviceId: string) =>
+    api.get<{ readme: string | null }>(`/services/${serviceId}/readme`).then((r) => r.readme),
   mail: () => api.get<{ mail: MailSettings }>('/mail').then((r) => r.mail),
   mailDirectCheck: () => api.get<{ direct: DirectCheck }>('/mail/direct').then((r) => r.direct),
   saveMail: (patch: Record<string, unknown>) =>

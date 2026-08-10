@@ -159,6 +159,7 @@ GET /api/services/:id/pitr member=allow viewer=allow
 PUT /api/services/:id/pitr member=allow viewer=deny
 POST /api/services/:id/pitr/restore member=allow viewer=deny
 POST /api/services/:id/preview member=allow viewer=deny
+GET /api/services/:id/readme member=allow viewer=allow
 GET /api/services/:id/previews member=allow viewer=allow
 PUT /api/services/:id/previews member=allow viewer=deny
 GET /api/services/:id/queries member=allow viewer=allow
