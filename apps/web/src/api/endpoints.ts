@@ -79,6 +79,8 @@ export interface CreateAppInput {
   branch?: string;
   rootDir?: string;
   port?: number;
+  buildStrategy?: 'auto' | 'dockerfile' | 'nixpacks' | 'site';
+  dockerfilePath?: string;
   deployNow?: boolean;
 }
 

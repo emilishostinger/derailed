@@ -792,6 +792,8 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
   const [branch, setBranch] = useState(service.branch ?? '');
   const [rootDir, setRootDir] = useState(service.rootDir ?? '');
   const [port, setPort] = useState(service.port ? String(service.port) : '');
+  const [builder, setBuilder] = useState(service.buildStrategy);
+  const [dockerfileAt, setDockerfileAt] = useState(service.dockerfilePath ?? '');
   const [healthPath, setHealthPath] = useState(service.healthPath);
   const [healthCheck, setHealthCheck] = useState(service.healthCheck ?? 'http');
   const [healthExpect, setHealthExpect] = useState(service.healthExpect ?? '');
@@ -815,6 +817,13 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
               branch: branch || undefined,
               rootDir: rootDir || null,
               port: port ? Number(port) : null,
+              ...(service.source === 'repo'
+                ? {
+                    buildStrategy: builder,
+                    dockerfilePath:
+                      builder === 'dockerfile' || builder === 'auto' ? dockerfileAt || null : null,
+                  }
+                : {}),
               healthPath: healthPath || '/',
               healthCheck,
               healthExpect: healthCheck === 'contains' ? healthExpect || null : null,
@@ -865,6 +874,36 @@ function Settings({ service, onClose }: { service: Service; onClose: () => void 
                 />
               </label>
             </div>
+            {service.source === 'repo' && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {/* The docs promised this control for two releases before it existed:
+                    when detection guesses wrong, this is where the person says so. */}
+                <label className="block">
+                  <span className="label">Build it with</span>
+                  <select
+                    className="input"
+                    value={builder}
+                    onChange={(e) => setBuilder(e.target.value as typeof builder)}
+                  >
+                    <option value="auto">Whatever is detected</option>
+                    <option value="dockerfile">Its own Dockerfile</option>
+                    <option value="nixpacks">Build from source (Nixpacks)</option>
+                    <option value="site">Plain website, no build</option>
+                  </select>
+                </label>
+                {(builder === 'dockerfile' || builder === 'auto') && (
+                  <label className="block">
+                    <span className="label">Dockerfile</span>
+                    <input
+                      className="input"
+                      value={dockerfileAt}
+                      placeholder="Dockerfile"
+                      onChange={(e) => setDockerfileAt(e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="label">Port</span>

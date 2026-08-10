@@ -316,15 +316,17 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
   const [detected, setDetected] = useState<DetectResult | null>(null);
   const [resolvedBranch, setResolvedBranch] = useState('');
   const [commit, setCommit] = useState<{ sha: string; message: string } | null>(null);
+  const [strategy, setStrategy] = useState<'auto' | 'dockerfile' | 'nixpacks' | 'site'>('auto');
+  const [dockerfileAt, setDockerfileAt] = useState('');
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
-  async function onCheck(event: FormEvent) {
-    event.preventDefault();
+  async function check(dirOverride?: string) {
     setError(null);
     setBusy(true);
     try {
-      const result = await endpoints.detect(repoUrl, branch || undefined, rootDir || undefined);
+      const dir = dirOverride ?? rootDir;
+      const result = await endpoints.detect(repoUrl, branch || undefined, dir || undefined);
       setDetected(result.detect);
       setResolvedBranch(result.repo.branch);
       setCommit(result.commit);
@@ -337,6 +339,11 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
     }
   }
 
+  async function onCheck(event: FormEvent) {
+    event.preventDefault();
+    await check();
+  }
+
   async function onCreate() {
     setError(null);
     setBusy(true);
@@ -347,6 +354,8 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
         branch: resolvedBranch || branch || undefined,
         rootDir: rootDir || undefined,
         port: detected?.port ?? undefined,
+        buildStrategy: strategy === 'auto' ? undefined : strategy,
+        dockerfilePath: (strategy === 'dockerfile' && dockerfileAt.trim()) || undefined,
         deployNow: true,
       });
       await load();
@@ -420,6 +429,22 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
                 {warning}
               </p>
             ))}
+            {detected.suggestedRootDir && (
+              <button
+                type="button"
+                className="btn-secondary mt-3"
+                disabled={busy}
+                onClick={() => {
+                  const dir = detected.suggestedRootDir;
+                  if (!dir) return;
+                  setRootDir(dir);
+                  void check(dir);
+                }}
+              >
+                {busy && <Spinner />}
+                Look in {detected.suggestedRootDir} instead
+              </button>
+            )}
           </div>
 
           <Field label="Name it" hint="Used for its web address, so keep it short.">
@@ -430,6 +455,36 @@ function FromGithub({ projectId, onDone }: { projectId: string; onDone: () => vo
               required
             />
           </Field>
+
+          <details className="text-sm">
+            <summary className="cursor-pointer text-ink-muted hover:text-ink">
+              How it gets built
+            </summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Builder" hint="Automatic follows what was detected above.">
+                <select
+                  className="input"
+                  value={strategy}
+                  onChange={(event) => setStrategy(event.target.value as typeof strategy)}
+                >
+                  <option value="auto">Automatic</option>
+                  <option value="dockerfile">Its own Dockerfile</option>
+                  <option value="nixpacks">Build from source (Nixpacks)</option>
+                  <option value="site">Plain website, no build</option>
+                </select>
+              </Field>
+              {strategy === 'dockerfile' && (
+                <Field label="Dockerfile" hint="Path inside the repository.">
+                  <input
+                    className="input"
+                    value={dockerfileAt}
+                    onChange={(event) => setDockerfileAt(event.target.value)}
+                    placeholder="Dockerfile"
+                  />
+                </Field>
+              )}
+            </div>
+          </details>
 
           <div className="flex gap-2">
             <button
