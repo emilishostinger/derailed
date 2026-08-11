@@ -658,3 +658,39 @@ export function Sparkline({
     </svg>
   );
 }
+
+/**
+ * A row of page-level tabs, for screens that had grown into one long scroll of
+ * unrelated sections. Deliberately plain: buttons, an underline on the open
+ * one, and the caller owns which is open (usually via the URL, so the command
+ * palette and links can land on a specific tab).
+ */
+export function PageTabs<T extends string>({
+  tabs,
+  active,
+  onSelect,
+}: {
+  tabs: { id: T; label: string }[];
+  active: T;
+  onSelect: (id: T) => void;
+}) {
+  return (
+    <div className="flex gap-1 border-b border-line px-5">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onSelect(tab.id)}
+          className={cx(
+            '-mb-px border-b-2 px-3 py-2.5 text-[13px] transition-colors',
+            tab.id === active
+              ? 'border-accent font-medium text-ink'
+              : 'border-transparent text-ink-muted hover:text-ink',
+          )}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}

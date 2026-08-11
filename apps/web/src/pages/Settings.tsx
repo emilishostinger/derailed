@@ -1,7 +1,7 @@
 import type { UserRole } from '@derailed/shared';
 import { ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { Alerts } from '../components/Alerts.tsx';
@@ -17,7 +17,7 @@ import { People } from '../components/People.tsx';
 import { Security } from '../components/Security.tsx';
 import { Tailscale } from '../components/Tailscale.tsx';
 import { UpdateEmails } from '../components/UpdateEmails.tsx';
-import { ErrorNote, Field, Spinner, Switch } from '../components/ui.tsx';
+import { ErrorNote, Field, PageTabs, Spinner, Switch } from '../components/ui.tsx';
 import { Webhooks } from '../components/Webhooks.tsx';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
@@ -30,6 +30,8 @@ const ROLE_SUMMARY: Record<UserRole, string> = {
   viewer: 'You can look at everything here, and change nothing.',
 };
 
+type SettingsTab = 'account' | 'people' | 'notifications' | 'server';
+
 export function Settings() {
   const user = useSession((s) => s.user);
   const isOwner = user?.role === 'owner';
@@ -39,6 +41,29 @@ export function Settings() {
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // One long scroll of unrelated sections became four tabs. The open one lives
+  // in the URL so a link can say "the notifications settings" and mean it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const asked = searchParams.get('tab') as SettingsTab | null;
+  const tabs: { id: SettingsTab; label: string }[] = isOwner
+    ? [
+        { id: 'account', label: 'Account' },
+        { id: 'people', label: 'People' },
+        { id: 'notifications', label: 'Notifications' },
+        { id: 'server', label: 'Server' },
+      ]
+    : [{ id: 'account', label: 'Account' }];
+  const tab: SettingsTab = tabs.some((entry) => entry.id === asked) ? asked! : 'account';
+  const setTab = (next: SettingsTab) =>
+    setSearchParams(
+      (params) => {
+        if (next === 'account') params.delete('tab');
+        else params.set('tab', next);
+        return params;
+      },
+      { replace: true },
+    );
 
   useEffect(() => {
     setIp(system?.serverIp ?? '');
@@ -63,22 +88,30 @@ export function Settings() {
     <>
       <PageHeader title="Settings" />
 
+      <PageTabs tabs={tabs} active={tab} onSelect={setTab} />
+
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl space-y-8 p-5">
-          <Section title="Account">
-            <p className="text-[13px] text-ink">{user?.email}</p>
-            {user && <p className="mt-1 text-[12px] text-ink-faint">{ROLE_SUMMARY[user.role]}</p>}
-            <p className="mt-2 text-[12px] text-ink-faint">
-              To change the password, run{' '}
-              <code className="text-ink-muted">derailed reset-password</code> on the server.
-            </p>
-          </Section>
+          {tab === 'account' && (
+            <>
+              <Section title="Account">
+                <p className="text-[13px] text-ink">{user?.email}</p>
+                {user && (
+                  <p className="mt-1 text-[12px] text-ink-faint">{ROLE_SUMMARY[user.role]}</p>
+                )}
+                <p className="mt-2 text-[12px] text-ink-faint">
+                  To change the password, run{' '}
+                  <code className="text-ink-muted">derailed reset-password</code> on the server.
+                </p>
+              </Section>
 
-          <Section title="Signing in">
-            <Security />
-          </Section>
+              <Section title="Signing in">
+                <Security />
+              </Section>
+            </>
+          )}
 
-          {isOwner && (
+          {tab === 'people' && isOwner && (
             <Section title="Who else can get in">
               <People />
             </Section>
@@ -88,14 +121,14 @@ export function Settings() {
               it is an owner's to change. Hidden rather than shown-and-refused: a
               screen full of controls that answer "you cannot do that" is a worse
               explanation than a screen that only offers what is yours. */}
-          {isOwner && (
+          {tab === 'server' && isOwner && (
             <>
               <Section title="Domains and the padlock">
                 <p className="text-[13px] text-ink-muted">
                   The dashboard's address, the free secure address, and the domain your apps live
                   under all moved to the Domains page, where the rest of the domain work happens.
                 </p>
-                <RouterLink to="/domains" className="btn-secondary mt-3 inline-flex">
+                <RouterLink to="/domains?tab=server" className="btn-secondary mt-3 inline-flex">
                   Open Domains
                 </RouterLink>
               </Section>
@@ -104,20 +137,8 @@ export function Settings() {
                 <Screenshots />
               </Section>
 
-              <Section title="Tell me when something breaks">
-                <Alerts />
-              </Section>
-
-              <Section title="Tell something else when it happens">
-                <Webhooks />
-              </Section>
-
               <Section title="Keeping up to date">
                 <UpdateCheck />
-              </Section>
-
-              <Section title="Update emails">
-                <UpdateEmails />
               </Section>
 
               <Section title="Reach this server from anywhere">
@@ -130,9 +151,25 @@ export function Settings() {
             </>
           )}
 
+          {tab === 'notifications' && isOwner && (
+            <>
+              <Section title="Tell me when something breaks">
+                <Alerts />
+              </Section>
+
+              <Section title="Tell something else when it happens">
+                <Webhooks />
+              </Section>
+
+              <Section title="Update emails">
+                <UpdateEmails />
+              </Section>
+            </>
+          )}
+
           {/* Owner-only for the same reason as the block above: this is the machine's
               own address, not a preference. */}
-          {isOwner && (
+          {tab === 'server' && isOwner && (
             <>
               {/* This was behind a disclosure marked "Advanced", which held one field and
               drew the browser's own triangle in a page where nothing else has one. A

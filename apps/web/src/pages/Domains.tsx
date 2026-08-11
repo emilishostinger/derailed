@@ -13,13 +13,13 @@ import {
   Unlock,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { CloudflareDns } from '../components/CloudflareDns.tsx';
 import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
 import { ServerDomains } from '../components/ServerDomains.tsx';
-import { CopyButton, cx, ErrorNote, Modal, Select, Spinner } from '../components/ui.tsx';
+import { CopyButton, cx, ErrorNote, Modal, PageTabs, Select, Spinner } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
@@ -54,6 +54,18 @@ const AUTO_ADDRESS_NOTE =
 export function Domains() {
   const serverIp = useSession((s) => s.system?.serverIp);
   const isOwner = useSession((s) => s.user?.role === 'owner');
+  // In the URL so "set up the padlock" links can land on the right tab.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'server' && isOwner ? 'server' : 'yours';
+  const setTab = (next: string) =>
+    setSearchParams(
+      (params) => {
+        if (next === 'server') params.set('tab', 'server');
+        else params.delete('tab');
+        return params;
+      },
+      { replace: true },
+    );
   const [domains, setDomains] = useState<DomainRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -88,12 +100,25 @@ export function Domains() {
         title="Domains"
         subtitle={waiting > 0 ? `${waiting} waiting on DNS` : undefined}
         actions={
-          <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Add a domain
-          </button>
+          tab === 'yours' ? (
+            <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Add a domain
+            </button>
+          ) : undefined
         }
       />
+
+      {isOwner && (
+        <PageTabs
+          tabs={[
+            { id: 'yours', label: 'Your domains' },
+            { id: 'server', label: 'Server addresses' },
+          ]}
+          active={tab}
+          onSelect={setTab}
+        />
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading && (
@@ -135,7 +160,7 @@ export function Domains() {
           </div>
         )}
 
-        {!loading && own.length > 0 && (
+        {!loading && tab === 'yours' && own.length > 0 && (
           <div className="mx-auto max-w-3xl space-y-8 p-5">
             <ErrorNote error={error} />
 
@@ -155,11 +180,6 @@ export function Domains() {
 
             {/* Under a list this is a footnote, and reads left with the rows. */}
             <p className="text-[12px] text-ink-faint">{AUTO_ADDRESS_NOTE}</p>
-
-            {/* The server's own addresses, after your domains: the dashboard's
-                address, the free name, and the domain apps live under. Owners
-                only, like everything that changes the machine. */}
-            {isOwner && <ServerDomains />}
           </div>
         )}
       </div>
