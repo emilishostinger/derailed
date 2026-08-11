@@ -26,7 +26,9 @@ import { endpoints } from '../api/endpoints.ts';
 import { loadTopic } from '../help/load.ts';
 import { TOPICS } from '../help/manifest.ts';
 import { useProjects } from '../stores/projects.ts';
+import { useSession } from '../stores/session.ts';
 import { useTheme } from '../stores/theme.ts';
+import { appUrl } from './appUrl.ts';
 import { cx, StatusDot } from './ui.tsx';
 
 const GROUP_ORDER = ['Projects', 'Services', 'Domains', 'Actions', 'Navigate', 'Handbook'];
@@ -76,6 +78,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const [active, setActive] = useState(0);
   const navigate = useNavigate();
   const projects = useProjects((s) => s.projects);
+  const proxyHttpPort = useSession((s) => s.system?.proxyHttpPort);
   const theme = useTheme((s) => s.theme);
   const toggleTheme = useTheme((s) => s.toggle);
   const listRef = useRef<HTMLDivElement>(null);
@@ -160,12 +163,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             detail: 'Open in a new tab',
             group: 'Domains',
             icon: <Globe className="h-4 w-4" />,
-            run: () =>
-              window.open(
-                `${domain.tlsStatus === 'active' ? 'https' : 'http'}://${domain.hostname}`,
-                '_blank',
-                'noreferrer',
-              ),
+            run: () => window.open(appUrl(domain, proxyHttpPort), '_blank', 'noreferrer'),
           });
         }
       }
@@ -277,7 +275,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     );
 
     return items;
-  }, [projects, navigate, theme, toggleTheme]);
+  }, [projects, navigate, theme, toggleTheme, proxyHttpPort]);
 
   /**
    * The handbook, searched by its text rather than only its titles.

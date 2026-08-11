@@ -41,6 +41,7 @@ import { live } from '../api/ws.ts';
 import { useProjects } from '../stores/projects.ts';
 import { toastUndo } from '../stores/toasts.ts';
 import { AccessTab } from './AccessTab.tsx';
+import { useAppUrl } from './appUrl.ts';
 import { BrowseTab } from './BrowseTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { DbUpgradeCard } from './DbUpgrade.tsx';
@@ -154,6 +155,7 @@ export function ServiceDrawer({
     domains.find((domain) => domain.tlsStatus === 'active') ??
     domains[0];
   const isWordPress = service.source === 'image' && (service.image ?? '').startsWith('wordpress');
+  const urlFor = useAppUrl();
   const entries: NavEntry[] = isApp
     ? [
         { kind: 'tab', tab: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -298,7 +300,7 @@ export function ServiceDrawer({
 
           {address && (
             <a
-              href={`${address.tlsStatus === 'active' ? 'https' : 'http'}://${address.hostname}`}
+              href={urlFor(address)}
               target="_blank"
               rel="noreferrer"
               className="mt-2.5 flex items-center gap-1.5 truncate text-[12px] text-accent hover:underline"
@@ -315,12 +317,7 @@ export function ServiceDrawer({
 
           <div className="mt-3 flex flex-wrap gap-1.5">
             {address && (
-              <a
-                href={`${address.tlsStatus === 'active' ? 'https' : 'http'}://${address.hostname}`}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-secondary"
-              >
+              <a href={urlFor(address)} target="_blank" rel="noreferrer" className="btn-secondary">
                 <ExternalLink className="h-3.5 w-3.5" />
                 Open
               </a>

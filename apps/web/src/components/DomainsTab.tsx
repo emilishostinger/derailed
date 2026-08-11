@@ -173,7 +173,9 @@ function DomainCard({
   const [editingPath, setEditingPath] = useState(false);
   const [path, setPath] = useState(domain.pathPrefix ?? '');
   const secure = domain.tlsStatus === 'active';
-  const url = `${secure ? 'https' : 'http'}://${domain.hostname}${domain.pathPrefix ?? ''}`;
+  const proxyHttpPort = useSession((s) => s.system?.proxyHttpPort);
+  const port = !secure && proxyHttpPort && proxyHttpPort !== 80 ? `:${proxyHttpPort}` : '';
+  const url = `${secure ? 'https' : 'http'}://${domain.hostname}${port}${domain.pathPrefix ?? ''}`;
 
   return (
     <div className="card p-4">

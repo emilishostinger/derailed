@@ -10,8 +10,12 @@ export interface ServiceNodeData extends Record<string, unknown> {
   service: Service;
 }
 
-const HANDLE_CLASS =
-  '!h-2 !w-2 !border-2 !border-surface !bg-line-strong transition-colors hover:!bg-accent';
+// Invisible, deliberately: the floating edges attach wherever the nodes sit,
+// so a fixed dot on each side stopped describing anything true. The handles
+// stay (drag-to-link starts on them), a little bigger than the dots were so
+// they are easier to hit unseen, showing themselves only mid-drag via the
+// connecting class React Flow puts on the wrapper.
+const HANDLE_CLASS = '!h-3 !w-3 !border-0 !bg-transparent';
 
 /** Shared shell so every node on the canvas has exactly one silhouette. */
 function NodeShell({
@@ -188,7 +192,7 @@ export function DatabaseNode({ data, selected }: NodeProps & { data: ServiceNode
 export function InternetNode() {
   return (
     <div className="flex flex-col items-center gap-1.5 rounded-[var(--radius-card)] border border-dashed border-line bg-surface/50 px-4 py-3">
-      <Handle type="source" position={Position.Right} className={cx(HANDLE_CLASS, '!bg-line')} />
+      <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
       <Globe className="h-4 w-4 text-ink-faint" />
       <span className="text-[11px] font-medium text-ink-muted">Internet</span>
     </div>

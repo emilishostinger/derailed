@@ -3,6 +3,7 @@ import type { SystemInfo } from '@derailed/shared';
 import { isDev, paths, port, VERSION } from '../config.ts';
 import { getBoolSetting, getSetting, SETTINGS, setSetting } from '../db/repo/settings.ts';
 import { DockerError, version as dockerVersion } from '../docker/client.ts';
+import { caddyHttpPort } from '../proxy/caddy.ts';
 
 let caddyHealthy = false;
 
@@ -70,6 +71,7 @@ export async function systemInfo(): Promise<SystemInfo> {
     serverIpSource:
       (getSetting(SETTINGS.serverIpSource) as SystemInfo['serverIpSource'] | null) ?? 'unknown',
     port,
+    proxyHttpPort: caddyHttpPort(),
     dockerOk: docker.ok,
     dockerVersion: docker.version,
     dockerError: docker.error,

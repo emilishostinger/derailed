@@ -4,7 +4,7 @@ import type { Deployment, DeploymentStatus, DeploymentTrigger, Service } from '@
 import { topics } from '@derailed/shared';
 import { alertDeployFailed, alertDeploySucceeded } from '../alerts/watch.ts';
 import { exec as execOnce } from '../catalog/dbclient.ts';
-import { ensureDirs, paths } from '../config.ts';
+import { ensureDirs, isDev, paths } from '../config.ts';
 import {
   createDeployment,
   findDeployment,
@@ -36,6 +36,7 @@ import { appBaseDomain, isCoveredByFreeDomain } from '../proxy/freedomain.ts';
 import { generatedHostname } from '../proxy/routes.ts';
 import { syncRoutes } from '../proxy/sync.ts';
 import { checkDiskSpace } from '../runtime/housekeeping.ts';
+import { emitService } from '../runtime/present.ts';
 import { refreshPreview } from '../runtime/preview.ts';
 import { DeploymentLog, logPathFor } from './deploylog.ts';
 import { detectRepo, resolvePort, safeJoin } from './detect.ts';
@@ -667,7 +668,11 @@ function ensureGeneratedDomain(service: Service): void {
   // 'started' has no port to route to and 'tcp' answers the port in some other
   // language than HTTP; both are working exactly when a web address would not.
   if (service.healthCheck === 'started' || service.healthCheck === 'tcp') return;
-  const serverIp = getSetting(SETTINGS.serverIp);
+  // In development the machine's public address is a lie: the router will not
+  // hairpin it back here, so a name built from it can never load. 127.0.0.1
+  // makes slug.127-0-0-1.sslip.io resolve to this very machine, where the dev
+  // Caddy actually answers.
+  const serverIp = isDev ? '127.0.0.1' : getSetting(SETTINGS.serverIp);
   if (!serverIp) return;
   const base = appBaseDomain();
   const hostname = generatedHostname(service.slug, serverIp, base);
@@ -813,6 +818,9 @@ async function launch(input: LaunchInput): Promise<void> {
 
   step('routing');
   ensureGeneratedDomain(service);
+  // Say so at once: the drawer is usually open and watching at this exact moment,
+  // and without this the new address only appeared after a page refresh.
+  emitService(service.id);
   const superseded = supersedePrevious(service.id, deployment.id);
   // Marked running before the routes are pushed, because route synthesis asks the
   // database which deployment is live. `finishedAt` is only set once the old

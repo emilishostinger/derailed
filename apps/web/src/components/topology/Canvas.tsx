@@ -35,6 +35,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { endpoints } from '../../api/endpoints.ts';
 import { useProjects } from '../../stores/projects.ts';
+import { useSession } from '../../stores/session.ts';
+import { appUrl } from '../appUrl.ts';
 import { ContextMenu, type MenuItem, useContextMenu } from '../ContextMenu.tsx';
 import { cx, ErrorNote, Modal, Spinner } from '../ui.tsx';
 import { FloatingEdge } from './FloatingEdge.tsx';
@@ -76,6 +78,7 @@ function Canvas({
   const [menuFor, setMenuFor] = useState<Service | null>(null);
   const menu = useContextMenu();
   const reload = useProjects((s) => s.load);
+  const proxyHttpPort = useSession((s) => s.system?.proxyHttpPort);
 
   // React Flow owns node state. Deriving a fresh nodes array on every render throws
   // away the dimensions it measures, and unmeasured nodes stay invisible.
@@ -229,7 +232,7 @@ function Canvas({
         onClose={menu.close}
         items={
           menuFor
-            ? serviceMenu(menuFor, onSelect, reload)
+            ? serviceMenu(menuFor, onSelect, reload, proxyHttpPort)
             : paneMenu(onAdd, tidyUp, () => fitView({ padding: 0.2, duration: 300 }))
         }
       />
@@ -302,6 +305,7 @@ function serviceMenu(
   service: Service,
   onSelect: (id: string, tab?: string) => void,
   reload: () => Promise<void>,
+  proxyHttpPort?: number,
 ): MenuItem[] {
   const running = service.status === 'running';
   const domains = service.domains ?? [];
@@ -322,20 +326,13 @@ function serviceMenu(
     items.push({
       label: 'Open the site',
       icon: <ExternalLink className="h-3.5 w-3.5" />,
-      onSelect: () =>
-        window.open(
-          `${address.tlsStatus === 'active' ? 'https' : 'http'}://${address.hostname}`,
-          '_blank',
-          'noreferrer',
-        ),
+      onSelect: () => window.open(appUrl(address, proxyHttpPort), '_blank', 'noreferrer'),
     });
     items.push({
       label: 'Copy the address',
       icon: <Copy className="h-3.5 w-3.5" />,
       onSelect: () =>
-        void navigator.clipboard
-          .writeText(`${address.tlsStatus === 'active' ? 'https' : 'http'}://${address.hostname}`)
-          .catch(() => undefined),
+        void navigator.clipboard.writeText(appUrl(address, proxyHttpPort)).catch(() => undefined),
     });
   }
 

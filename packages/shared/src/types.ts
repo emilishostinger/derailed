@@ -482,6 +482,12 @@ export interface SystemInfo {
    * installs pin the port in their service unit, so the UI must never assume it.
    */
   port: number;
+  /**
+   * The host port the proxy serves plain HTTP on: 80 on a real server, 8080ish
+   * in development. Links to HTTP-only app addresses carry it when it isn't 80,
+   * because a link that quietly assumes :80 can never load in dev.
+   */
+  proxyHttpPort: number;
   dockerOk: boolean;
   dockerVersion: string | null;
   dockerError: string | null;
