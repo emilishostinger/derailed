@@ -1,4 +1,4 @@
-import { AlertCircle, Check, ChevronDown, ChevronLeft, Copy } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, ChevronLeft, Copy, type LucideIcon } from 'lucide-react';
 import {
   type ReactNode,
   useCallback,
@@ -670,7 +670,7 @@ export function PageTabs<T extends string>({
   active,
   onSelect,
 }: {
-  tabs: { id: T; label: string }[];
+  tabs: { id: T; label: string; icon?: LucideIcon }[];
   active: T;
   onSelect: (id: T) => void;
 }) {
@@ -682,12 +682,13 @@ export function PageTabs<T extends string>({
           type="button"
           onClick={() => onSelect(tab.id)}
           className={cx(
-            '-mb-px border-b-2 px-3 py-2.5 text-[13px] transition-colors',
+            '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] transition-colors',
             tab.id === active
               ? 'border-accent font-medium text-ink'
               : 'border-transparent text-ink-muted hover:text-ink',
           )}
         >
+          {tab.icon && <tab.icon className="h-3.5 w-3.5" />}
           {tab.label}
         </button>
       ))}

@@ -1,5 +1,5 @@
 import type { UserRole } from '@derailed/shared';
-import { ExternalLink } from 'lucide-react';
+import { Bell, CircleUser, ExternalLink, type LucideIcon, ServerCog, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client.ts';
@@ -46,14 +46,14 @@ export function Settings() {
   // in the URL so a link can say "the notifications settings" and mean it.
   const [searchParams, setSearchParams] = useSearchParams();
   const asked = searchParams.get('tab') as SettingsTab | null;
-  const tabs: { id: SettingsTab; label: string }[] = isOwner
+  const tabs: { id: SettingsTab; label: string; icon: LucideIcon }[] = isOwner
     ? [
-        { id: 'account', label: 'Account' },
-        { id: 'people', label: 'People' },
-        { id: 'notifications', label: 'Notifications' },
-        { id: 'server', label: 'Server' },
+        { id: 'account', label: 'Account', icon: CircleUser },
+        { id: 'people', label: 'People', icon: Users },
+        { id: 'notifications', label: 'Notifications', icon: Bell },
+        { id: 'server', label: 'Server', icon: ServerCog },
       ]
-    : [{ id: 'account', label: 'Account' }];
+    : [{ id: 'account', label: 'Account', icon: CircleUser }];
   const tab: SettingsTab = tabs.some((entry) => entry.id === asked) ? asked! : 'account';
   const setTab = (next: SettingsTab) =>
     setSearchParams(

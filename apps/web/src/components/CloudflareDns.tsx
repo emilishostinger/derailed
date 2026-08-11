@@ -78,9 +78,9 @@ export function CloudflareDns() {
         <div className="flex flex-wrap items-center gap-3">
           <Cloud className="h-4 w-4 shrink-0 text-ink-faint" />
           <p className="min-w-0 flex-1 text-[13px] text-ink-muted">
-            Connect Cloudflare and the records write themselves: the A record, the www redirect, and
-            the wildcard that gives every future app a real address. Make an API token with Zone.DNS
-            edit rights and paste it here; it is stored encrypted and never shown again.
+            {
+              'Connect Cloudflare and the records write themselves: the A record, the www redirect, and the wildcard that gives every future app a real address. Make an API token with Zone.DNS edit rights and paste it here; it is stored encrypted and never shown again.'
+            }
           </p>
           <input
             className="input w-64 font-mono text-[12px]"

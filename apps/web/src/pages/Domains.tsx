@@ -112,8 +112,8 @@ export function Domains() {
       {isOwner && (
         <PageTabs
           tabs={[
-            { id: 'yours', label: 'Your domains' },
-            { id: 'server', label: 'Server addresses' },
+            { id: 'yours', label: 'Your domains', icon: Globe },
+            { id: 'server', label: 'Server addresses', icon: Lock },
           ]}
           active={tab}
           onSelect={setTab}
@@ -127,34 +127,48 @@ export function Domains() {
           </div>
         )}
 
-        {/* Nothing added yet: the empty state is the page, so it is not boxed inside a
-            padded column. Its backdrop reaches the header the same way it does on the
-            dashboard and inside an empty project. */}
-        {/* No domains of your own yet. The first-day work here is the padlock
-            setup, so that leads; adding a domain is a card beside it rather
-            than a full-page shrug that hides everything under the fold. */}
-        {!loading && own.length === 0 && (
+        {/* The server's own addresses: everything that ends in a padlock. */}
+        {!loading && tab === 'server' && isOwner && (
+          <div className="mx-auto max-w-3xl space-y-8 p-5 pb-10">
+            <ErrorNote error={error} />
+            <ServerDomains />
+          </div>
+        )}
+
+        {/* No domains of your own yet: a compact card, not a full-page shrug,
+            with the padlock work one visible click away. */}
+        {!loading && tab === 'yours' && own.length === 0 && (
           <div className="mx-auto max-w-3xl space-y-8 p-5 pb-10">
             <ErrorNote error={error} />
 
-            <section>
-              <h2 className="eyebrow mb-2.5">Your own domains</h2>
-              <div className="card flex flex-wrap items-center gap-4 p-5">
-                <Globe className="h-5 w-5 shrink-0 text-ink-faint" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] text-ink">None yet.</p>
-                  <p className="mt-0.5 text-[12px] text-ink-muted">
-                    Add one you own and Derailed checks that it points at this server. Once it does,
-                    any of your apps can answer on it.
-                  </p>
-                </div>
-                <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
-                  Add a domain
-                </button>
+            <div className="card flex flex-wrap items-center gap-4 p-5">
+              <Globe className="h-5 w-5 shrink-0 text-ink-faint" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] text-ink">No domains of your own yet.</p>
+                <p className="mt-0.5 text-[12px] text-ink-muted">
+                  Add one you own and Derailed checks that it points at this server. Once it does,
+                  any of your apps can answer on it.
+                </p>
               </div>
-            </section>
+              <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
+                Add a domain
+              </button>
+            </div>
 
-            {isOwner && <ServerDomains />}
+            {isOwner && (
+              <p className="text-[12px] text-ink-faint">
+                Looking for the padlock, the free DuckDNS name, or the domain your apps live under?
+                That's all in{' '}
+                <button
+                  type="button"
+                  className="text-accent hover:underline"
+                  onClick={() => setTab('server')}
+                >
+                  Server addresses
+                </button>
+                .
+              </p>
+            )}
 
             <p className="text-[12px] text-ink-faint">{AUTO_ADDRESS_NOTE}</p>
           </div>
