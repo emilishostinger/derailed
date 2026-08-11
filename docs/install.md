@@ -101,7 +101,7 @@ ufw allow 22/tcp     # don't lock yourself out
 ufw enable
 ```
 
-Better still: give the dashboard its own domain in **Settings → Dashboard address**, so it is
+Better still: give the dashboard its own domain in **Domains → Dashboard address**, so it is
 served over HTTPS through Caddy, and then close `1337` entirely. Until you do, the panel is plain
 HTTP and your password is sent unencrypted.
 

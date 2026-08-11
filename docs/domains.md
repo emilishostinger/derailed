@@ -82,7 +82,7 @@ someone else.
 
 ### Without a domain, but with a padlock
 
-You do not have to buy a domain to get HTTPS. In **Settings → A secure address, free**:
+You do not have to buy a domain to get HTTPS. In **Domains → A secure address, free**:
 
 1. Open [duckdns.org](https://www.duckdns.org) and sign in with any of the buttons.
 2. Type a name you like and press **add domain**.
@@ -133,7 +133,7 @@ here, and your name is nicer than a borrowed one.
 
 ### With a domain of your own
 
-In **Settings → Addresses for your apps**, set a base domain such as
+In **Domains → Addresses for your apps**, set a base domain such as
 `apps.example.com`, having first added a wildcard `A` record:
 
 ```
@@ -215,7 +215,7 @@ doing it by accident is not.
 
 ## The dashboard's own address
 
-Settings → Dashboard address puts the panel itself behind a domain with HTTPS. Until
+Domains → Dashboard address puts the panel itself behind a domain with HTTPS. Until
 then, signing in sends your password in the clear. The IP and port keep working as a
 way back in if the domain ever breaks.
 

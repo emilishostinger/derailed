@@ -21,7 +21,7 @@ password crosses the internet in the clear.
 
 1. At your domain provider, add an `A` record for something like
    `panel.example.com` pointing at your server's IP address.
-2. In Derailed: **Settings → Dashboard address**, type the name, save.
+2. In Derailed: **Domains → Dashboard address**, type the name, save.
 
 Derailed checks the record really points here before switching, then gets a
 certificate. From then on the dashboard is `https://panel.example.com`.

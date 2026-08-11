@@ -81,7 +81,7 @@ Java, Elixir and static sites. Derailed tells you what it detected before it bui
 
 ### Can I get HTTPS without buying a domain?
 
-Yes. **Settings → A secure address, free** walks you through claiming a free name from
+Yes. **Domains → A secure address, free** walks you through claiming a free name from
 [DuckDNS](https://www.duckdns.org), which takes about a minute, and every app then gets
 an address like `shop.my-server.duckdns.org` with a real certificate.
 
@@ -147,7 +147,7 @@ to keep. A backup is an ordinary `.tar.gz` you can download and open anywhere. S
 Yes, and you should. Out of the box the dashboard is served over plain HTTP on port 1337, which
 means your password crosses the internet unencrypted every time you sign in.
 
-In **Settings → Dashboard address**, point a subdomain (say `dashboard.example.com`) at your server
+In **Domains → Dashboard address**, point a subdomain (say `dashboard.example.com`) at your server
 with an A record and enter it. Derailed checks the record resolves to this machine before switching,
 then routes the panel through Caddy with a real certificate. `http://` is redirected to `https://`.
 

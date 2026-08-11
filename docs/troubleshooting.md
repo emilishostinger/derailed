@@ -161,7 +161,7 @@ That's deliberate. Every generated `*.sslip.io` address is served over plain HTT
 Let's Encrypt for a certificate per throwaway hostname burns through rate limits quickly and would
 eventually break certificate issuance for everyone on the box.
 
-You don't have to buy a domain to fix this. **Settings → A secure address, free** gets you a free
+You don't have to buy a domain to fix this. **Domains → A secure address, free** gets you a free
 DuckDNS name and a real certificate covering every app in about a minute. See
 [domains](domains.md#without-a-domain-but-with-a-padlock).
 

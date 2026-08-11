@@ -18,15 +18,8 @@ import { ApiError } from '../api/client.ts';
 import { endpoints } from '../api/endpoints.ts';
 import { CloudflareDns } from '../components/CloudflareDns.tsx';
 import { ContextMenu, useContextMenu } from '../components/ContextMenu.tsx';
-import {
-  CopyButton,
-  cx,
-  EmptyState,
-  ErrorNote,
-  Modal,
-  Select,
-  Spinner,
-} from '../components/ui.tsx';
+import { ServerDomains } from '../components/ServerDomains.tsx';
+import { CopyButton, cx, ErrorNote, Modal, Select, Spinner } from '../components/ui.tsx';
 import { useProjects } from '../stores/projects.ts';
 import { useSession } from '../stores/session.ts';
 import { PageHeader } from './Layout.tsx';
@@ -60,6 +53,7 @@ const AUTO_ADDRESS_NOTE =
  */
 export function Domains() {
   const serverIp = useSession((s) => s.system?.serverIp);
+  const isOwner = useSession((s) => s.user?.role === 'owner');
   const [domains, setDomains] = useState<DomainRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -111,26 +105,34 @@ export function Domains() {
         {/* Nothing added yet: the empty state is the page, so it is not boxed inside a
             padded column. Its backdrop reaches the header the same way it does on the
             dashboard and inside an empty project. */}
+        {/* No domains of your own yet. The first-day work here is the padlock
+            setup, so that leads; adding a domain is a card beside it rather
+            than a full-page shrug that hides everything under the fold. */}
         {!loading && own.length === 0 && (
-          <>
-            {error != null && (
-              <div className="mx-auto max-w-3xl px-5 pt-5">
-                <ErrorNote error={error} />
-              </div>
-            )}
-            <EmptyState
-              icon={<Globe className="h-5 w-5" />}
-              title="No domains yet"
-              body="Add a domain you own and Derailed checks that it points at this server. Once it does, any of your apps can answer on it."
-              action={
+          <div className="mx-auto max-w-3xl space-y-8 p-5 pb-10">
+            <ErrorNote error={error} />
+
+            <section>
+              <h2 className="eyebrow mb-2.5">Your own domains</h2>
+              <div className="card flex flex-wrap items-center gap-4 p-5">
+                <Globe className="h-5 w-5 shrink-0 text-ink-faint" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-ink">None yet.</p>
+                  <p className="mt-0.5 text-[12px] text-ink-muted">
+                    Add one you own and Derailed checks that it points at this server. Once it does,
+                    any of your apps can answer on it.
+                  </p>
+                </div>
                 <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
                   Add a domain
                 </button>
-              }
-              // With no list to sit under, this belongs in the same centred column.
-              note={AUTO_ADDRESS_NOTE}
-            />
-          </>
+              </div>
+            </section>
+
+            {isOwner && <ServerDomains />}
+
+            <p className="text-[12px] text-ink-faint">{AUTO_ADDRESS_NOTE}</p>
+          </div>
         )}
 
         {!loading && own.length > 0 && (
@@ -153,6 +155,11 @@ export function Domains() {
 
             {/* Under a list this is a footnote, and reads left with the rows. */}
             <p className="text-[12px] text-ink-faint">{AUTO_ADDRESS_NOTE}</p>
+
+            {/* The server's own addresses, after your domains: the dashboard's
+                address, the free name, and the domain apps live under. Owners
+                only, like everything that changes the machine. */}
+            {isOwner && <ServerDomains />}
           </div>
         )}
       </div>

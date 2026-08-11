@@ -117,7 +117,7 @@ export function GettingStarted() {
                 free name from DuckDNS.
               </p>
               <div className="mt-2 flex items-center gap-2">
-                <Link to="/settings" className="btn-secondary">
+                <Link to="/domains" className="btn-secondary">
                   <ShieldCheck className="h-3.5 w-3.5" />I have a domain
                 </Link>
                 <button type="button" className="btn-ghost" onClick={() => setExpanded(true)}>
