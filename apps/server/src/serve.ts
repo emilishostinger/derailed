@@ -17,6 +17,7 @@ import { createApp } from './http/app.ts';
 import { pruneAudit } from './http/audit.ts';
 import { isSameOrigin, ownerFromToken, userFromRequest } from './http/auth.ts';
 import { socketHandlers } from './http/sockets.ts';
+import { VITE_ORIGIN } from './http/static.ts';
 import { startJobs, stopJobs } from './jobs/run.ts';
 import { startUpdateNotifier, stopUpdateNotifier } from './mail/notify.ts';
 import { ensureCaddyRunning, pingCaddy } from './proxy/caddy.ts';
@@ -206,7 +207,14 @@ export async function serve(): Promise<void> {
   void bootRuntime();
 
   console.log(`\n  Derailed ${VERSION}`);
-  console.log(`  Dashboard  →  http://${ip ?? 'localhost'}:${server.port}`);
+  if (isDev) {
+    // This process is only the API in dev; Vite serves the dashboard. Printing this
+    // port as the dashboard would send a developer to a page that does not exist here.
+    console.log(`  Dashboard  →  ${VITE_ORIGIN}`);
+    console.log(`  API        →  http://localhost:${server.port}`);
+  } else {
+    console.log(`  Dashboard  →  http://${ip ?? 'localhost'}:${server.port}`);
+  }
   console.log(`  Data       →  ${paths.dataDir}`);
   const info = await systemInfo();
   if (!info.dockerOk) {

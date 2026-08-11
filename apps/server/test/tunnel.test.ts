@@ -192,13 +192,16 @@ describe('a dev tunnel', () => {
     // No proxy secret: a client forging the header gets the dashboard, not a laptop.
     const response = await fetch(`http://${base()}/`, {
       headers: { 'x-derailed-dev': 'someone-elses-tunnel' },
+      // The dashboard fallback in dev is a redirect to wherever Vite listens, and
+      // following it would make this test pass or fail on whether a dev server
+      // happens to be running. Stay on the first response: the security property is
+      // about what this server did, not about what Vite would have answered.
+      redirect: 'manual',
     });
     // The whole security property is here: the dev-forward path echoes the request
     // path back in `x-echo-path`, and this request never reached it, so the forged
-    // header was ignored. What the dashboard fallback then answers with depends on
-    // whether the Vite dev server happens to be up (it proxies to it in dev, and
-    // returns a 502 "start bun dev" page when it is not), which is not what this test
-    // is about, so the status is deliberately not asserted.
+    // header was ignored. The status is deliberately not asserted for the same reason
+    // the redirect is not followed.
     expect(response.headers.get('x-echo-path')).toBeNull();
   });
 

@@ -39,7 +39,15 @@ export const paths = {
   bin: process.env.DERAILED_BIN ?? join(dataDir, 'bin'),
 };
 
-export const port = Number(process.env.DERAILED_PORT ?? 1337);
+/**
+ * 1337 is the dashboard's port, and in production this server is the dashboard: it
+ * serves the embedded SPA and the API together on one origin.
+ *
+ * In dev the SPA comes from Vite instead, so Vite is what listens on 1337 and this
+ * server steps aside to 31337. That keeps the URL a developer opens the same as the
+ * one a user opens, and leaves `/api` a same-origin path in both.
+ */
+export const port = Number(process.env.DERAILED_PORT ?? (isDev ? 31337 : 1337));
 export const host = process.env.DERAILED_HOST ?? '0.0.0.0';
 
 export const dockerSocket = process.env.DOCKER_SOCKET ?? '/var/run/docker.sock';

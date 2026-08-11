@@ -8,11 +8,18 @@ Requires [Bun](https://bun.sh) and, for anything that touches containers, Docker
 
 ```sh
 bun install
-bun run dev        # dashboard on :5173, API on :1337
+bun run dev        # dashboard on :1337, API on :31337
 ```
 
 Development mode keeps state in `./.dev-data` and puts Caddy on ports 8080 and 8443, so
 nothing needs root and nothing collides with a real installation.
+
+1337 is the dashboard's port in a real installation, so it is the dashboard's port here
+too: Vite serves the app on it and proxies `/api` to the server, which steps aside to
+31337. The URL you open is the URL a user opens, and `/api` is same-origin in both.
+Override either with `DERAILED_WEB_PORT` and `DERAILED_PORT`. Opening the API port in a
+browser redirects you to the dashboard rather than trying to serve it, because Vite's
+hot-reload socket does not survive being proxied.
 
 ```sh
 bun test           # unit and integration

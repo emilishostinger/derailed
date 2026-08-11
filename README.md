@@ -267,7 +267,7 @@ Requires [Bun](https://bun.sh).
 
 ```sh
 bun install
-bun run dev        # dashboard on :5173, API on :1337
+bun run dev        # dashboard on :1337, API on :31337
 bun test           # unit and integration; Docker tests skip themselves without a socket
 bun run build      # one binary for this machine
 bun run build --target=linux-x64     # or cross-compile for a server

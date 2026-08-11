@@ -168,7 +168,7 @@ Speaks JSON-RPC 2.0 over stdin and stdout for coding agents. Needs `DERAILED_URL
 | `DERAILED_CADDY_NAME` | `derailed-caddy` | Its container name |
 | `DERAILED_CADDY_NETWORK` | `derailed` | The shared network |
 | `DERAILED_CADDY_ADMIN` | `2019` | Caddy's admin port, bound to loopback |
-| `DERAILED_DEV` | | Development mode: high ports, no root needed |
+| `DERAILED_DEV` | | Development mode: high ports, no root needed, and the API moves to `31337` so Vite can serve the dashboard on `1337` |
 | `DERAILED_BIN` | `$DERAILED_DATA/bin` | Where the Nixpacks builder is cached |
 | `DERAILED_REPO` | | Which GitHub repository `update` fetches from |
 

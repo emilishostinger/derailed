@@ -1,7 +1,8 @@
 import { isDev } from '../config.ts';
 import { assets } from '../generated/assets.ts';
 
-const VITE_ORIGIN = process.env.DERAILED_VITE_ORIGIN ?? 'http://localhost:5173';
+/** Where the dashboard actually lives in dev. See the port note in `config.ts`. */
+export const VITE_ORIGIN = process.env.DERAILED_VITE_ORIGIN ?? 'http://localhost:1337';
 
 export const hasEmbeddedApp = Object.keys(assets).length > 0;
 
@@ -9,8 +10,12 @@ export const hasEmbeddedApp = Object.keys(assets).length > 0;
  * Serves the React app.
  *
  * Production: files are embedded in the binary (`with { type: 'file' }`), so this is
- * just a map lookup. Development: proxy through to the Vite dev server so HMR works
- * when someone opens :1337 directly.
+ * just a map lookup.
+ *
+ * Development: hand off to Vite, which is the one listening on the dashboard's port.
+ * This path only runs when somebody opens the API port directly, and it is a courtesy
+ * redirect rather than a working dev server: HMR's websocket does not survive the
+ * hop, so it bounces the browser to Vite instead of proxying the page.
  */
 export async function serveApp(request: Request): Promise<Response> {
   const url = new URL(request.url);
@@ -31,7 +36,7 @@ export async function serveApp(request: Request): Promise<Response> {
     return new Response('Not found', { status: 404 });
   }
 
-  if (isDev) return proxyToVite(request, url);
+  if (isDev) return redirectToVite(url);
 
   return new Response(
     'The dashboard files are missing from this build. Reinstall Derailed from https://derailed.sh/install',
@@ -51,19 +56,16 @@ function fileResponse(embeddedPath: string, pathname: string): Response {
   return new Response(file, { headers });
 }
 
-async function proxyToVite(request: Request, url: URL): Promise<Response> {
+/**
+ * Sends a browser that landed on the API port over to Vite.
+ *
+ * Forwarding the request instead was the old behaviour and looked tidier, but it
+ * cannot work: Vite's client opens its HMR websocket against whichever origin served
+ * the page, and that upgrade does not survive being relayed, so the page sat blank
+ * while the client retried forever. A redirect puts the browser on the origin Vite
+ * expects, which is the only place HMR can work.
+ */
+function redirectToVite(url: URL): Response {
   const target = new URL(url.pathname + url.search, VITE_ORIGIN);
-  try {
-    return await fetch(target, {
-      method: request.method,
-      headers: request.headers,
-      body: request.body,
-      redirect: 'manual',
-    });
-  } catch {
-    return new Response(
-      `Derailed is running, but the dashboard dev server isn't.\n\nStart it with: bun dev\nOr open ${VITE_ORIGIN} directly.\n`,
-      { status: 502, headers: { 'content-type': 'text/plain' } },
-    );
-  }
+  return new Response(null, { status: 302, headers: { location: target.href } });
 }

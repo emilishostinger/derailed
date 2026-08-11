@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 /**
  * Runs the server (watched) and Vite side by side.
- * Open http://localhost:5173, Vite proxies /api and the WebSocket to :1337.
+ * Open http://localhost:1337, the same port a user opens in production. Vite serves
+ * the dashboard there and proxies /api and the WebSocket back to the server on :31337.
  */
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
@@ -32,5 +33,5 @@ for (const child of children) {
 process.on('SIGINT', () => stopAll(0));
 process.on('SIGTERM', () => stopAll(0));
 
-console.log('\n  Dashboard (dev)  →  http://localhost:5173');
-console.log('  API              →  http://localhost:1337\n');
+console.log('\n  Dashboard (dev)  →  http://localhost:1337');
+console.log('  API              →  http://localhost:31337\n');
